@@ -22,15 +22,6 @@
 		<version>1.0.0</version>
 	</parent>
 
-	<dependencies>
-		<dependency>
-			<groupId>github.com.taconaut</groupId>
-			<artifactId>pms-core</artifactId>
-			<version>1.80.0-mlx_0.9-SNAPSHOT</version>
-		</dependency>
-	</dependencies>
-
-
 	<build>
 		<plugins>
 			<!--
@@ -42,7 +33,6 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.7</version>
 				<executions>
 					<execution>
 						<id>copy-to-core</id>
