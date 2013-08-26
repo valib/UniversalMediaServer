@@ -49,7 +49,7 @@ public class FileImportTemplatePanel extends JPanel {
 	
 	private List<ActionListener> repaintListeners = new ArrayList<ActionListener>();
 	
-	private JComboBox cbTemplate;
+	private JComboBox<DOFileImportTemplate> cbTemplate;
 	private JButton bNewTemplate;
 	private JButton bDeleteTemplate;
 	private JTabbedPane tpProperties;
@@ -167,12 +167,12 @@ public class FileImportTemplatePanel extends JPanel {
 		return displayedTemplate;
 	}
 	
-	private JComboBox getTemplatesComboBox() {		
+	private JComboBox<DOFileImportTemplate> getTemplatesComboBox() {		
 		//load the available templates from db
 		List<DOFileImportTemplate> importTemplates = MediaLibraryStorage.getInstance().getFileImportTemplates();
 		
 		//create combo box
-		JComboBox cbNew = new JComboBox();
+		JComboBox<DOFileImportTemplate> cbNew = new JComboBox<DOFileImportTemplate>();
 		
 		//sort the entries by their displayed name
 		Collections.sort(importTemplates, new Comparator<DOFileImportTemplate>() {
@@ -192,7 +192,8 @@ public class FileImportTemplatePanel extends JPanel {
 			
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				JComboBox cb = (JComboBox)e.getSource();
+				@SuppressWarnings("unchecked")
+				JComboBox<DOFileImportTemplate> cb = (JComboBox<DOFileImportTemplate>)e.getSource();
 				if(cb.getSelectedItem() instanceof DOFileImportTemplate) {
 					DOFileImportTemplate selectedTemplate = (DOFileImportTemplate) cb.getSelectedItem();
 					int selectedTab = tpProperties.getSelectedIndex();
