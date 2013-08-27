@@ -192,7 +192,6 @@ public class FileImportPropertiesPanel extends JPanel {
 		return builder.getPanel();
 	}
 	
-	@SuppressWarnings("unchecked")
 	private Map<String, MultiselectJlist> getTagsPerEngine(DOFileImportTemplate fileImportTemplate) {
 		Map<String, MultiselectJlist> res = new HashMap<String, MultiselectJlist>();
 		
@@ -209,7 +208,7 @@ public class FileImportPropertiesPanel extends JPanel {
 			
 			List<String> enabledTags = enabledTagsForEngines.get(engineName);
 			if(enabledTags != null && enabledTags.size() > 0) {
-				ListModel<?> model = newList.getModel();
+				ListModel model = newList.getModel();
 				List<Integer> tagIndexesToSelect = new ArrayList<Integer>();
 				for(int i = 0; i < model.getSize(); i++) {
 					Object element = model.getElementAt(i);
@@ -231,7 +230,6 @@ public class FileImportPropertiesPanel extends JPanel {
 		return res;
 	}
 
-	@SuppressWarnings("unchecked")
 	private MultiselectJlist buildActivePluginsPanel(DOFileImportTemplate template) {		
 		//initialize the active plugins list view
 		final MultiselectJlist newList = new MultiselectJlist(FileImportHelper.getAvailableEngineNames(fileType));
@@ -242,7 +240,7 @@ public class FileImportPropertiesPanel extends JPanel {
 		if(activeEngines != null) {
 			//collect the indexes to select in a List<Integer>
 			List<Integer> engineIndexesToSelect = new ArrayList<Integer>();
-			ListModel<?> model = newList.getModel();
+			ListModel model = newList.getModel();
 			for(String engineName : activeEngines) {
 				for(int i = 0; i < model.getSize(); i++){
 					String currentEngine = model.getElementAt(i).toString();
@@ -271,7 +269,7 @@ public class FileImportPropertiesPanel extends JPanel {
 				}
 				
 				try {
-					ListModel<?> model = newList.getModel();
+					ListModel model = newList.getModel();
 					for(ActionListener l : activePluginsChangedListeners) {
 						for(int i = e.getFirstIndex(); i <= e.getLastIndex(); i++) {
 							l.actionPerformed(new ActionEvent(this, newList.isSelectedIndex(i) ? 0 : 1, model.getElementAt(i).toString()));
@@ -328,7 +326,7 @@ public class FileImportPropertiesPanel extends JPanel {
 
 	public Map<FileType, List<String>> getActiveEngines() {
 		Map<FileType, List<String>> res = new HashMap<FileType, List<String>>();
- 		for(Object o : lActivePlugins.getSelectedValuesList()) {
+ 		for(Object o : lActivePlugins.getSelectedValues()) {
  			if(res.containsKey(fileType)) {
  				res.get(fileType).add(o.toString());
  			} else{
@@ -343,11 +341,11 @@ public class FileImportPropertiesPanel extends JPanel {
 	public Map<String, List<String>> getActiveTags() {
 		Map<String, List<String>> res = new HashMap<String, List<String>>();
 		for(String engineName : lTagsPerEngine.keySet()) {
-			List<?> vals = lTagsPerEngine.get(engineName).getSelectedValuesList();
-			if(vals != null && vals.size() > 0) {
+			Object[] vals = lTagsPerEngine.get(engineName).getSelectedValues();
+			if(vals != null && vals.length > 0) {
 				List<String> tagNames = new ArrayList<String>();
-				for(int i = 0; i < vals.size(); i++) {
-					tagNames.add(vals.get(i).toString());
+				for(int i = 0; i < vals.length; i++) {
+					tagNames.add(vals[i].toString());
 				}
 				res.put(engineName, tagNames);
 			}
