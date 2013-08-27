@@ -1,22 +1,121 @@
 Changelog:
 ==========
 
-1.82.0 - 2013-??-??
+1.90.2 - 2013-??-??
 
-    General:
-        - Added support for M4A files encoded with Fraunhofer AAC
+    Misc:
+        - Fixed possible race condition causing broken playback 
+
+1.90.1 - 2013-08-17
 
     Engines:
-        MEncoder Video:
-            - Fixed bug that caused embedded subtitles to be displayed instead of external (thanks, SubJunk)
-        tsMuxeR:
-            - Fixed 24-bit FLAC support with tsMuxeR (thanks, SubJunk)
+        - FFmpeg Video, FFMpeg Web Video and FFmpeg Web Audio:
+            - Fix issue that prevented plugins extending FFmpegWebAudio and FFmpegWebVideo safely
+            - Updated FFmpeg for Windows
+        - MEncoder Video:
+            - Fix for spaces in font names breaking playback
+
+    Misc:
+        - Fixed regression with tsMuxeR and H.264 support
+        - Restored Java support for file names with special characters on Mac OS X
+
+1.90.0 - 2013-07-31
+
+    Engines:
+        - FFmpeg Video, FFmpeg Web Audio and FFmpeg Web Video:
+            - Add FFmpeg Web Audio engine
+            - General improvements of usability and stability
+            - Support for lossless video remuxing if supported by renderer
+            - Support for AC-3 and DTS audio tracks remuxing
+            - Support for external SRT and SSA/ASS subtitles
+            - Support for auto charset detection of non UTF-8 external subtitles
+        - tsMuxeR:
+            - Regression: restore the pre-1.82.0 compatibility logic
+        - VLC Web Video:
+            - Fix NPE
+            - Support for external subtitles (thanks, tdcosta100!)
 
     Renderers:
-        - PS3: TV series with sound problems after "previously on" block should now play normally with Keep AC-3 track option enabled (thanks, SubJunk)
+        - Xbox 360: improved quality
+        - Improved Sony Blu-ray Player support (thanks, skeptical)
+        - Send thumbnails properly to Samsung 2012 ES and EH models (thanks, dmitche3!)
+        - Added renderer profiles (thanks, UMS developers):
+            - KalemSoft Media Player
+            - Netgear NeoTV
+            - Onkyo TX-NR717
+            - Sharp Aquos TVs
+            - Showtime 4 PS3 homebrew player
+            - Sony Bravia EX620 series TVs
+            - Sony Bravia W6/W8/W9 (thanks, gui17aume)
+            - Sony Home Theatre Systems
+            - Telstra T-Box
+            - VideoWeb TV
+            - Vizio Smart TV
+            - Yamaha RX-V3900
+
+    Transcode folder:
+        - Add entries for audio files
+        - Add missing entries for video files
+        - Add entries for web video and web audio files
+        - Allow the chapter folder prefix to be localized
+        - Hide chapter folders if the duration of the video is less than the chapter length
+        - Don't hide engine names in the #--TRANSCODE--# folder if hide_enginenames is true
+
+    Language updates:
+        - Updated Dutch translation (thanks, leroy)
+        - Updated French translation (thanks, gui17aume)
+
+    Misc:
+        - A lot of backports from UMS (thanks, all UMS developers!)
+        - Windows: system-wide Java installation is not needed anymore, now we bundle private JRE with installer
+        - Fix duplicate entries in DVD/playlist/feed folders: GC566, GC636, GC1483, GH13
+        - More accurate checks for reference frame counts to allow more videos to be remuxed rather than transcoded
+        - Removed obsolete MPlayerAudio, MPlayerWebAudio and MPlayerWebVideoDump engines
+        - Filename display formats can now be set at the profile level as well as per-renderer
+        - More detailed logging to improve diagnostics and simplify issue reporting
+        - Fix generation of music subfolders in iTunes Library (thanks, gui17aume)
+        - Build Windows installer with bundled JRE for 32-bit systems (PMS-setup-full.exe)
+        - Build Windows installer with bundled JRE for 64-bit systems (PMS-setup-full-x64.exe)
+        - Build Windows installer without bundled JRE (PMS-setup-without-jre.exe)
+        - Removed silent JRE download and installation within PMS.exe wrapper if no private or public JREs are found. Prompt user to run PMS-setup-full.exe instead
+        - Show user GPL licence during Windows installation
+        - Windows installer now runs PS3 Media Server with normal user rights after installation is complete
+        - Windows installer localization.
+        - New Mac OS X installer with bundled JRE (pms-setup-macosx.tar.gz)
+        - Added configuration option for forcing renderer per IP address (#115)
+
+1.82.0 - 2013-06-03
+
+    Engines:
+        - dcraw Thumbnailer:
+            - Fix image transcoding
+            - Add support for more extensions
+        - FFmpeg:
+            - Fix bug that disabled FFmpeg for compatible files
+            - Fix audio channel selection (thanks, valib)
+        - MEncoder Video:
+            - Fixed bug that caused embedded subtitles to be displayed instead of external (thanks, SubJunk)
+            - Fixed handling of per-renderer aspect-ratio settings (thanks, ExSport)
+        - tsMuxeR:
+            - Fixed 24-bit FLAC support with tsMuxeR (thanks, SubJunk)
+            - Fix bug that disabled tsMuxeR for compatible files
+        - VLC:
+            - Fix looping playback
+            - Add multi-threading support (GC1624: thanks, ccampora)
+        - Misc:
+            - New engine: VLCWebVideo ("vlcwebvideo")
+            - Clean up engine names
+
+    Renderers:
+        - PS3: TV series with sound problems after "previously on" block should now play normally with the "Keep AC-3 track" option enabled (thanks, SubJunk)
+
+    Language updates:
+        - Updated Dutch translation (thanks, leroy)
 
     Misc:
         - Fix issue with VirtualBox and PMS launchers (thanks, thepadawan42)
+        - Added support for M4A files encoded with Fraunhofer AAC
+        - Upgrade Thumbnailator to 0.4.4 to fix out-of-memory errors (thanks, coobird)
 
 1.81.0 - 2013-04-21
 
@@ -31,7 +130,7 @@ Changelog:
 
     Misc:
         - Media Parser v1: fix audio channel parsing
-        - Fix for "Can't assign requested address" bug after update to Java 1.6.0_45 on Mac OSX
+        - Fix for "Can't assign requested address" bug after update to Java 1.6.0_45 on Mac OS X
 
 1.80.0 - 2013-04-06
 
@@ -77,7 +176,7 @@ Changelog:
             - Added thumbnail support for TIFF and other formats
             - Trapped exception when handling unsupported formats
         - Fixed response to M-SEARCH "ssdp:all" message (thanks, ler0y!)
-        - Fixed fontconfig configuration for Mac OSX, improving subtitle quality
+        - Fixed fontconfig configuration for Mac OS X, improving subtitle quality
         - Moved several transcoding settings from MEncoder to Common transcoding settings
         - Layout improvements to remove scroll bars where possible
         - Help is now context sensitive
@@ -187,7 +286,7 @@ Changelog:
     Fixed bug that occurred when resetting cache
     Made buffer display in megabytes instead of bytes
     Fixed overscan compensation bug on some renderers (thanks to tMH for reporting the bug!)
-    Updated MPlayer for OSX to SB32
+    Updated MPlayer for OS X to SB32
     Language updates:
         - CZE translation update (thanks, valib)
 
@@ -243,7 +342,7 @@ Changelog:
     Fix StartStopListener callbacks for HTTP Engine V1
     Surface playback start/stop events
     Make video quality presets localizable
-    Fixed OSX log message about font definitions
+    Fixed OS X log message about font definitions
     Fixed double wrapping of streams causing stuttering
     Added MPEG4 ASP with Qpel support for PS3
     Allow 15fps video
@@ -310,7 +409,7 @@ Changelog:
     Maximum bandwidth setting works
     Limit bandwidth to 110Mb/s by default which should solve a lot of "stuttering playback" reports
     Recognise forced subtitles (thanks, ExSport!)
-    Updated MPlayer and MEncoder on Windows and OSX from Sherpya's old builds to SubJunk's new builds which fixes many playback issues, colour-conversion bugs and more (but possibly has drawbacks for some files, too)
+    Updated MPlayer and MEncoder on Windows and OS X from Sherpya's old builds to SubJunk's new builds which fixes many playback issues, colour-conversion bugs and more (but possibly has drawbacks for some files, too)
     Main (Status) tab displays a large tick when it's connected to a renderer instead of a PS3 or warning image
     Updated MediaInfo to 0.7.51 from 0.7.47
     New natural sort option for file order: Alphanumeric (e.g. Season 2 before Season 10)
@@ -584,7 +683,7 @@ Changelog:
     New translations: Spanish (thanks to Jose from www.playstationhoy.com), Dutch (thanks to Vincent Meylof), German (thanks to Jeuki), Russian (thanks to Peter Klassen), Polish (thanks to Maciej Bocian), Greek (thanks to Alexander Polichroniadis), Portuguese (thanks to Hugo Sousa), Finnish (thanks to Ove Sentlig), Norwegian (thanks to Ball80 and Topguy), Swedish (thanks to Dusan Ilic) and Japanese (thanks to Yu)
     New extensions supported: SHN/M2V/M2P
     tsMuxeR engine can now mux or re-encode in AC-3/PCM all audio tracks in real time
-    Add the experimental mencoder build for multicore on OSX
+    Add the experimental mencoder build for multicore on OS X
     DVR-MS windows remuxer now included by default
 
     - Fixes
@@ -598,7 +697,7 @@ Changelog:
     Fixed bug with shared folders selection on Windows
     Fixed periodic alive messages sent to PS3
     Better dvr-ms media info retrieval
-    Updated ffmpeg/mplayer/mencoder/mt builds on Windows and OSX (slight H264 speedup for singlecore)
+    Updated ffmpeg/mplayer/mencoder/mt builds on Windows and OS X (slight H264 speedup for singlecore)
     Buffer issues with transcoded audio files lasting more than 10 minutes
     Fixed RSS parsing with some feeds
 
@@ -608,13 +707,13 @@ Changelog:
 
     Customize encoding parameters (along with default ones) for any given container/codec/property combination (purpose: A/V sync, playback issues, and tweaking for advanced users)
     Ability to select networking interface
-    OSX 10.4 Tiger support (Intel only)
+    OS X 10.4 Tiger support (Intel only)
     Settings reorganization
     M4V now streamed by default, you have to enter the #Transcoded# folder to force the transcode (like AVI files)
     WMA now transcoded by default
     Italian localization
     WINDOWS ONLY: Use (only with 720p/1080p H264 content) an experimental mencoder build for multicores : http://code.google.com/soc/2008/ffmpeg/appinfo.html?csaid=9FD2BF705A5D5DBB
-    New OSX icon (thanks to Jakob Karlsson)
+    New OS X icon (thanks to Jakob Karlsson)
     Added a "Skip/Force transcode extensions" option added if default settings don't suit you
     Possibility to only remux AC-3 audio tracks and not re-encoded them
 
@@ -629,21 +728,21 @@ Changelog:
     DVD images are listed in the media library
     Fixed RSS parsing for Youtube and maybe other feeds
     AviSynth / VideoLAN not always detected on Vista 64bits
-    Unavailable engines exclusion on OSX/Linux
+    Unavailable engines exclusion on OS X/Linux
     Fixed console mode on Linux
 
 1.02.1 - 2009-01-05
 
     - New features
 
-    OSX build now uses Java 1.5 instead of 1.6 so it should be able to run on more macs
+    OS X build now uses Java 1.5 instead of 1.6 so it should be able to run on more macs
 
     - Fixes
 
     Major Bug in server start due to a faulty MAC address retrieval
     PMS do not start after activating the archive browsing option
     Media library small fixes
-    Subtitles now work by default on OSX
+    Subtitles now work by default on OS X
 
 1.02 - 2009-01-04
 
@@ -673,7 +772,7 @@ Changelog:
 
     - New features
 
-    Mac OSX version !! (thanks to Robin Mulder)
+    Mac OS X version !! (thanks to Robin Mulder)
     Audio High Fidelity engine: 24bits/96kHz/5.1 FLAC support (HDMI receiver mandatory)
     French localization
     Audio/Subtitles priority settings (same as Haali Media Splitter)

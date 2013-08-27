@@ -18,8 +18,9 @@
  */
 package net.pms.dlna;
 
+import com.sun.jna.Platform;
 import net.pms.PMS;
-import net.pms.configuration.RendererConfiguration;
+import net.pms.configuration.PmsConfiguration;
 import net.pms.formats.Format;
 import net.pms.formats.FormatFactory;
 import net.pms.util.FileUtil;
@@ -32,7 +33,8 @@ import java.io.*;
 import java.util.ArrayList;
 
 public class RealFile extends MapFile {
-	private static final Logger LOGGER = LoggerFactory.getLogger(RealFile.class);
+	private static final Logger logger = LoggerFactory.getLogger(RealFile.class);
+	private static final PmsConfiguration configuration = PMS.getConfiguration();
 
 	public RealFile(File file) {
 		getConf().getFiles().add(file);
@@ -49,10 +51,9 @@ public class RealFile extends MapFile {
 	// FIXME: this is called repeatedly for invalid files e.g. files MediaInfo can't parse
 	public boolean isValid() {
 		File file = this.getFile();
-		checktype();
-
-		if (getType() == Format.VIDEO && file.exists() && PMS.getConfiguration().isAutoloadSubtitles() && file.getName().length() > 4) {
-			setSrtFile(FileUtil.doesSubtitlesExists(file, null));
+		resolveFormat();
+		if (getType() == Format.VIDEO && file.exists() && configuration.isAutoloadExternalSubtitles() && file.getName().length() > 4) {
+			setSrtFile(FileUtil.isSubtitlesExists(file, null));
 		}
 
 		boolean valid = file.exists() && (getFormat() != null || file.isDirectory());
@@ -70,11 +71,10 @@ public class RealFile extends MapFile {
 			//    known types    + bad parse = bad/encrypted file
 			if (getType() != Format.UNKNOWN && getMedia() != null && (getMedia().isEncrypted() || getMedia().getContainer() == null || getMedia().getContainer().equals(DLNAMediaLang.UND))) {
 				valid = false;
-
 				if (getMedia().isEncrypted()) {
-					LOGGER.info("The file {} is encrypted. It will be hidden", file.getAbsolutePath());
+					logger.info("The file {} is encrypted. It will be hidden", file.getAbsolutePath());
 				} else {
-					LOGGER.info("The file {} was badly parsed. It will be hidden", file.getAbsolutePath());
+					logger.info("The file {} could not be parsed. It will be hidden", file.getAbsolutePath());
 				}
 			}
 
@@ -92,7 +92,7 @@ public class RealFile extends MapFile {
 		try {
 			return new FileInputStream(getFile());
 		} catch (FileNotFoundException e) {
-			LOGGER.debug("File not found: {}", getFile().getAbsolutePath());
+			logger.debug("File not found: {}", getFile().getAbsolutePath());
 		}
 
 		return null;
@@ -105,10 +105,10 @@ public class RealFile extends MapFile {
 		} else if (getMedia() != null && getMedia().isMediaparsed()) {
 			return getMedia().getSize();
 		}
-
 		return getFile().length();
 	}
 
+	@Override
 	public boolean isFolder() {
 		return getFile().isDirectory();
 	}
@@ -122,12 +122,10 @@ public class RealFile extends MapFile {
 		if (this.getConf().getName() == null) {
 			String name = null;
 			File file = getFile();
-
-			if (file.getName().trim().equals("")) {
-				if (PMS.get().isWindows()) {
+			if (file.getName().trim().isEmpty()) {
+				if (Platform.isWindows()) {
 					name = PMS.get().getRegistry().getDiskLabel(file);
 				}
-
 				if (name != null && name.length() > 0) {
 					name = file.getAbsolutePath().substring(0, 1) + ":\\ [" + name + "]";
 				} else {
@@ -136,19 +134,18 @@ public class RealFile extends MapFile {
 			} else {
 				name = file.getName();
 			}
-
 			this.getConf().setName(name);
 		}
 		return this.getConf().getName();
 	}
 
 	@Override
-	protected void checktype() {
+	protected void resolveFormat() {
 		if (getFormat() == null) {
-			setFormat(FormatFactory.getAssociatedExtension(getFile().getAbsolutePath()));
+			setFormat(FormatFactory.getAssociatedFormat(getFile().getAbsolutePath()));
 		}
 
-		super.checktype();
+		super.resolveFormat();
 	}
 
 	@Override
@@ -169,7 +166,7 @@ public class RealFile extends MapFile {
 				fileName += "#SplitTrack" + getSplitTrack();
 			}
 			
-			if (PMS.getConfiguration().getUseCache()) {
+			if (configuration.getUseCache()) {
 				DLNAMediaDatabase database = PMS.get().getDatabase();
 
 				if (database != null) {
@@ -192,11 +189,12 @@ public class RealFile extends MapFile {
 
 				if (getFormat() != null) {
 					getFormat().parse(getMedia(), input, getType(), getParent().getDefaultRenderer());
-				} else { // don't think this will ever happen
+				} else {
+					// Don't think that will ever happen
 					getMedia().parse(input, getFormat(), getType(), false);
 				}
 
-				if (found && PMS.getConfiguration().getUseCache()) {
+				if (found && configuration.getUseCache()) {
 					DLNAMediaDatabase database = PMS.get().getDatabase();
 
 					if (database != null) {
@@ -205,8 +203,6 @@ public class RealFile extends MapFile {
 				}
 			}
 		}
-
-		super.resolve();
 	}
 
 	@Override
@@ -247,8 +243,9 @@ public class RealFile extends MapFile {
 					break;
 				}
 
-				if (StringUtils.isNotBlank(PMS.getConfiguration().getAlternateThumbFolder())) {
-					thumbFolder = new File(PMS.getConfiguration().getAlternateThumbFolder());
+				if (StringUtils.isNotBlank(configuration.getAlternateThumbFolder())) {
+					thumbFolder = new File(configuration.getAlternateThumbFolder());
+
 					if (!thumbFolder.isDirectory()) {
 						thumbFolder = null;
 						break;
@@ -260,6 +257,7 @@ public class RealFile extends MapFile {
 
 			if (file.isDirectory()) {
 				cachedThumbnail = FileUtil.getFileNameWithNewExtension(file.getParentFile(), file, "/folder.jpg");
+
 				if (cachedThumbnail == null) {
 					cachedThumbnail = FileUtil.getFileNameWithNewExtension(file.getParentFile(), file, "/folder.png");
 				}
@@ -286,14 +284,12 @@ public class RealFile extends MapFile {
 
 	@Override
 	protected String getThumbnailURL() {
-		if (getType() == Format.IMAGE && !PMS.getConfiguration().getImageThumbnailsEnabled()) {
+		if (getType() == Format.IMAGE && !configuration.getImageThumbnailsEnabled()) {
 			return null;
 		}
-
 		StringBuilder sb = new StringBuilder();
 		sb.append(PMS.get().getServer().getURL());
 		sb.append("/");
-
 		if (getMedia() != null && getMedia().getThumb() != null) {
 			return super.getThumbnailURL();
 		} else if (getType() == Format.AUDIO) {
@@ -302,7 +298,6 @@ public class RealFile extends MapFile {
 			}
 			return null;
 		}
-
 		return super.getThumbnailURL();
 	}
 }

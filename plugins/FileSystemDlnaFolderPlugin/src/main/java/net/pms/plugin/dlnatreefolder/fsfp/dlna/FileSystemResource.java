@@ -40,6 +40,7 @@ import net.pms.dlna.PlaylistFolder;
 import net.pms.dlna.RarredFile;
 import net.pms.dlna.RealFile;
 import net.pms.dlna.ZippedFile;
+import net.pms.dlna.virtual.TranscodeVirtualFolder;
 import net.pms.dlna.virtual.VirtualFolder;
 import net.pms.formats.FormatFactory;
 
@@ -50,7 +51,7 @@ import net.pms.formats.FormatFactory;
  * If nbFolders > 1 all folders will be merged into one
  */
 public class FileSystemResource extends VirtualFolder {
-	private static final Logger log = LoggerFactory.getLogger(FileSystemResource.class);
+	private static final Logger logger = LoggerFactory.getLogger(FileSystemResource.class);
 	private List<File> discoverable;
 	private List<String> folderPaths = new ArrayList<String>();
 	private boolean isRefreshing = false;
@@ -150,15 +151,15 @@ public class FileSystemResource extends VirtualFolder {
 		List<File> rootFolders = Arrays.asList(File.listRoots());
 
 		//Get the list of files and folders contained in the configured folders
-		Map<String, String> mergeFolderPaths = new HashMap<String, String>(); // value=path, key=Name
-		Map<String, String> mergeFilePaths = new HashMap<String, String>(); // value=path, key=Name
+		Map<File, String> mergeFolders = new HashMap<File, String>(); // value=file, key=Name
+		Map<File, String> mergeFiles = new HashMap<File, String>(); // value=file, key=Name
 		
 		if(folderPaths.size() == 0){
 			//add all disks if no folder has been configured
 			for(File f : rootFolders){
-				mergeFolderPaths.put(f.getAbsolutePath(), f.getAbsolutePath());
+				mergeFolders.put(f, f.getAbsolutePath());
 			}
-			log.info(String.format("Added all disks (%s) because no folders were configured for file system folder %s", mergeFolderPaths.size(), getName()));
+			logger.info(String.format("Added all disks (%s) because no folders were configured for file system folder %s", mergeFolders.size(), getName()));
 		} else {
 			//add the configured folder(s)
 			for (String folderPath : folderPaths) {
@@ -167,9 +168,9 @@ public class FileSystemResource extends VirtualFolder {
 					for (String s : dir.list()) {
 						File child = new File(dir.getAbsolutePath() + File.separatorChar + s);
 						if (child.isDirectory()) {
-							mergeFolderPaths.put(child.getAbsolutePath(), child.getName());
+							mergeFolders.put(child, child.getName());
 						} else if (child.isFile()) {
-							mergeFilePaths.put(child.getAbsolutePath(), child.getName()); 
+							mergeFiles.put(child, child.getName()); 
 						}
 					}
 				}
@@ -177,38 +178,53 @@ public class FileSystemResource extends VirtualFolder {
 		}
 		
 		//merge the sorted lists
-		List<String> allPaths = new ArrayList<String>(getSortedPaths(mergeFolderPaths));
-		allPaths.addAll(getSortedPaths(mergeFilePaths));
+		List<File> allFiles = new ArrayList<File>(getSortedPaths(mergeFolders));
+		allFiles.addAll(getSortedPaths(mergeFiles));
 		
 		//Use the same algo as in RealFile
 		ArrayList<DLNAResource> removedFiles = new ArrayList<DLNAResource>();
 		ArrayList<File> addedFiles = new ArrayList<File>();
 
-		int i = 0;
-		for(String s : allPaths) {
-			File f = new File(s);
-			if (!f.isHidden() || rootFolders.contains(f)) {
-				boolean present = false;
-				for(DLNAResource d : getChildren()) {
-					if (i == 0 && (!(d instanceof VirtualFolder) || (d instanceof DVDISOFile))) // specific for video_ts, we need to refresh it
-						removedFiles.add(d);
-					boolean video_ts_hack = (d instanceof DVDISOFile) && d.getName().startsWith(DVDISOFile.PREFIX) && d.getName().substring(DVDISOFile.PREFIX.length()).equals(f.getName());
-					if ((d.getName().equals(f.getName()) || video_ts_hack) && ((d instanceof RealFile && d.isFolder()) || d.getLastmodified() == f.lastModified())) {
-						removedFiles.remove(d);
-						present = true;
+		for (DLNAResource d : getChildren()) {
+			boolean isNeedMatching = !(d.getClass() == FileSystemResource.class || (d instanceof VirtualFolder && !(d instanceof DVDISOFile)));
+			if (isNeedMatching && !foundInList(allFiles, d)) {
+				removedFiles.add(d);
+			}
+		}
+
+		for (File f : allFiles) {
+			if (!f.isHidden() && (f.isDirectory() || FormatFactory.getAssociatedFormat(f.getName()) != null)) {
+				addedFiles.add(f);
+			}
+		}
+
+		for (DLNAResource f : removedFiles) {
+			logger.debug("File automatically removed: " + f.getName());
+		}
+
+		for (File f : addedFiles) {
+			logger.debug("File automatically added: " + f.getName());
+		}
+
+		// false: don't create the folder if it doesn't exist i.e. find the folder
+		TranscodeVirtualFolder transcodeFolder = getTranscodeFolder(false);
+
+		for (DLNAResource f : removedFiles) {
+			getChildren().remove(f);
+
+			if (transcodeFolder != null) {
+				for (int j = transcodeFolder.getChildren().size() - 1; j >= 0; j--) {
+					if (transcodeFolder.getChildren().get(j).getName().equals(f.getName())) {
+						transcodeFolder.getChildren().remove(j);
 					}
 				}
-				if (!present && (f.isDirectory() || rootFolders.contains(f) || FormatFactory.getAssociatedExtension(f.getName()) != null))
-					addedFiles.add(f);
 			}
-			i++;
 		}
-		
-		
-		for(DLNAResource f:removedFiles) {
-			getChildren().remove(f);
+
+		for (File f : addedFiles) {
+			manageFile(f);
 		}
-		for(File f:addedFiles) {
+		for(File f : addedFiles) {
 			if(isFirstUse){
 				discoverable.add(f);
 			} else {
@@ -245,12 +261,12 @@ public class FileSystemResource extends VirtualFolder {
 	 * @param mergePaths the merge paths
 	 * @return the sorted paths
 	 */
-	private Collection<String> getSortedPaths(Map<String, String> mergePaths) {
-		List<String> res = new ArrayList<String>();
+	private Collection<File> getSortedPaths(Map<File, String> mergePaths) {
+		List<File> res = new ArrayList<File>();
 		
 		//Sort the lists by folder or file name
-		Entry<String, String>[] sortedFolders = getSortedHashtableEntries(mergePaths);
-		for(Entry<String, String> entry : sortedFolders){
+		Entry<File, String>[] sortedFolders = getSortedHashtableEntries(mergePaths);
+		for(Entry<File, String> entry : sortedFolders){
 			res.add(entry.getKey());
 		}
 		
@@ -280,7 +296,7 @@ public class FileSystemResource extends VirtualFolder {
 				
 				/* Optionally ignore empty directories */
 				if (f.isDirectory() && PMS.getConfiguration().isHideEmptyFolders() && !isFolderRelevant(f)) {					
-					if(log.isInfoEnabled()) log.info("Ignoring empty/non relevant directory: " + f.getName());
+					if(logger.isInfoEnabled()) logger.info("Ignoring empty/non relevant directory: " + f.getName());
 				}
 				
 				/* Otherwise add the file */
@@ -299,30 +315,34 @@ public class FileSystemResource extends VirtualFolder {
 	 * @return true, if f is a folder containing playable files
 	 */
 	private boolean isFolderRelevant(File f) {
+		boolean isRelevant = false;
 
-		boolean excludeNonRelevantFolder = true;
 		if (f.isDirectory() && PMS.getConfiguration().isHideEmptyFolders()) {
-			File children[] = f.listFiles();
+			File[] children = f.listFiles();
+
+			// listFiles() returns null if "this abstract pathname does not denote a directory, or if an I/O error occurs".
+			// in this case (since we've already confirmed that it's a directory), this seems to mean the directory is non-readable
+			// http://www.ps3mediaserver.org/forum/viewtopic.php?f=6&t=15135
+			// http://stackoverflow.com/questions/3228147/retrieving-the-underlying-error-when-file-listfiles-return-null
 			if (children == null) {
-				log.warn("access denied reading " + f.getAbsolutePath());
-				return false;
-			}
-			for (File child : children) {
-				if (child.isFile()) {
-					if (FormatFactory.getAssociatedExtension(child.getName()) != null || isFileRelevant(child)) {
-						excludeNonRelevantFolder = false;
-						break;
-					}
-				} else {
-					if (isFolderRelevant(child)) {
-						excludeNonRelevantFolder = false;
-						break;
+				logger.warn("Can't list files in non-readable directory: {}", f.getAbsolutePath());
+			} else {
+				for (File child : children) {
+					if (child.isFile()) {
+						if (FormatFactory.getAssociatedFormat(child.getName()) != null || isFileRelevant(child)) {
+							isRelevant = true;
+							break;
+						}
+					} else {
+						if (isFolderRelevant(child)) {
+							isRelevant = true;
+							break;
+						}
 					}
 				}
 			}
 		}
-
-		return !excludeNonRelevantFolder;
+		return isRelevant;
 	}
 	
 	/**
@@ -346,7 +366,7 @@ public class FileSystemResource extends VirtualFolder {
 	 * @return the sorted hashtable entries
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private static Entry<String, String>[] getSortedHashtableEntries(Map<String, String> h) {
+	private static Entry<File, String>[] getSortedHashtableEntries(Map<File, String> h) {
 		Set<?> set = h.entrySet();
 		Map.Entry[] entries = (Map.Entry[]) set.toArray(new Map.Entry[set.size()]);
 		Arrays.sort(entries, new Comparator<Object>() {
@@ -359,4 +379,34 @@ public class FileSystemResource extends VirtualFolder {
 		return entries;
 	}
 
+	private boolean foundInList(List<File> files, DLNAResource dlna) {
+		for (File file: files) {
+			if (!file.isHidden() && isNameMatch(dlna, file) && (isRealFolder(dlna) || isSameLastModified(dlna, file))) {
+				files.remove(file);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean isSameLastModified(DLNAResource dlna, File file) {
+		return dlna.getLastModified() == file.lastModified();
+	}
+
+	private boolean isRealFolder(DLNAResource dlna) {
+		return dlna instanceof RealFile && dlna.isFolder();
+	}
+
+	private boolean isNameMatch(DLNAResource dlna, File file) {
+		return (dlna.getName().equals(file.getName()) || isDVDIsoMatch(dlna, file));
+	}
+
+	private boolean isDVDIsoMatch(DLNAResource dlna, File file) {
+		if (dlna instanceof DVDISOFile) {
+			DVDISOFile dvdISOFile = (DVDISOFile) dlna;
+			return dvdISOFile.getFilename().equals(file.getName());
+		} else {
+			return false;
+		}
+	}
 }

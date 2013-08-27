@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import net.pms.Messages;
 import net.pms.PMS;
+import net.pms.configuration.PmsConfiguration;
 import net.pms.dlna.DLNAResource;
 import net.pms.dlna.virtual.VirtualFolder;
 import net.pms.dlna.virtual.VirtualVideoAction;
@@ -21,7 +22,7 @@ import net.pms.plugins.DlnaTreeFolderPlugin;
 import net.pms.util.PmsProperties;
 
 public class VideoSettingsFolderPlugin implements DlnaTreeFolderPlugin {
-	private static final Logger log = LoggerFactory.getLogger(VideoSettingsFolderPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(VideoSettingsFolderPlugin.class);
 	public static final ResourceBundle messages = ResourceBundle.getBundle("net.pms.plugin.dnlatreefolder.vsfp.lang.messages");
 	private String rootFolderName = "root";
 
@@ -31,7 +32,7 @@ public class VideoSettingsFolderPlugin implements DlnaTreeFolderPlugin {
 		try {
 			properties.loadFromResourceFile("/videosettingsfolderplugin.properties", VideoSettingsFolderPlugin.class);
 		} catch (IOException e) {
-			log.error("Could not load videosettingsfolderplugin.properties", e);
+			logger.error("Could not load videosettingsfolderplugin.properties", e);
 		}
 	}
 
@@ -42,96 +43,98 @@ public class VideoSettingsFolderPlugin implements DlnaTreeFolderPlugin {
 
 	@Override
 	public DLNAResource getDLNAResource() {
+		final PmsConfiguration configuration = PMS.getConfiguration();
+		
 		VirtualFolder vf = new VirtualFolder(rootFolderName, null);
 		VirtualFolder vfSub = new VirtualFolder(Messages.getString("PMS.8"), null);
 		vf.addChild(vfSub);
-		
-		vf.addChild(new VirtualVideoAction(Messages.getString("PMS.3"), PMS.getConfiguration().isMencoderNoOutOfSync()) {
+
+		vf.addChild(new VirtualVideoAction(Messages.getString("PMS.3"), configuration.isMencoderNoOutOfSync()) {
+			@Override
 			public boolean enable() {
-				PMS.getConfiguration().setMencoderNoOutOfSync(!PMS.getConfiguration().isMencoderNoOutOfSync());
-				return PMS.getConfiguration().isMencoderNoOutOfSync();
-			}
-		});
-		
-		vf.addChild(new VirtualVideoAction(Messages.getString("PMS.14"), PMS.getConfiguration().isMencoderMuxWhenCompatible()) { 
-			public boolean enable() {
-				PMS.getConfiguration().setMencoderMuxWhenCompatible(!PMS.getConfiguration().isMencoderMuxWhenCompatible());
-				
-				return  PMS.getConfiguration().isMencoderMuxWhenCompatible();
-			}
-		});
-		
-		vf.addChild(new VirtualVideoAction("  !!-- Fix 23.976/25fps A/V Mismatch --!!", PMS.getConfiguration().isFix25FPSAvMismatch()) {
-			public boolean enable() {
-				PMS.getConfiguration().setMencoderForceFps(!PMS.getConfiguration().isFix25FPSAvMismatch());
-				PMS.getConfiguration().setFix25FPSAvMismatch(!PMS.getConfiguration().isFix25FPSAvMismatch());
-				return PMS.getConfiguration().isFix25FPSAvMismatch();
-			}              
-		});
-		
-		
-		vf.addChild(new VirtualVideoAction(Messages.getString("PMS.4"), PMS.getConfiguration().isMencoderYadif()) {
-			public boolean enable() {
-				PMS.getConfiguration().setMencoderYadif(!PMS.getConfiguration().isMencoderYadif());
-				
-				return  PMS.getConfiguration().isMencoderYadif();
-			}
-		});
-		
-		vfSub.addChild(new VirtualVideoAction(Messages.getString("PMS.10"), PMS.getConfiguration().isMencoderDisableSubs()) {
-			public boolean enable() {
-				boolean oldValue = PMS.getConfiguration().isMencoderDisableSubs();
-				boolean newValue = ! oldValue;
-				PMS.getConfiguration().setMencoderDisableSubs( newValue );
-				return newValue;
-			}
-		});
-		
-		vfSub.addChild(new VirtualVideoAction(Messages.getString("PMS.6"), PMS.getConfiguration().getUseSubtitles()) {
-			public boolean enable() {
-				boolean oldValue = PMS.getConfiguration().getUseSubtitles();
-				boolean newValue = ! oldValue;
-				PMS.getConfiguration().setUseSubtitles( newValue );
-				return newValue;
-			}
-		});
-		
-		vfSub.addChild(new VirtualVideoAction(Messages.getString("MEncoderVideo.36"), PMS.getConfiguration().isMencoderAssDefaultStyle()) {
-			public boolean enable() {
-				boolean oldValue = PMS.getConfiguration().isMencoderAssDefaultStyle();
-				boolean newValue = ! oldValue;
-				PMS.getConfiguration().setMencoderAssDefaultStyle( newValue );
-				return newValue;
-			}
-		});
-		
-		vf.addChild(new VirtualVideoAction(Messages.getString("PMS.7"), PMS.getConfiguration().getSkipLoopFilterEnabled()) {
-			public boolean enable() {
-				PMS.getConfiguration().setSkipLoopFilterEnabled( !PMS.getConfiguration().getSkipLoopFilterEnabled() );
-				return PMS.getConfiguration().getSkipLoopFilterEnabled();
+				configuration.setMencoderNoOutOfSync(!configuration.isMencoderNoOutOfSync());
+				return configuration.isMencoderNoOutOfSync();
 			}
 		});
 
-		vf.addChild(new VirtualVideoAction(Messages.getString("TrTab2.28"), PMS.getConfiguration().isDTSEmbedInPCM()) {
+		vf.addChild(new VirtualVideoAction("  !!-- Fix 23.976/25fps A/V Mismatch --!!", configuration.isFix25FPSAvMismatch()) {
 			@Override
 			public boolean enable() {
-				PMS.getConfiguration().setDTSEmbedInPCM(!PMS.getConfiguration().isDTSEmbedInPCM());
-				return PMS.getConfiguration().isDTSEmbedInPCM();
+				configuration.setMencoderForceFps(!configuration.isFix25FPSAvMismatch());
+				configuration.setFix25FPSAvMismatch(!configuration.isFix25FPSAvMismatch());
+				return configuration.isFix25FPSAvMismatch();
 			}
 		});
-		
-		vf.addChild(new VirtualVideoAction(Messages.getString("PMS.27"), true) {
+
+		vf.addChild(new VirtualVideoAction(Messages.getString("PMS.4"), configuration.isMencoderYadif()) {
+			@Override
 			public boolean enable() {
-	                try {
-	                    PMS.getConfiguration().save();
-                    } catch (ConfigurationException e) {
-	                    log.error("Failed to save configuration", e);
-                    }
+				configuration.setMencoderYadif(!configuration.isMencoderYadif());
+
+				return configuration.isMencoderYadif();
+			}
+		});
+
+		vfSub.addChild(new VirtualVideoAction(Messages.getString("TrTab2.51"), configuration.isDisableSubtitles()) {
+			@Override
+			public boolean enable() {
+				boolean oldValue = configuration.isDisableSubtitles();
+				boolean newValue = !oldValue;
+				configuration.setDisableSubtitles(newValue);
+				return newValue;
+			}
+		});
+
+		vfSub.addChild(new VirtualVideoAction(Messages.getString("PMS.6"), configuration.isAutoloadExternalSubtitles()) {
+			@Override
+			public boolean enable() {
+				boolean oldValue = configuration.isAutoloadExternalSubtitles();
+				boolean newValue = !oldValue;
+				configuration.setAutoloadExternalSubtitles(newValue);
+				return newValue;
+			}
+		});
+
+		vfSub.addChild(new VirtualVideoAction(Messages.getString("MEncoderVideo.36"), configuration.isMencoderAssDefaultStyle()) {
+			@Override
+			public boolean enable() {
+				boolean oldValue = configuration.isMencoderAssDefaultStyle();
+				boolean newValue = !oldValue;
+				configuration.setMencoderAssDefaultStyle(newValue);
+				return newValue;
+			}
+		});
+
+		vf.addChild(new VirtualVideoAction(Messages.getString("PMS.7"), configuration.getSkipLoopFilterEnabled()) {
+			@Override
+			public boolean enable() {
+				configuration.setSkipLoopFilterEnabled(!configuration.getSkipLoopFilterEnabled());
+				return configuration.getSkipLoopFilterEnabled();
+			}
+		});
+
+		vf.addChild(new VirtualVideoAction(Messages.getString("TrTab2.28"), configuration.isAudioEmbedDtsInPcm()) {
+			@Override
+			public boolean enable() {
+				configuration.setAudioEmbedDtsInPcm(!configuration.isAudioEmbedDtsInPcm());
+				return configuration.isAudioEmbedDtsInPcm();
+			}
+		});
+
+		vf.addChild(new VirtualVideoAction(Messages.getString("PMS.27"), true) {
+			@Override
+			public boolean enable() {
+				try {
+					configuration.save();
+				} catch (ConfigurationException e) {
+					logger.debug("Caught exception", e);
+				}
 				return true;
 			}
 		});
 
 		vf.addChild(new VirtualVideoAction(Messages.getString("LooksFrame.12"), true) {
+			@Override
 			public boolean enable() {
 				PMS.get().reset();
 				return true;

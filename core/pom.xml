@@ -26,7 +26,7 @@
 	<parent>
 		<groupId>github.com.taconaut</groupId>
 		<artifactId>pms</artifactId>
-		<version>1.82.0-mlx_0.9-SNAPSHOT</version>
+		<version>1.90.2-mlx_0.9-SNAPSHOT</version>
 	</parent>
 
 	<organization>
@@ -65,7 +65,7 @@
 			when Windows can use the same version. -->
 		<jna-version>3.4.0</jna-version>
 
-		<slf4j-version>1.6.4</slf4j-version>
+		<slf4j-version>1.7.1</slf4j-version>
 		<junrar-version>0.6.1</junrar-version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.external-resources>${project.basedir}/src/main/external-resources</project.external-resources>
@@ -380,6 +380,12 @@
             <version>1.4</version>
             <scope>test</scope>
         </dependency>
+
+		<dependency>
+			<groupId>com.floreysoft</groupId>
+			<artifactId>jmte</artifactId>
+			<version>3.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>

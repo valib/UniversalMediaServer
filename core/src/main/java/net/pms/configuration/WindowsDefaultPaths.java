@@ -5,10 +5,6 @@ import net.pms.util.PropertiesUtil;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 class WindowsDefaultPaths implements ProgramPaths {
-	@Override
-	public String getEac3toPath() {
-		return getBinariesPath() + "win32/eac3to/eac3to.exe";
-	}
 
 	@Override
 	public String getFfmpegPath() {
@@ -43,11 +39,6 @@ class WindowsDefaultPaths implements ProgramPaths {
 	@Override
 	public String getDCRaw() {
 		return getBinariesPath() + "win32/dcrawMS.exe";
-	}
-	
-	@Override
-	public String getIMConvertPath() {
-		return getBinariesPath() + "win32/convert.exe";
 	}
 
 	/**
