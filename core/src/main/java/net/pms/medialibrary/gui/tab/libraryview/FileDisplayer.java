@@ -19,6 +19,7 @@
 package net.pms.medialibrary.gui.tab.libraryview;
 
 import java.awt.BorderLayout;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
@@ -138,6 +139,10 @@ public class FileDisplayer extends JPanel {
 			return;
 		}
 		
+		// Show a wait cursor as this can be a lengthy operation
+		Cursor previousCursor = getCursor();
+		setCursor(new Cursor(Cursor.WAIT_CURSOR));
+		
 		List<DOFileInfo> files = new ArrayList<DOFileInfo>();
 		if(fileType == FileType.VIDEO){
 			List<DOVideoFileInfo> vFiles = MediaLibraryStorage.getInstance().getVideoFileInfo(filter, true, ConditionType.VIDEO_NAME, 0, SortOption.FileProperty, false);
@@ -153,6 +158,8 @@ public class FileDisplayer extends JPanel {
 //			files = (List<DOFileInfo>)(List<?>)vFiles;
 //		}
 		tFiles.setContent(files);
+
+		setCursor(previousCursor);
 	}
 	
 	private void repositionExpandFilterLabel(){
