@@ -23,7 +23,7 @@ import net.pms.medialibrary.commons.interfaces.IMediaLibraryStorage;
 import net.pms.medialibrary.storage.MediaLibraryStorage;
 
 public class PlayCountWatcher implements StartStopListener {
-	private static final Logger log = LoggerFactory.getLogger(PlayCountWatcher.class);
+	private static final Logger logger = LoggerFactory.getLogger(PlayCountWatcher.class);
 	public static final ResourceBundle messages = ResourceBundle.getBundle("net.pms.plugin.startstoplistener.pcw.lang.messages");
 	
 	private Queue<QueueItem> playCache = new LinkedList<QueueItem>();
@@ -35,7 +35,7 @@ public class PlayCountWatcher implements StartStopListener {
 		try {
 			properties.loadFromResourceFile("/playcountwatcherplugin.properties", PlayCountWatcher.class);
 		} catch (IOException e) {
-			log.error("Could not load playcountwatcherplugin.properties", e);
+			logger.error("Could not load playcountwatcherplugin.properties", e);
 		}
 	}
 	
@@ -46,7 +46,7 @@ public class PlayCountWatcher implements StartStopListener {
 		try {
 			globalConfig.load();
 		} catch (IOException e) {
-			log.error("Failed to load global configuration", e);
+			logger.error("Failed to load global configuration", e);
 		}
 	}
 	
@@ -55,7 +55,7 @@ public class PlayCountWatcher implements StartStopListener {
 
 	@Override
 	public void donePlaying(DLNAMediaInfo media, DLNAResource resource) {
-		if(log.isDebugEnabled()) log.debug("Done playing " + resource.getName());
+		if(logger.isDebugEnabled()) logger.debug("Done playing " + resource.getName());
 		
 		//lazy-load the storage
 		if(storage == null){
@@ -84,18 +84,18 @@ public class PlayCountWatcher implements StartStopListener {
 			String filePath = ((RealFile)resource).getFile().getAbsolutePath();
 			int fullLengthSec = (int) media.getDurationInSeconds();
 			int minPlayLogLength = (int) (fullLengthSec * ((double) globalConfig.getPercentPlayedRequired() / 100));
-			if(log.isDebugEnabled()) log.debug(String.format("Stopped playing %s (%s) after %s seconds. Min play length for loging %ss", resource.getName(), resource.getInternalId(), playLengthSec, minPlayLogLength));
+			if(logger.isDebugEnabled()) logger.debug(String.format("Stopped playing %s (%s) after %s seconds. Min play length for loging %ss", resource.getName(), resource.getInternalId(), playLengthSec, minPlayLogLength));
 			if(playLengthSec > minPlayLogLength) {
 				//TODO: insert the file with basic info (mencoder/ffmpeg but no plugins) if it hasn't been previously inserted into the library
 				storage.updatePlayCount(filePath, playLengthSec, new Date());
-				if(log.isInfoEnabled()) log.info(String.format("Updated play count for %s (%s) after %s seconds. Min play length for loging %ss", resource.getName(), resource.getInternalId(), playLengthSec, minPlayLogLength));
+				if(logger.isInfoEnabled()) logger.info(String.format("Updated play count for %s (%s) after %s seconds. Min play length for loging %ss", resource.getName(), resource.getInternalId(), playLengthSec, minPlayLogLength));
 			}
 		}
 	}
 
 	@Override
 	public void nowPlaying(DLNAMediaInfo media, DLNAResource resource) {
-		if(log.isDebugEnabled()) log.debug(String.format("Started playing %s (%s)", resource.getName(), resource.getInternalId()));		
+		if(logger.isDebugEnabled()) logger.debug(String.format("Started playing %s (%s)", resource.getName(), resource.getInternalId()));		
 		playCache.add(new QueueItem(resource.getInternalId(), new Date()));
 	}
 
@@ -169,7 +169,7 @@ public class PlayCountWatcher implements StartStopListener {
 			try {
 				globalConfig.save();
 			} catch (IOException e) {
-				log.error("Failed to save global configuration", e);
+				logger.error("Failed to save global configuration", e);
 			}
 		}
 	}

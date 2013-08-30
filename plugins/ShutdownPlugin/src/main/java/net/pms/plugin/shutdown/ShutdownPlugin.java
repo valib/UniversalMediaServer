@@ -18,7 +18,6 @@
 package net.pms.plugin.shutdown;
 
 import java.io.IOException;
-import java.util.Properties;
 import java.util.ResourceBundle;
 
 import javax.swing.Icon;
@@ -53,11 +52,6 @@ public class ShutdownPlugin implements DlnaTreeFolderPlugin {
 	private static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle("messages");
 
 	private String rootFolderName = RESOURCE_BUNDLE.getString("shutdownplugin.menu.foldername");
-
-	/**
-	 * Properties object to retrieve project properties.
-	 */
-	private Properties properties = new Properties();
 
 	/**
 	 * Constructor for the plugin.

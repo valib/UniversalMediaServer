@@ -231,22 +231,22 @@ public class FullDataCollector {
 
 	private void populateExtensions(){
 		this.audioFileExtensions = new ArrayList<String>();
-		this.audioFileExtensions.addAll(Arrays.asList(new M4A().getId()));
-		this.audioFileExtensions.addAll(Arrays.asList(new MP3().getId()));
-		this.audioFileExtensions.addAll(Arrays.asList(new OGG().getId()));
-		this.audioFileExtensions.addAll(Arrays.asList(new FLAC().getId()));
+		this.audioFileExtensions.addAll(Arrays.asList(new M4A().getSupportedExtensions()));
+		this.audioFileExtensions.addAll(Arrays.asList(new MP3().getSupportedExtensions()));
+		this.audioFileExtensions.addAll(Arrays.asList(new OGG().getSupportedExtensions()));
+		this.audioFileExtensions.addAll(Arrays.asList(new FLAC().getSupportedExtensions()));
 
 		this.videoFileExtensions = new ArrayList<String>();
-		this.videoFileExtensions.addAll(Arrays.asList(new MKV().getId()));
-		this.videoFileExtensions.addAll(Arrays.asList(new ISO().getId()));
-		this.videoFileExtensions.addAll(Arrays.asList(new MPG().getId()));
+		this.videoFileExtensions.addAll(Arrays.asList(new MKV().getSupportedExtensions()));
+		this.videoFileExtensions.addAll(Arrays.asList(new ISO().getSupportedExtensions()));
+		this.videoFileExtensions.addAll(Arrays.asList(new MPG().getSupportedExtensions()));
 
 		this.imageFileExtensions = new ArrayList<String>();
-		this.imageFileExtensions.addAll(Arrays.asList(new JPG().getId()));
-		this.imageFileExtensions.addAll(Arrays.asList(new PNG().getId()));
-		this.imageFileExtensions.addAll(Arrays.asList(new GIF().getId()));
-		this.imageFileExtensions.addAll(Arrays.asList(new TIF().getId()));
-		this.imageFileExtensions.addAll(Arrays.asList(new RAW().getId()));
+		this.imageFileExtensions.addAll(Arrays.asList(new JPG().getSupportedExtensions()));
+		this.imageFileExtensions.addAll(Arrays.asList(new PNG().getSupportedExtensions()));
+		this.imageFileExtensions.addAll(Arrays.asList(new GIF().getSupportedExtensions()));
+		this.imageFileExtensions.addAll(Arrays.asList(new TIF().getSupportedExtensions()));
+		this.imageFileExtensions.addAll(Arrays.asList(new RAW().getSupportedExtensions()));
 	}
 
 }

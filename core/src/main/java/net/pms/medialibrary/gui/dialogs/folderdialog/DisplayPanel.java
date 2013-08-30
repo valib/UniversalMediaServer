@@ -555,6 +555,7 @@ class DisplayPanel extends JPanel {
 				break;
 			case FOLDER:
 				rbDisplayIemAsFolder.setSelected(true);
+				break;
 			default:
 				log.warn(String.format("Unhandled file display type received (%s). This should never happen!", folder.getDisplayProperties().getFileDisplayType()));
 				break;

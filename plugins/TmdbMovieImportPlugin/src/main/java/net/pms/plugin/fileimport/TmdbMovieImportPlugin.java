@@ -33,7 +33,7 @@ import net.pms.util.PmsProperties;
  *
  */
 public class TmdbMovieImportPlugin implements FileImportPlugin {
-	private static final Logger log = LoggerFactory.getLogger(TmdbMovieImportPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(TmdbMovieImportPlugin.class);
 	public static final ResourceBundle messages = ResourceBundle.getBundle("net.pms.plugin.fileimport.tmdb.lang.messages");
 
 	/** Holds only the project version. It's used to always use the maven build number in code */
@@ -42,7 +42,7 @@ public class TmdbMovieImportPlugin implements FileImportPlugin {
 		try {
 			properties.loadFromResourceFile("/tmdbmovieimportplugin.properties", TmdbMovieImportPlugin.class);
 		} catch (IOException e) {
-			log.error("Could not load filesystemfolderplugin.properties", e);
+			logger.error("Could not load filesystemfolderplugin.properties", e);
 		}
 	}
 	
@@ -75,7 +75,7 @@ public class TmdbMovieImportPlugin implements FileImportPlugin {
 
 	@Override
     public void importFile(String title, String filePath) throws FileImportException {
-		if(log.isDebugEnabled()) log.debug("importing TMDb movie with title: " + title);
+		if(logger.isDebugEnabled()) logger.debug("importing TMDb movie with title: " + title);
 		
 		//delete information which might still be cached since the last query
 		movie = null;
@@ -104,7 +104,7 @@ public class TmdbMovieImportPlugin implements FileImportPlugin {
 				currentPollingIntervalMs = MIN_POLLING_INTERVAL_MS;
 				nbRetriesDone = 0;
 				
-				if(log.isInfoEnabled()) log.info(moviesStr);
+				if(logger.isInfoEnabled()) logger.info(moviesStr);
 			}else {
 	        	throw new FileImportException(String.format("No movie information found for title='%s'", title));			
 			}
@@ -116,13 +116,13 @@ public class TmdbMovieImportPlugin implements FileImportPlugin {
 	    			nbRetriesDone++;
 	    			currentPollingIntervalMs += POLLING_INCREMENT_MS;
 	    			
-	    			log.info(String.format("Incremented polling interval after 503 error response. Polling interval=%s", currentPollingIntervalMs));
+	    			logger.info(String.format("Incremented polling interval after 503 error response. Polling interval=%s", currentPollingIntervalMs));
 	    			
 	    			//wait before trying again
 	    			try {
 						Thread.sleep(currentPollingIntervalMs);
 					} catch (InterruptedException e) {
-						log.error("Failed to pause thread to respect wait timeout");
+						logger.error("Failed to pause thread to respect wait timeout");
 					}
 	    			
 	    			//do a recursive call and try again
@@ -152,10 +152,10 @@ public class TmdbMovieImportPlugin implements FileImportPlugin {
 			throw new FileImportException(String.format("Failed to import film by tmdb id='%s' because it couldn't be converted to an Integer", id));
 		}
 		
-		log.debug("Importing TMDb movie by id=" + id);
+		logger.debug("Importing TMDb movie by id=" + id);
 	    try {
 			movie = Movie.getInfo(tmdbId);
-			log.debug("Imported TMDb movie by id=" + id);
+			logger.debug("Imported TMDb movie by id=" + id);
         } catch (Throwable t) {
         	throw new FileImportException(String.format("Failed to import movie information for id='%s'", id), t);
         }
@@ -308,6 +308,9 @@ public class TmdbMovieImportPlugin implements FileImportPlugin {
 			Calendar cal=Calendar.getInstance();
 			cal.setTime(movie.getReleasedDate());
 		    return movie == null || movie.getReleasedDate() == null ? null : cal.get(Calendar.YEAR);
+		default:
+			logger.warn("Unsupportede FileProperty: %s", property);
+			break;
 		}
 		return null;
 	}
@@ -360,7 +363,7 @@ public class TmdbMovieImportPlugin implements FileImportPlugin {
 			}
         } catch (Throwable t) {
         	//don't propagate any error, return the default value and log the error
-        	log.error(String.format("Failed to search for movie for name=%s'", name), t);
+        	logger.error(String.format("Failed to search for movie for name=%s'", name), t);
         }
 	    return res;
 	}

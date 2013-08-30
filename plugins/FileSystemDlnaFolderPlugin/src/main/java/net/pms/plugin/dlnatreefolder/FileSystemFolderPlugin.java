@@ -43,7 +43,7 @@ import net.pms.util.PmsProperties;
  * from the file system to be shared in a folder
  */
 public class FileSystemFolderPlugin implements DlnaTreeFolderPlugin {
-	private static final Logger log = LoggerFactory.getLogger(FileSystemFolderPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(FileSystemFolderPlugin.class);
 	
 	/** Resource used for localization */
 	public static final ResourceBundle messages = ResourceBundle.getBundle("net.pms.plugin.dlnatreefolder.fsfp.lang.messages");
@@ -54,7 +54,7 @@ public class FileSystemFolderPlugin implements DlnaTreeFolderPlugin {
 		try {
 			properties.loadFromResourceFile("/filesystemfolderplugin.properties", FileSystemFolderPlugin.class);
 		} catch (IOException e) {
-			log.error("Could not load filesystemfolderplugin.properties", e);
+			logger.error("Could not load filesystemfolderplugin.properties", e);
 		}
 	}
 	
@@ -65,7 +65,7 @@ public class FileSystemFolderPlugin implements DlnaTreeFolderPlugin {
 		try {
 			globalConfig.load();
 		} catch (IOException e) {
-			log.error("Failed to load global configuration", e);
+			logger.error("Failed to load global configuration", e);
 		}
 	}
 	
@@ -244,7 +244,7 @@ public class FileSystemFolderPlugin implements DlnaTreeFolderPlugin {
 			try {
 				globalConfig.save();
 			} catch (IOException e) {
-				log.error("Failed to save global configuration", e);
+				logger.error("Failed to save global configuration", e);
 			}
 		}
 	}

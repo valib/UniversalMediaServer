@@ -137,7 +137,7 @@ public class DLNAHelper {
 	}
 
 	public static void addMultipleFiles(DLNAResource parent, RealFile child, RealFile originalFile) {
-		FileTranscodeVirtualFolder rootFolder = new FileTranscodeVirtualFolder("", null, false);
+		FileTranscodeVirtualFolder rootFolder = new FileTranscodeVirtualFolder("", null);
 		rootFolder.setParent(parent);
 		rootFolder.addChild(originalFile.clone());
 		rootFolder.resolve();

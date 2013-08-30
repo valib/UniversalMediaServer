@@ -42,7 +42,7 @@ import net.pms.util.PmsProperties;
  *
  */
 public class ImdbMovieImportPlugin implements FileImportPlugin {	
-	private static final Logger log = LoggerFactory.getLogger(ImdbMovieImportPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(ImdbMovieImportPlugin.class);
 	private JSONObject movieObject;
 
 	/** Resource used for localization */
@@ -65,7 +65,7 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 		try {
 			properties.loadFromResourceFile("/filesystemfolderplugin.properties", ImdbMovieImportPlugin.class);
 		} catch (IOException e) {
-			log.error("Could not load filesystemfolderplugin.properties", e);
+			logger.error("Could not load filesystemfolderplugin.properties", e);
 		}
 	}
 
@@ -79,7 +79,7 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 		try {
 			globalConfig.load();
 		} catch (IOException e) {
-			log.error("Failed to load global configuration", e);
+			logger.error("Failed to load global configuration", e);
 		}
 	}
 
@@ -181,9 +181,9 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 				res.add(new FileSearchObject(jsonObject));
 			}
 		} catch (IOException e) {
-			log.error(String.format("IOException when trying to query imdb for name='%s'", name), e);
+			logger.error(String.format("IOException when trying to query imdb for name='%s'", name), e);
 		} catch (JSONException e) {
-			log.error(String.format("JSONException when trying to query imdb for name='%s'", name), e);
+			logger.error(String.format("JSONException when trying to query imdb for name='%s'", name), e);
 		}
 		
 		return res;
@@ -267,7 +267,7 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 						res = (int)(10 * r);
 					}
 				} catch (NumberFormatException ex) {
-					log.error(String.format("Failed to parse rating='%s' as a double", ratingObj.toString()), ex);
+					logger.error(String.format("Failed to parse rating='%s' as a double", ratingObj.toString()), ex);
 				}
 			}
 			break;
@@ -282,7 +282,7 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 				try {
 					res = Integer.parseInt(ratingObj.toString().replace(",", ""));
 				} catch (NumberFormatException ex) {
-					log.error(String.format("Failed to parse rating='%s' as a integer", ratingObj.toString()), ex);
+					logger.error(String.format("Failed to parse rating='%s' as a integer", ratingObj.toString()), ex);
 				}
 			}
 			break;
@@ -298,9 +298,12 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 						res = Integer.parseInt(dStr.substring(dStr.length() - 4, dStr.length()));
 					}
 				} catch (NumberFormatException ex) {
-					log.error("Failed to parse release year='%s' as a double", ex);
+					logger.error("Failed to parse release year='%s' as a double", ex);
 				}
 			}
+			break;
+		default:
+			logger.warn("Unsupported FileProperty: %s", property);
 			break;
 		}
 		return res;
@@ -311,7 +314,7 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 		try {
 			res = movieObject.get(key);
 		} catch (JSONException e) {
-			log.warn(String.format("Failed to get key='%s'", key));
+			logger.warn(String.format("Failed to get key='%s'", key));
 		}
 		return res;
 	}
@@ -430,7 +433,7 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 			try {
 				globalConfig.save();
 			} catch (IOException e) {
-				log.error("Failed to save global configuration", e);
+				logger.error("Failed to save global configuration", e);
 			}
 		}
 	}

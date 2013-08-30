@@ -18,7 +18,7 @@ import net.pms.plugins.Plugin;
 import net.pms.util.PmsProperties;
 
 public class WebServicePlugin implements Plugin {
-	private static final Logger log = LoggerFactory.getLogger(WebServicePlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(WebServicePlugin.class);
 	public static final ResourceBundle messages = ResourceBundle.getBundle("net.pms.plugin.webservice.lang.messages");
 	private static Object initializationLocker = new Object();
 	private static Thread thRegister;
@@ -37,7 +37,7 @@ public class WebServicePlugin implements Plugin {
 		try {
 			properties.loadFromResourceFile("/webserviceplugin.properties", WebServicePlugin.class);
 		} catch (IOException e) {
-			log.error("Could not load webserviceplugin.properties", e);
+			logger.error("Could not load webserviceplugin.properties", e);
 		}
 	}
 	
@@ -48,7 +48,7 @@ public class WebServicePlugin implements Plugin {
 		try {
 			globalConfig.load();
 		} catch (IOException e) {
-			log.error("Failed to load global configuration", e);
+			logger.error("Failed to load global configuration", e);
 		}
 	}
 	
@@ -127,8 +127,8 @@ public class WebServicePlugin implements Plugin {
 					@Override
 					public void run() {
 						while(hostName == null) {
-							if(PMS.get().getServer() != null && PMS.get().getServer().getIafinal() != null) {
-								hostName = PMS.get().getServer().getIafinal().getHostAddress();			
+							if(PMS.get().getServer() != null) {
+								hostName = PMS.get().getServer().getHost();			
 							}
 							try {
 								Thread.sleep(1000);
@@ -155,7 +155,7 @@ public class WebServicePlugin implements Plugin {
 			try {
 				globalConfig.save();
 			} catch (IOException e) {
-				log.error("Failed to save global configuration", e);
+				logger.error("Failed to save global configuration", e);
 			}
 		}
 	}

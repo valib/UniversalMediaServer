@@ -1,14 +1,12 @@
 package net.pms.plugin.dlnatreefolder;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
@@ -18,17 +16,21 @@ import javax.swing.ImageIcon;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import xmlwise.Plist;
+import xmlwise.XmlParseException;
 
 import net.pms.dlna.DLNAResource;
 import net.pms.dlna.RealFile;
 import net.pms.dlna.virtual.VirtualFolder;
 import net.pms.plugins.DlnaTreeFolderPlugin;
-import net.pms.xmlwise.Plist;
 
 public class iPhotoFolderPlugin implements DlnaTreeFolderPlugin {
-	private static final Logger log = LoggerFactory.getLogger(iPhotoFolderPlugin.class);
+	private static final Logger logger = LoggerFactory.getLogger(iPhotoFolderPlugin.class);
 	private Properties properties = new Properties();
 	protected static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle("net.pms.plugin.dlnatreefolder.iphoto.lang.messages");
 	
@@ -45,51 +47,83 @@ public class iPhotoFolderPlugin implements DlnaTreeFolderPlugin {
 
 	@Override
 	public DLNAResource getDLNAResource() {
-		DLNAResource res = null;
-		
-		Map<String, Object> iPhotoLib;
-		ArrayList<?> ListofRolls;
-		HashMap<?, ?> Roll;
-		HashMap<?, ?> PhotoList;
-		HashMap<?, ?> Photo;
-		ArrayList<?> RollPhotos;
+		VirtualFolder iPhotoVirtualFolder = null;
 
-		try {
-				Process prc = Runtime.getRuntime().exec("defaults read com.apple.iApps iPhotoRecentDatabases");  
-				BufferedReader in = new BufferedReader(  
-						new InputStreamReader(prc.getInputStream()));  
-				String line = null;  
-				if ((line = in.readLine()) != null) {
-					line = in.readLine();		//we want the 2nd line
-					line = line.trim();		//remove extra spaces	
-					line = line.substring(1, line.length() - 1); // remove quotes and spaces
-				}
-				in.close();
-				if (line != null) {
-	 				URI tURI = new URI(line);
-	 				iPhotoLib = Plist.load(URLDecoder.decode(tURI.toURL().getFile(), System.getProperty("file.encoding")));    // loads the (nested) properties.
-					PhotoList = (HashMap<?, ?>) iPhotoLib.get("Master Image List");	// the list of photos
-					ListofRolls = (ArrayList<?>) iPhotoLib.get("List of Rolls");	// the list of events (rolls)
-					VirtualFolder vf = new VirtualFolder(rootFolderName, null);
-					for (Object item : ListofRolls) {
-						Roll = (HashMap<?, ?>) item;
-						VirtualFolder rf = new VirtualFolder(Roll.get("RollName").toString(),null);
-						RollPhotos = (ArrayList<?>) Roll.get("KeyList");	// list of photos in an event (roll)
-						for (Object p : RollPhotos) {
-							Photo = (HashMap<?, ?>) PhotoList.get(p);
-							RealFile file = new RealFile(new File(Photo.get("ImagePath").toString()));
-		       	                         	rf.addChild(file);
+			InputStream inputStream = null;
+
+			try {
+				// This command will show the XML files for recently opened iPhoto databases
+				Process process = Runtime.getRuntime().exec("defaults read com.apple.iApps iPhotoRecentDatabases");
+				inputStream = process.getInputStream();
+				List<String> lines = IOUtils.readLines(inputStream);
+				logger.debug("iPhotoRecentDatabases: {}", lines);
+
+				if (lines.size() >= 2) {
+					// we want the 2nd line
+					String line = lines.get(1);
+
+					// Remove extra spaces
+					line = line.trim();
+
+					// Remove quotes
+					line = line.substring(1, line.length() - 1);
+
+					URI uri = new URI(line);
+					URL url = uri.toURL();
+					File file = FileUtils.toFile(url);
+					logger.debug("Resolved URL to file: {} -> {}", url, file.getAbsolutePath());
+
+					// Load the properties XML file.
+					Map<String, Object> iPhotoLib = Plist.load(file);
+
+					// The list of all photos
+					Map<?, ?> photoList = (Map<?, ?>) iPhotoLib.get("Master Image List");
+
+					// The list of events (rolls)
+					@SuppressWarnings("unchecked")
+					List<Map<?, ?>> listOfRolls = (List<Map<?, ?>>) iPhotoLib.get("List of Rolls");
+
+					iPhotoVirtualFolder = new VirtualFolder(rootFolderName, null);
+
+					for (Map<?, ?> roll : listOfRolls) {
+						Object rollName = roll.get("RollName");
+
+						if (rollName != null) {
+							VirtualFolder virtualFolder = new VirtualFolder(rollName.toString(), null);
+
+							// List of photos in an event (roll)
+							List<?> rollPhotos = (List<?>) roll.get("KeyList");
+
+							for (Object photo : rollPhotos) {
+								Map<?, ?> photoProperties = (Map<?, ?>) photoList.get(photo);
+
+								if (photoProperties != null) {
+									Object imagePath = photoProperties.get("ImagePath");
+
+									if (imagePath != null) {
+										RealFile realFile = new RealFile(new File(imagePath.toString()));
+										virtualFolder.addChild(realFile);
+									}
+								}
+							}
+
+							iPhotoVirtualFolder.addChild(virtualFolder);
 						}
-						vf.addChild(rf);
-		 			}
-					res = vf;
+					}
 				} else {
-					log.warn("iPhoto folder not found !?");
+					logger.info("iPhoto folder not found");
 				}
-		} catch (Exception e) {
-			log.error("Something wrong with the iPhoto Library scan: ", e);
-           }
-		return res;
+			} catch (XmlParseException e) {
+				logger.error("Something went wrong with the iPhoto Library scan: ", e);
+			} catch (URISyntaxException e) {
+				logger.error("Something went wrong with the iPhoto Library scan: ", e);
+			} catch (IOException e) {
+				logger.error("Something went wrong with the iPhoto Library scan: ", e);
+			} finally {
+				IOUtils.closeQuietly(inputStream);
+			}
+
+		return iPhotoVirtualFolder;
 	}
 
 	@Override
@@ -189,13 +223,13 @@ public class iPhotoFolderPlugin implements DlnaTreeFolderPlugin {
 		try {
 			properties.load(inputStream);
 		} catch (Exception e) {
-			log.error("Failed to load properties", e);
+			logger.error("Failed to load properties", e);
 		} finally {
 			if (inputStream != null) {
 				try {
 					inputStream.close();
 				} catch (IOException e) {
-					log.error("Failed to properly close stream properties", e);
+					logger.error("Failed to properly close stream properties", e);
 				}
 			}
 		}
