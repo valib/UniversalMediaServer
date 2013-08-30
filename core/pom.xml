@@ -17,11 +17,9 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>pms-core</artifactId>
-
 	<name>PMS Core</name>
 	<packaging>jar</packaging>
-	<url>http://www.ps3mediaserver.org/</url>
-	<inceptionYear>2008</inceptionYear>
+	<description>The core of pms-mlx includes the business code as well as the GUI</description>
 
 	<parent>
 		<groupId>github.com.taconaut</groupId>
@@ -29,50 +27,23 @@
 		<version>1.90.2-mlx_0.9-SNAPSHOT</version>
 	</parent>
 
-	<organization>
-		<name>PS3 Media Server</name>
-		<url>http://www.ps3mediaserver.org/</url>
-	</organization>
-
-	<licenses>
-		<license>
-			<name>GNU General Public License version 2</name>
-			<url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
-			<distribution>manual</distribution>
-		</license>
-	</licenses>
-
-	<description>
-		PS3 Media Server is a cross-platform DLNA-compliant UPnP Media Server.
-		Originally written to support the PlayStation 3, PS3 Media Server has been
-		expanded to support a range of other media renderers, including smartphones,
-		televisions, music players and more.
-	</description>
-
-	<issueManagement>
-		<system>Github</system>
-		<url>https://github.com/taconaut/pms-mlx/issues</url>
-	</issueManagement>
-
-	<ciManagement>
-		<system>Jenkins</system>
-		<url>http://pms.smoeller.de/</url>
-	</ciManagement>
-
-	<properties>
+	<properties>		
+		<cuelib-version>1.2.1-2008-06-13</cuelib-version>
+		<junrar-version>0.7</junrar-version>
+		<mediautil-version>1.0</mediautil-version>
+		<jcalendar-version>1.1.1</jcalendar-version>
+		
 		<!-- JNA 3.4.0 solves issue #1152, but causes a bug in Windows. The version 
 			is therefore overruled in the Windows profile. This property should be removed 
 			when Windows can use the same version. -->
 		<jna-version>3.4.0</jna-version>
 
 		<slf4j-version>1.7.1</slf4j-version>
-		<junrar-version>0.6.1</junrar-version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.external-resources>${project.basedir}/src/main/external-resources</project.external-resources>
 		<project.binaries>${project.basedir}/target/bin</project.binaries>
 
-		<!-- Snapshots should get their binaries from the trunk, releases from 
-			a tag -->
+		<!-- Snapshots should get their binaries from the trunk, releases from a tag -->
 		<project.binaries-base>http://ps3mediaserver.googlecode.com/svn/trunk/ps3mediaserver</project.binaries-base>
 		<!-- <project.binaries-base>http://ps3mediaserver.googlecode.com/svn/tags/1.40.0</project.binaries-base> -->
 
@@ -135,12 +106,16 @@
 			</snapshots>
 		</repository>
 
-        <!-- JUnRar by Edmund Wagner -->
-        <repository>
-            <id>JUnRar mirror repository</id>
-            <name>JUnRar mirror repository</name>
-            <url>https://junrar-repository.googlecode.com/svn/deploy/</url>
-        </repository>
+		<!-- for jai-imageio-core-standalone, which is used by Thumbnailator -->
+		<repository>
+			<releases />
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<id>mygrid-repository</id>
+			<name>myGrid Repository</name>
+			<url>http://www.mygrid.org.uk/maven/repository</url>
+		</repository>
 	</repositories>
 
 	<dependencies>
@@ -153,7 +128,7 @@
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
-			<version>1.6</version>
+			<version>1.7</version>
 		</dependency>
 
 		<dependency>
@@ -165,7 +140,7 @@
 		<dependency>
 			<groupId>commons-configuration</groupId>
 			<artifactId>commons-configuration</artifactId>
-			<version>1.8</version>
+			<version>1.9</version>
 			<exclusions>
 				<!-- no need for commons-logging, as jcl-over-slf4j provides the impl -->
 				<exclusion>
@@ -203,19 +178,19 @@
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
-			<version>1.3.166</version>
+			<version>1.3.168</version>
 		</dependency>
 
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
-			<version>1.0.0</version>
+			<version>1.0.7</version>
 		</dependency>
 
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-core</artifactId>
-			<version>1.0.0</version>
+			<version>1.0.7</version>
 		</dependency>
 
 		<dependency>
@@ -245,28 +220,13 @@
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-			<version>1.7.1</version>
-		</dependency>
-
-		<!-- originally, hamcrest-all 1.2RC2 for the artifact change, see: https://code.google.com/p/hamcrest/issues/detail?id=12#c54 
-			FIXME: verify if needed -->
-		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-integration</artifactId>
-			<version>1.2</version>
+			<version>2.2.2</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.jboss.netty</groupId>
 			<artifactId>netty</artifactId>
-			<version>3.2.4.Final</version>
-		</dependency>
-
-		<!-- maven replacement for nsisant-1.2.jar -->
-		<dependency>
-			<groupId>maven</groupId>
-			<artifactId>maven-nsis-plugin</artifactId>
-			<version>2.1</version>
+			<version>3.2.7.Final</version>
 		</dependency>
 
 		<dependency>
@@ -278,13 +238,26 @@
         <dependency>
             <groupId>net.coobird</groupId>
             <artifactId>thumbnailator</artifactId>
-            <version>0.4.2</version>
+            <version>0.4.4</version>
         </dependency>
 
+		<!--
+			this is not used on its own, but rather provides
+			ImageReader subclasses that make support for additional
+			formats (e.g. TIFF) available to the ImageIO API, and thus
+			to Thumbnailator (our built-in image thumbnailer).
+
+			XXX be careful upgrading this. this version is redistributable;
+			other versions may not be:
+
+			https://code.google.com/p/thumbnailator/issues/detail?id=32
+			https://github.com/stain/jai-imageio-core
+			http://stackoverflow.com/questions/1209583/using-java-advanced-imaging-with-maven
+		-->
 		<dependency>
-			<groupId>org.jvnet.winp</groupId>
-			<artifactId>winp</artifactId>
-			<version>1.14</version>
+			<groupId>net.java.dev.jai-imageio</groupId>
+			<artifactId>jai-imageio-core-standalone</artifactId>
+			<version>1.2-pre-dr-b04-2011-07-04</version>
 		</dependency>
 
 		<dependency>
@@ -293,13 +266,13 @@
 			<version>2.0.3</version>
 		</dependency>
 
+		<!-- TODO: move to windows specific part (as pms) -->
 		<dependency>
 			<groupId>net.java.dev.jna</groupId>
 			<artifactId>jna</artifactId>
 			<version>${jna-version}</version>
 		</dependency>
 
-		<!-- XXX: not Mavenized: http://www.jgoodies.com/downloads/libraries.html -->
 		<dependency>
 			<groupId>com.jgoodies</groupId>
 			<artifactId>binding</artifactId>
@@ -313,24 +286,22 @@
 			<version>${jcalendar-version}</version>
 		</dependency>
 
-		<!-- XXX: not Mavenized: http://www.jgoodies.com/downloads/libraries.html -->
 		<dependency>
 			<groupId>com.jgoodies</groupId>
-			<artifactId>common</artifactId>
+			<artifactId>jgoodies-common</artifactId>
 			<version>${jgoodies-common-version}</version>
 		</dependency>
 
-		<!-- XXX: not Mavenized: http://www.jgoodies.com/downloads/libraries.html -->
 		<dependency>
 			<groupId>com.jgoodies</groupId>
-			<artifactId>forms</artifactId>
+			<artifactId>jgoodies-forms</artifactId>
 			<version>${jgoodies-forms-version}</version>
 		</dependency>
 
-		<!-- XXX: not Mavenized: http://www.jgoodies.com/downloads/libraries.html -->
+
 		<dependency>
 			<groupId>com.jgoodies</groupId>
-			<artifactId>looks</artifactId>
+			<artifactId>jgoodies-looks</artifactId>
 			<version>${jgoodies-looks-version}</version>
 		</dependency>
 
@@ -363,14 +334,7 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.8.1</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.easymock</groupId>
-			<artifactId>easymock</artifactId>
-			<version>3.0</version>
+			<version>4.10</version>
 			<scope>test</scope>
 		</dependency>
 		
@@ -470,14 +434,12 @@
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<configuration>
-						<!-- Force language because JUnit tests depend on english language 
-							strings -->
+						<!-- Force language because JUnit tests depend on english language  strings -->
 						<argLine>-Duser.language=en</argLine>
 					</configuration>
 					<version>2.11</version>
 				</plugin>
-				<!--This plugin's configuration is used to store Eclipse m2e settings 
-					only. It has no influence on the Maven build itself. -->
+				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
@@ -485,25 +447,6 @@
 					<configuration>
 						<lifecycleMappingMetadata>
 							<pluginExecutions>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>
-											org.apache.maven.plugins
-										</groupId>
-										<artifactId>
-											maven-antrun-plugin
-										</artifactId>
-										<versionRange>
-											[1.7,)
-										</versionRange>
-										<goals>
-											<goal>run</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore />
-									</action>
-								</pluginExecution>
 								<pluginExecution>
 									<pluginExecutionFilter>
 										<groupId>
@@ -520,7 +463,26 @@
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<ignore />
+										<ignore></ignore>
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
+											org.apache.maven.plugins
+										</groupId>
+										<artifactId>
+											maven-antrun-plugin
+										</artifactId>
+										<versionRange>
+											[1.7,)
+										</versionRange>
+										<goals>
+											<goal>run</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore></ignore>
 									</action>
 								</pluginExecution>
 							</pluginExecutions>
@@ -531,6 +493,56 @@
 		</pluginManagement>
 
 		<plugins>
+
+            <!-- This plugin will take care of installing the external dependencies (see root POM for details) -->
+			<plugin>
+				<groupId>com.savage7.maven.plugins</groupId>
+				<artifactId>maven-external-dependency-plugin</artifactId>
+				<version>${maven-external-dependency-plugin-version}</version>
+				<configuration>
+					<stagingDirectory>${project.build.directory}/dependencies/</stagingDirectory>
+					<createChecksum>true</createChecksum>
+					<skipChecksumVerification>false</skipChecksumVerification>
+					<force>false</force>
+					
+					<artifactItems>
+
+						<artifactItem>
+							<groupId>jwbroek.cuelib</groupId>
+							<artifactId>cuelib</artifactId>
+							<version>${cuelib-version}</version>
+							<packaging>jar</packaging>
+							<downloadUrl>http://cuelib.googlecode.com/files/cuelib-${cuelib-version}.jar</downloadUrl>
+							<checksum>d03b6b960b3b83a2a419e8b5f07b6ba4bd18387b</checksum>
+						</artifactItem>
+
+						<artifactItem>
+							<groupId>mediautil</groupId>
+							<artifactId>mediautil</artifactId>
+							<version>${mediautil-version}</version>
+							<packaging>jar</packaging>
+							<install>true</install>
+							<force>false</force>
+							<downloadUrl>http://downloads.sourceforge.net/project/mediachest/MediaUtil/Version%201.0/mediautil-1.zip</downloadUrl>
+							<checksum>aa7ae51bb24a9268a8e57c6afe478c4293f84fda</checksum>
+							<extractFile>mediautil-${mediautil-version}/mediautil-${mediautil-version}.jar</extractFile>
+							<extractFileChecksum>e843cd55def75dce57123c79b7f36caca4841466</extractFileChecksum>
+						</artifactItem>
+
+						<artifactItem>
+							<groupId>org.freixas</groupId>
+							<artifactId>jcalendar</artifactId>
+							<version>${jcalendar-version}</version>
+							<packaging>jar</packaging>
+							<downloadUrl>http://sourceforge.net/projects/flib/files/flib/FLib%201.1.1/jcalendar.jar</downloadUrl>
+							<checksum>83eb4b1a4823daf3b5bea61958cf6097930f74fb</checksum>
+						</artifactItem>
+
+					</artifactItems>
+
+				</configuration>
+			</plugin>
+			
 			<!-- Plugin to add git commit information properties. These are used in 
 				the project.properties files. See: https://github.com/ktoso/maven-git-commit-id-plugin -->
 			<plugin>
@@ -554,7 +566,7 @@
 
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
+				<version>${maven-compiler-plugin-version}</version>
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>
@@ -781,7 +793,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-antrun-plugin</artifactId>
-						<version>1.7</version>
+						<version>${maven-antrun-plugin-version}</version>
 						<executions>
 							<execution>
 								<id>process-resources-windows</id>

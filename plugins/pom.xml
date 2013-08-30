@@ -7,7 +7,7 @@
 	<version>1.0.0</version>
 
 	<name>PMS Plugins</name>
-	<description>Base pom used by all official plugins</description>
+	<description>Contains all officially supported plugins</description>
 	<packaging>pom</packaging>
 
 	<parent>
@@ -56,13 +56,31 @@
 	</dependencies>
 
 	<build>
-		<pluginManagement>
+		<pluginManagement>			
 			<plugins>
+
+	      <!-- This plugin will take care of installing the external dependencies -->
+				<plugin>
+					<groupId>com.savage7.maven.plugins</groupId>
+					<artifactId>maven-external-dependency-plugin</artifactId>
+					<version>${maven-external-dependency-plugin-version}</version>
+					<configuration>
+						<stagingDirectory>${project.build.directory}/dependencies/</stagingDirectory>
+						<createChecksum>true</createChecksum>
+						<skipChecksumVerification>false</skipChecksumVerification>
+						<force>false</force>
+						
+						<artifactItems>
+							<!-- Add artifact items common to multiple plugins here -->
+						</artifactItems>
+					</configuration>
+				</plugin>
+			
 				<!-- Export all built plugins to target dir at the root of the project -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-antrun-plugin</artifactId>
-					<version>1.7</version>
+					<version>${maven-antrun-plugin-version}</version>
 					<executions>
 						<execution>
 							<id>copy-plugin</id>
@@ -83,7 +101,7 @@
 					</executions>
 				</plugin>
 
-				<!-- Ignore/Execute plugin execution to avoid .m2e warnings in eclipse -->
+				<!-- Ignore/Execute plugin execution to avoid .m2e warnings in eclipse fro child plugins -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
@@ -115,7 +133,7 @@
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
+				<version>${maven-compiler-plugin-version}</version>
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>

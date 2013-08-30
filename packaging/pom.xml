@@ -22,7 +22,7 @@
 
 	<properties>
 		<!-- NSIS needs a version without "-SNAPSHOT" or "-b1" -->
-		<project.version.short>1.51.0</project.version.short>
+		<project.version.short>1.90.2</project.version.short>
 
 		<project.binaries>${project.basedir}/target/bin</project.binaries>
 		<project.external-resources>${project.basedir}/src/main/external-resources</project.external-resources>
@@ -66,6 +66,24 @@
 		</resources>
 
 		<plugins>
+		
+	        <!-- This plugin will take care of installing the external dependencies -->
+			<plugin>
+				<groupId>com.savage7.maven.plugins</groupId>
+				<artifactId>maven-external-dependency-plugin</artifactId>
+				<version>${maven-external-dependency-plugin-version}</version>
+				<configuration>
+					<stagingDirectory>${project.build.directory}/dependencies/</stagingDirectory>
+					<createChecksum>true</createChecksum>
+					<skipChecksumVerification>false</skipChecksumVerification>
+					<force>false</force>
+						
+					<artifactItems>
+						<!-- Add artifact items here -->
+					</artifactItems>
+				</configuration>
+			</plugin>
+				
 			<!-- Create the jar containing all dependencies -->
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
@@ -209,7 +227,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-antrun-plugin</artifactId>
-						<version>1.7</version>
+						<version>${maven-antrun-plugin-version}</version>
 						<executions>
 							<execution>
 								<id>process-resources-windows</id>
@@ -546,7 +564,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-antrun-plugin</artifactId>
-						<version>1.7</version>
+						<version>${maven-antrun-plugin-version}</version>
 						<executions>
 							<execution>
 								<id>process-resources-linux</id>
@@ -614,7 +632,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-antrun-plugin</artifactId>
-						<version>1.7</version>
+						<version>${maven-antrun-plugin-version}</version>
 						<executions>
 							<execution>
 								<id>process-resources-osx</id>
