@@ -13,9 +13,10 @@ debug.log
 libmediainfo.dylib
 maven-eclipse.xml
 pms.iml
-core/fonts
-core/src/main/external-resources/plugins/*.jar
-.project
-.settings
-target
-.pc/
+target/
+src/main/external-resources/private-jre/*.zip
+src/main/external-resources/private-jre/*.tar.gz
+src/main/external-resources/transcode-tools/transcode-tools-*
+src/main/external-resources/transcode-tools/linux/*
+src/main/external-resources/transcode-tools/osx/*
+src/main/external-resources/transcode-tools/win32/*
