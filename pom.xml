@@ -27,11 +27,9 @@
     -->
 
 	<modelVersion>4.0.0</modelVersion>
-
 	<groupId>github.com.taconaut</groupId>
 	<artifactId>pms</artifactId>
-	<version>1.90.2-mlx_0.9-SNAPSHOT</version> <!-- XXX don't forget to update project.version.short in package POM.xml properties -->
-
+	<version>1.90.2-mlx_0.9-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>PMS</name>
 	<url>http://www.ps3mediaserver.org/</url>
@@ -41,20 +39,6 @@
 	<prerequisites>
 		<maven>2.2.1</maven>
 	</prerequisites>
-        
-	<properties>
-		<!-- Version numbers for libraries shared by multiple modules -->
-		<jgoodies-common-version>1.4.0</jgoodies-common-version>
-		<jgoodies-forms-version>1.6.0</jgoodies-forms-version>
-		<jgoodies-looks-version>2.5.2</jgoodies-looks-version>
-		<jgoodies-binding-version>2.0.6</jgoodies-binding-version>
-		<xmlwise-version>1.2.11</xmlwise-version>
-		
-		<!-- Version numbers for plugins shared by multiple modules  -->
-		<maven-external-dependency-plugin-version>0.5</maven-external-dependency-plugin-version>
-		<maven-antrun-plugin-version>1.7</maven-antrun-plugin-version>
-		<maven-compiler-plugin-version>2.3.2</maven-compiler-plugin-version>
-	</properties>
 
 	<organization>
 		<name>PS3 Media Server MLX</name>
@@ -149,6 +133,20 @@
 			<layout>default</layout>
 		</pluginRepository>
 	</pluginRepositories>
+        
+	<properties>
+		<!-- Version numbers for libraries shared by multiple modules -->
+		<jgoodies-common-version>1.4.0</jgoodies-common-version>
+		<jgoodies-forms-version>1.6.0</jgoodies-forms-version>
+		<jgoodies-looks-version>2.5.2</jgoodies-looks-version>
+		<jgoodies-binding-version>2.0.6</jgoodies-binding-version>
+		<xmlwise-version>1.2.11</xmlwise-version>
+		
+		<!-- Version numbers for plugins shared by multiple modules  -->
+		<maven-external-dependency-plugin-version>0.5</maven-external-dependency-plugin-version>
+		<maven-antrun-plugin-version>1.7</maven-antrun-plugin-version>
+		<maven-compiler-plugin-version>2.3.2</maven-compiler-plugin-version>
+	</properties>
 	
 	<build>
 		<plugins>
