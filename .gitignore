@@ -21,3 +21,4 @@ core/src/main/external-resources/transcode-tools/transcode-tools-*
 core/src/main/external-resources/transcode-tools/linux/*
 core/src/main/external-resources/transcode-tools/osx/*
 core/src/main/external-resources/transcode-tools/win32/*
+core/src/main/external-resources/plugins/*.jar
