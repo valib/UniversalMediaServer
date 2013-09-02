@@ -13,7 +13,7 @@ debug.log
 libmediainfo.dylib
 maven-eclipse.xml
 pms.iml
-target/                                       
+target/
 core/src/main/external-resources/plugins/*.jar
 core/src/main/external-resources/private-jre/*.zip
 core/src/main/external-resources/private-jre/*.tar.gz
