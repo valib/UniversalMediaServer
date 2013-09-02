@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<!-- PMS consists of two major parts: PMS itself and the third party software 
 		needed to run it. While PMS itself is 100% pure Java, some of the third party 
@@ -29,19 +28,44 @@
 
 	<properties>
 		
+		<!-- Used library versions -->
 		<!-- JNA 3.4.0 solves issue #1152, but causes a bug in Windows. The version 
 			is therefore overruled in the Windows profile. This property should be removed 
 			when Windows can use the same version. -->
 		<jna-version-posix>3.4.0</jna-version-posix>
 		<jna-version-windows>3.2.5</jna-version-windows>
-		
+
 		<cuelib-version>1.2.1-2008-06-13</cuelib-version>
 		<junrar-version>0.7</junrar-version>
 		<mediautil-version>1.0</mediautil-version>
 		<jcalendar-version>1.1.1</jcalendar-version>
 		<slf4j-version>1.7.1</slf4j-version>
+		<logback-classic-version>1.0.7</logback-classic-version>
+		<logback-core-version>1.0.7</logback-core-version>
+		<bsh-core-version>2.0b4</bsh-core-version>
+		<commons-codec-version>1.7</commons-codec-version>
+		<commons-collections-version>3.2.1</commons-collections-version>
+		<commons-configuration-version>1.9</commons-configuration-version>
+		<commons-httpclient-version>3.1</commons-httpclient-version>
+		<commons-io-version>2.4</commons-io-version>
+		<commons-lang3-version>3.1</commons-lang3-version>
+		<h2-version>1.3.168</h2-version>
+		<maven-artifact-version>3.0.3</maven-artifact-version>
+		<sanselan-version>0.97-incubator</sanselan-version>
+		<gson-version>2.2.2</gson-version>
+		<netty-version>3.2.7.Final</netty-version>
+		<rome-version>1.0.0</rome-version>
+		<thumbnailator-version>0.4.4</thumbnailator-version>
+		<jai-imageio-core-standalone-version>1.2-pre-dr-b04-2011-07-04</jai-imageio-core-standalone-version>
+		<jaudiotagger-version>2.0.3</jaudiotagger-version>
+		<juniversalchardet-version>1.0.3</juniversalchardet-version>
+		<junit-version>4.10</junit-version>
+		<fest-assert-version>1.4</fest-assert-version>
+		<jmte-version>3.0</jmte-version>
+
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		
+		<!-- External files properties -->
 		<external-resources.directory>${project.basedir}/src/main/external-resources</external-resources.directory>
 		<external-resources.transcode-tools.directory>${external-resources.directory}/transcode-tools</external-resources.transcode-tools.directory>
 		<transcode-tools.download.url>http://downloads.sourceforge.net/project/ps3mediaserver/transcode-tools</transcode-tools.download.url>
@@ -50,7 +74,7 @@
 		<transcode-tools.macosx.filename>transcode-tools-osx-20130719.tar.gz</transcode-tools.macosx.filename>
 		<transcode-tools.windows.x86.filename>transcode-tools-win32-20130817.tar.gz</transcode-tools.windows.x86.filename>
 	</properties>
-		
+
 	<repositories>
 		<!-- Sonatype -->
 		<repository>
@@ -123,25 +147,25 @@
 		<dependency>
 			<groupId>org.beanshell</groupId>
 			<artifactId>bsh-core</artifactId>
-			<version>2.0b4</version>
+			<version>${bsh-core-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
-			<version>1.7</version>
+			<version>${commons-codec-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>commons-collections</groupId>
 			<artifactId>commons-collections</artifactId>
-			<version>3.2.1</version>
+			<version>${commons-collections-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>commons-configuration</groupId>
 			<artifactId>commons-configuration</artifactId>
-			<version>1.9</version>
+			<version>${commons-configuration-version}</version>
 			<exclusions>
 				<!-- no need for commons-logging, as jcl-over-slf4j provides the impl -->
 				<exclusion>
@@ -154,7 +178,7 @@
 		<dependency>
 			<groupId>commons-httpclient</groupId>
 			<artifactId>commons-httpclient</artifactId>
-			<version>3.1</version>
+			<version>${commons-httpclient-version}</version>
 			<exclusions>
 				<!-- no need for commons-logging, as jcl-over-slf4j provides the impl -->
 				<exclusion>
@@ -167,43 +191,43 @@
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
-			<version>2.4</version>
+			<version>${commons-io-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
-			<version>3.1</version>
+			<version>${commons-lang3-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
-			<version>1.3.168</version>
+			<version>${h2-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
-			<version>1.0.7</version>
+			<version>${logback-classic-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-core</artifactId>
-			<version>1.0.7</version>
+			<version>${logback-core-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.maven</groupId>
 			<artifactId>maven-artifact</artifactId>
-			<version>3.0.3</version>
+			<version>${maven-artifact-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.sanselan</groupId>
 			<artifactId>sanselan</artifactId>
-			<version>0.97-incubator</version>
+			<version>${sanselan-version}</version>
 		</dependency>
 
 		<dependency>
@@ -221,26 +245,26 @@
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-			<version>2.2.2</version>
+			<version>${gson-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.jboss.netty</groupId>
 			<artifactId>netty</artifactId>
-			<version>3.2.7.Final</version>
+			<version>${netty-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>net.java.dev.rome</groupId>
 			<artifactId>rome</artifactId>
-			<version>1.0.0</version>
+			<version>${rome-version}</version>
 		</dependency>
 
-        <dependency>
-            <groupId>net.coobird</groupId>
-            <artifactId>thumbnailator</artifactId>
-            <version>0.4.4</version>
-        </dependency>
+		<dependency>
+			<groupId>net.coobird</groupId>
+			<artifactId>thumbnailator</artifactId>
+			<version>${thumbnailator-version}</version>
+		</dependency>
 
 		<!--
 			this is not used on its own, but rather provides
@@ -258,20 +282,13 @@
 		<dependency>
 			<groupId>net.java.dev.jai-imageio</groupId>
 			<artifactId>jai-imageio-core-standalone</artifactId>
-			<version>1.2-pre-dr-b04-2011-07-04</version>
+			<version>${jai-imageio-core-standalone-version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org</groupId>
 			<artifactId>jaudiotagger</artifactId>
-			<version>2.0.3</version>
-		</dependency>
-
-		<!-- TODO: move to windows specific part (as pms) -->
-		<dependency>
-			<groupId>net.java.dev.jna</groupId>
-			<artifactId>jna</artifactId>
-			<version>${jna-version}</version>
+			<version>${jaudiotagger-version}</version>
 		</dependency>
 
 		<dependency>
@@ -306,11 +323,11 @@
 			<version>${jgoodies-looks-version}</version>
 		</dependency>
 
-        <dependency>
-            <groupId>com.github.junrar</groupId>
-            <artifactId>junrar</artifactId>
-            <version>${junrar-version}</version>
-        </dependency>
+		<dependency>
+			<groupId>com.github.junrar</groupId>
+			<artifactId>junrar</artifactId>
+			<version>${junrar-version}</version>
+		</dependency>
 
 		<!-- XXX: not Mavenized: https://code.google.com/p/cuelib/ -->
 		<dependency>
@@ -326,30 +343,30 @@
 			<version>${mediautil-version}</version>
 		</dependency>
 
-        <dependency>
-            <groupId>com.googlecode.juniversalchardet</groupId>
-            <artifactId>juniversalchardet</artifactId>
-            <version>1.0.3</version>
-        </dependency>
+		<dependency>
+			<groupId>com.googlecode.juniversalchardet</groupId>
+			<artifactId>juniversalchardet</artifactId>
+			<version>${juniversalchardet-version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.10</version>
+			<version>${junit-version}</version>
 			<scope>test</scope>
 		</dependency>
-		
-        <dependency>
-            <groupId>org.easytesting</groupId>
-            <artifactId>fest-assert</artifactId>
-            <version>1.4</version>
-            <scope>test</scope>
-        </dependency>
+
+		<dependency>
+			<groupId>org.easytesting</groupId>
+			<artifactId>fest-assert</artifactId>
+			<version>${fest-assert-version}</version>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>com.floreysoft</groupId>
 			<artifactId>jmte</artifactId>
-			<version>3.0</version>
+			<version>${jmte-version}</version>
 		</dependency>
 	</dependencies>
 
@@ -417,16 +434,16 @@
 
 				<!-- Enable the use of Maven properties -->
 				<filtering>true</filtering>
-		  </testResource>
+			</testResource>
 		  
             <!--*.srt files to test charset detection-->
-            <testResource>
-                <directory>src/test/resources/net/pms/util</directory>
-                <includes>
-                    <include>*.srt</include>
-                </includes>
-                <targetPath>net/pms/util</targetPath>
-            </testResource>
+			<testResource>
+				<directory>src/test/resources/net/pms/util</directory>
+				<includes>
+					<include>*.srt</include>
+				</includes>
+				<targetPath>net/pms/util</targetPath>
+			</testResource>
 		</testResources>
 
 		<pluginManagement>
@@ -505,7 +522,7 @@
 					<createChecksum>true</createChecksum>
 					<skipChecksumVerification>false</skipChecksumVerification>
 					<force>false</force>
-					
+
 					<artifactItems>
 
 						<artifactItem>
@@ -766,7 +783,7 @@
 					<family>windows</family>
 				</os>
 			</activation>
-			
+
 			<pluginRepositories>
 				<pluginRepository>
 					<id>Codehaus Snapshots</id>
@@ -809,36 +826,27 @@
 										<mkdir dir="${external-resources.transcode-tools.directory}/win32" />
 
 										<!-- Download and unpack binaries. -->
-										<get src="${transcode-tools.download.url}/win32/${transcode-tools.windows.x86.filename}"
-												dest="${external-resources.transcode-tools.directory}/${transcode-tools.windows.x86.filename}"
-												usetimestamp="true" />
+										<get src="${transcode-tools.download.url}/win32/${transcode-tools.windows.x86.filename}" dest="${external-resources.transcode-tools.directory}/${transcode-tools.windows.x86.filename}" usetimestamp="true" />
 
-										<untar src="${external-resources.transcode-tools.directory}/${transcode-tools.windows.x86.filename}"
-												dest="${external-resources.transcode-tools.directory}/win32"
-												compression="gzip"
-												stripAbsolutePathSpec="true"
-												overwrite="true"
-												failOnEmptyArchive="true">
+										<untar src="${external-resources.transcode-tools.directory}/${transcode-tools.windows.x86.filename}" dest="${external-resources.transcode-tools.directory}/win32" compression="gzip" stripAbsolutePathSpec="true" overwrite="true" failOnEmptyArchive="true">
 										</untar>
 									</target>
 								</configuration>
 							</execution>
-                            <execution>
-                                <id>copy-mediainfo-windows</id>
-                                <phase>process-resources</phase>
-                                <goals>
-                                    <goal>run</goal>
-                                </goals>
-                                <configuration>
-                                    <target>
+							<execution>
+								<id>copy-mediainfo-windows</id>
+								<phase>process-resources</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
 										<!-- MediaInfo library needs to be in the standard library path to be found -->
-										<copy file="${external-resources.transcode-tools.directory}/win32/MediaInfo.dll"
-											  todir="${project.basedir}" overwrite="true" verbose="true" />
-										<copy file="${external-resources.transcode-tools.directory}/win32/MediaInfo64.dll"
-											  todir="${project.basedir}" overwrite="true" verbose="true" />
-                                    </target>
-                                </configuration>
-                            </execution>
+										<copy file="${external-resources.transcode-tools.directory}/win32/MediaInfo.dll" todir="${project.basedir}" overwrite="true" verbose="true" />
+										<copy file="${external-resources.transcode-tools.directory}/win32/MediaInfo64.dll" todir="${project.basedir}" overwrite="true" verbose="true" />
+									</target>
+								</configuration>
+							</execution>
 						</executions>
 					</plugin>
 				</plugins>
@@ -889,16 +897,9 @@
 										<mkdir dir="${external-resources.transcode-tools.directory}/linux" />
 
 										<!-- Download and unpack binaries. -->
- 										<get src="${transcode-tools.download.url}/linux/${transcode-tools.linux.filename}"
-												dest="${external-resources.transcode-tools.directory}/${transcode-tools.linux.filename}"
-												usetimestamp="true" />
+										<get src="${transcode-tools.download.url}/linux/${transcode-tools.linux.filename}" dest="${external-resources.transcode-tools.directory}/${transcode-tools.linux.filename}" usetimestamp="true" />
 
-										<untar src="${external-resources.transcode-tools.directory}/${transcode-tools.linux.filename}"
-												dest="${external-resources.transcode-tools.directory}/linux"
-												compression="gzip"
-												stripAbsolutePathSpec="true"
-												overwrite="true"
-												failOnEmptyArchive="true">
+										<untar src="${external-resources.transcode-tools.directory}/${transcode-tools.linux.filename}" dest="${external-resources.transcode-tools.directory}/linux" compression="gzip" stripAbsolutePathSpec="true" overwrite="true" failOnEmptyArchive="true">
 										</untar>
 
 										<!-- Make all downloaded binaries executable. -->
@@ -930,7 +931,7 @@
 					<version>${jna-version-posix}</version>
 				</dependency>
 			</dependencies>
-			
+
 			<build>
 				<plugins>
 
@@ -953,16 +954,9 @@
 										<mkdir dir="${external-resources.transcode-tools.directory}/osx" />
 
 										<!-- Download and unpack binaries -->
-										<get src="${transcode-tools.download.url}/osx/${transcode-tools.macosx.filename}"
-												dest="${external-resources.transcode-tools.directory}/${transcode-tools.macosx.filename}"
-												usetimestamp="true" />
+										<get src="${transcode-tools.download.url}/osx/${transcode-tools.macosx.filename}" dest="${external-resources.transcode-tools.directory}/${transcode-tools.macosx.filename}" usetimestamp="true" />
 
-										<untar src="${external-resources.transcode-tools.directory}/${transcode-tools.macosx.filename}"
-												dest="${external-resources.transcode-tools.directory}/osx"
-												compression="gzip"
-												stripAbsolutePathSpec="true"
-												overwrite="true"
-												failOnEmptyArchive="true">
+										<untar src="${external-resources.transcode-tools.directory}/${transcode-tools.macosx.filename}" dest="${external-resources.transcode-tools.directory}/osx" compression="gzip" stripAbsolutePathSpec="true" overwrite="true" failOnEmptyArchive="true">
 										</untar>
 										
 										<!-- Make all downloaded binaries executable -->
