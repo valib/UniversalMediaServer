@@ -162,7 +162,7 @@ public class VideoFilePropertiesPanel extends JPanel implements IFilePropertiesE
 		FormLayout layout = new FormLayout("5px, 20:grow, 10px, 20:grow, 10px, 20:grow, 10px, 20:grow, 10px, d, 5px", // columns
 		        "3px, d, 3px, d, 3px, d, 3px, d, 3px, d, 3px, d, 3px, d, 5px, d, 3px"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		
 		//row 1
 		builder.add(hName, cc.xyw(2, 2, 3));

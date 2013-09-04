@@ -239,7 +239,7 @@ public class FilterEditor extends JPanel {
 		FormLayout layout = new FormLayout("3px, p, 3px, fill:50:grow, 3px, p, 3px", // columns
 		        "3px, fill:30:grow, 3px, p, p"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		PanelBuilder conBuilder;
 		FormLayout conLayout = new FormLayout("3px, r:p, 3px, p, 3px, fill:p, 3px, fill:10:grow, 3px, p, 3px", // columns
@@ -248,7 +248,7 @@ public class FilterEditor extends JPanel {
 		        "p, p, p, p, p, p, p, p, p, p, " +
 		        "p, p, p, p, p, p, p, p, p, p, fill:p:grow"); // rows
 		conBuilder = new PanelBuilder(conLayout);
-		conBuilder.setOpaque(true);
+		conBuilder.opaque(true);
 
 		// Conditions
 		if (conditionPanelsList.size() > 0) {

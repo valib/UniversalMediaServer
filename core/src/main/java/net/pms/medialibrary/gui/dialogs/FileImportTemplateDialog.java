@@ -133,7 +133,7 @@ public class FileImportTemplateDialog extends JDialog {
 		FormLayout layout = new FormLayout("3px, f:p:g, 3px",
 		        "3px, f:p:g, p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		

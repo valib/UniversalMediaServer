@@ -229,7 +229,7 @@ public class AddAutoFolderDialog extends JDialog {
 		FormLayout layout = new FormLayout("2dlu, fill:p:grow, 2dlu, p, 2dlu, p, 2dlu, fill:p:grow, 2dlu", // columns
 		        "2dlu, p, 2dlu, p, 2dlu, p"); // raws
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		// Options
 		builder.add(cbAutoFolder, cc.xy(2, 2));

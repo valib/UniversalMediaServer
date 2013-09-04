@@ -80,7 +80,7 @@ public class GlobalConfigurationPanel extends JPanel {
 		FormLayout layout = new FormLayout("5px, p, 5px, 50, f:5px:g", //columns
 				"5px, p, f:5px:g"); //rows
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		

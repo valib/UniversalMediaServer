@@ -54,7 +54,7 @@ public class MediaLibraryTab {
 		FormLayout layout = new FormLayout("3px, p, 5px, fill:50:grow, 3px",
 				"3px, fill:10:grow, 3px");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		

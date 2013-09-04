@@ -230,7 +230,7 @@ public class FolderDialog extends JDialog {
 		FormLayout layout = new FormLayout("3px, p, 3px, p, p:grow, p, 3px, p, 3px, p, 3px", // columns
 			"10px, p, 10px, fill:p:grow, p, 3px"); // raws
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		//Name & Filter Type
 		builder.add(lName, cc.xy(2, 2));

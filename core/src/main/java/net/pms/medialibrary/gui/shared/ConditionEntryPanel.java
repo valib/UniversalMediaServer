@@ -202,7 +202,7 @@ public class ConditionEntryPanel implements ActionListener {
 		FormLayout layoutCCondition = new FormLayout("10:grow, 3px, p", // columns
 		"p"); // rows
 		PanelBuilder builderCCondition = new PanelBuilder(layoutCCondition);
-		builderCCondition.setOpaque(true);
+		builderCCondition.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 

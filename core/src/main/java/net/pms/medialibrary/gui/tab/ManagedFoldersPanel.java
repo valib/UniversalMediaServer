@@ -194,7 +194,7 @@ public class ManagedFoldersPanel extends JPanel {
 		FormLayout layout = new FormLayout("fill:p:grow", // columns
 		        "fill:10:grow, p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 

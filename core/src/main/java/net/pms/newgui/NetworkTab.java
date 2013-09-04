@@ -80,8 +80,8 @@ public class NetworkTab {
 			"left:pref, 2dlu, p, 2dlu , p, 2dlu, p, 2dlu, pref:grow",
 			"p, 0dlu, p, 0dlu, p, 3dlu, p, 3dlu, p, 3dlu,p, 3dlu, p, 15dlu, p, 3dlu,p, 3dlu, p,  3dlu, p, 3dlu, p, 3dlu, p,3dlu, p, 3dlu, p, 15dlu, p,3dlu, p, 3dlu, p, 15dlu, p, 3dlu, p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setBorder(Borders.DLU4_BORDER);
-		builder.setOpaque(true);
+		builder.border(Borders.DLU4);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 

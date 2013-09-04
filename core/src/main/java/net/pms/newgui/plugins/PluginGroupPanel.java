@@ -70,7 +70,7 @@ public class PluginGroupPanel extends JPanel {
 				"10px, p, 15px, p, 15px, p, 15px, f:p:g, 15px, p, 10px",
 				rowStr);
 			PanelBuilder builder = new PanelBuilder(layout);
-			builder.setOpaque(true);
+			builder.opaque(true);
 
 			CellConstraints cc = new CellConstraints();
 			

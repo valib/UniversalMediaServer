@@ -132,7 +132,7 @@ public class PluginFolderDialog extends JDialog {
 		FormLayout layout = new FormLayout("3px, p, 3px, p:grow , 3px", 
 				"3px, p, 3px, p, 3px, fill:p:grow, 3px, p, 3px, p, 3px");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 

@@ -98,7 +98,7 @@ public class VideoFileInfoPanel extends JPanel implements IFilePropertiesEditor 
 		FormLayout layout = new FormLayout("3px, d, 5px, fill:20:grow, 3px", // columns
 		        "5px, d, 5px, fill:20:grow, 3px"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		
 		//Add title
 		JLabel lTitle = new JLabel(fileInfo.getName());
@@ -177,7 +177,7 @@ public class VideoFileInfoPanel extends JPanel implements IFilePropertiesEditor 
 		FormLayout layout = new FormLayout("3px, r:p, 7px, p, 40px, r:p, 7px, fill:p:grow, 3px", // columns
 		        "3px, p, 3px, p, 3px, p, 3px, p, 3px, p, 15px, p, 3px, p, 3px, p, 3px, p, 3px, p, 7px, p, 3px, p, 3px"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		
 		//add file properties
 		JComponent cmp = builder.addSeparator(Messages.getString("ML.VideoFileInfoPanel.lFileProperties"), cc.xyw(2, 2, 7));

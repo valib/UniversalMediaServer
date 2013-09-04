@@ -106,7 +106,6 @@ public class OptionChooser extends JPanel {
 		FormLayout layout = new FormLayout("fill:10:grow",
 		"p, p, p");
         PanelBuilder builder = new PanelBuilder(layout);
-        builder.setOpaque(false);
         
         CellConstraints cc = new CellConstraints();
     	

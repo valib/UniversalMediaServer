@@ -224,7 +224,7 @@ public class FileUpdateWithPluginDialog extends JDialog {
 		FormLayout layout = new FormLayout("5px, r:p, 5px, p, 5px, f:p:g, 5px",
 										   "5px, p, 5px, p, 5px, p, 5px, p, 5px, f:80:g, 5px, p, 5px");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		

@@ -113,7 +113,7 @@ public class FileImportPropertiesPanel extends JPanel {
 		FormLayout layout = new FormLayout("3px, 120, 5px, fill:p:grow, 3px",
 		        "3px, p, 5px, fill:p:grow, 3px");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		
@@ -133,8 +133,8 @@ public class FileImportPropertiesPanel extends JPanel {
 		FormLayout layout = new FormLayout("5px, p, 10px, p, 10px, p, 10px, p, 10px, p, 10px, p, 10px, p, 10px, p, 10px, p, 10px, p, 5px",
 		        "f:130, 5px");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setBorder(new TitledBorder("Tags"));
-		builder.setOpaque(true);
+		builder.border(new TitledBorder("Tags"));
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		
@@ -164,8 +164,8 @@ public class FileImportPropertiesPanel extends JPanel {
 		FormLayout layout = new FormLayout("5px, f:p:g, 15px, f:p:g, 15px, f:p:g, 15px, f:p:g, 15px, f:p:g, 15px, f:p:g, 5px",
 		        "5px, t:p, 15px, t:p, 15px, t:p, 5px");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setBorder(new TitledBorder("Properties"));
-		builder.setOpaque(true);
+		builder.border(new TitledBorder("Properties"));
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		

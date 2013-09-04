@@ -146,7 +146,7 @@ public class FolderEntryPanel extends JPanel {
 		FormLayout layout = new FormLayout("p, 3px, fill:10:grow, 3px, p, 3px, p", // columns
 		        "p"); // raws
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.addLabel(FileSystemFolderPlugin.messages.getString("FolderEntry.2"), cc.xy(1, 1));
 		builder.add(tfFolderPath, cc.xy(3, 1));

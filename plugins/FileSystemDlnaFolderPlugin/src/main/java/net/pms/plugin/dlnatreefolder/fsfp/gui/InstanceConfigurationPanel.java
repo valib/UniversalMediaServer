@@ -146,7 +146,7 @@ public class InstanceConfigurationPanel extends JPanel {
 		FormLayout conLayout = new FormLayout("fill:10:grow", // columns
 		        "p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, fill:10:grow"); // rows
 		conBuilder = new PanelBuilder(conLayout);
-		conBuilder.setOpaque(true);
+		conBuilder.opaque(true);
 
 		// Conditions
 		if (sharedFolders.size() > 0) {
@@ -162,7 +162,7 @@ public class InstanceConfigurationPanel extends JPanel {
 		FormLayout layout = new FormLayout("fill:10:grow", // columns
 		        "fill:10:grow, 3px, p"); // raws
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		JScrollPane spConditions = new JScrollPane(conBuilder.getPanel());
 		spConditions.setBorder(null);
 		builder.add(spConditions, cc.xy(1, 1));

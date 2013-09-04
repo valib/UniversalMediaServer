@@ -72,7 +72,7 @@ public class TextInputDialog extends JDialog {
 		FormLayout layout = new FormLayout("5px, r:p, 5px, 200, 5px",
 		        "3px, p, 1px, p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		

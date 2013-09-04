@@ -178,7 +178,7 @@ public class FileDisplayPanel extends JPanel {
 		FormLayout layout = new FormLayout("5px, p, 5px, p, 5px, fill:10:grow, 5px, p, 15px, p, 3px, p, 3px, p, 3px, p, 5px", // columns
 		        rowSpecs); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		
 		List<ThumbnailPrioType> pts = new ArrayList<ThumbnailPrioType>();
 		pts.add(ThumbnailPrioType.THUMBNAIL);
@@ -340,7 +340,7 @@ public class FileDisplayPanel extends JPanel {
 		FormLayout layout = new FormLayout("p, 3px, fill:100:grow, 3px, p", // columns
 		        "p"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(lMask, cc.xy(1, 1));
 		builder.add(tfDisplaynameMask, cc.xy(3, 1));
@@ -434,7 +434,7 @@ public class FileDisplayPanel extends JPanel {
 		FormLayout layout = new FormLayout("3px, fill:300:grow, 3px", // columns
 		        "3px, p, 3px, p, 3px, p, 3px, fill:100:grow, 3px"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(pFileDisplayMode, cc.xy(2, 2));
 		builder.add(pDisplayNameMask, cc.xy(2, 4));

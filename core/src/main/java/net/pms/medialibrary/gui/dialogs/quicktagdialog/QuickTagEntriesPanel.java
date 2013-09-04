@@ -99,7 +99,7 @@ public class QuickTagEntriesPanel extends JPanel{
 				"5px, 135, 5px, 135, 5px, f:210:g, 5px, p, 2px, p, 2px, p, 5px, p, 5px",
 				rowsString);
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		

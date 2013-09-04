@@ -249,7 +249,7 @@ public class FileEditDialog extends JDialog {
 		FormLayout layout = new FormLayout("3px, d, 3px, d, fill:10:grow, d, 30px, d, 3px, d, 3px", // columns
 		        "3px, fill:10:grow, 3px, p, 3px"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(tpFileEdit, cc.xyw(2, 2, 9));
 		

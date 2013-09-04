@@ -70,7 +70,7 @@ public class FileScannerSelectorPanel extends JPanel {
 		FormLayout layout = new FormLayout("f:p:g",
 		        "p, 2px, p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		

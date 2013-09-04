@@ -953,7 +953,7 @@ class DisplayPanel extends JPanel {
 		FormLayout layout = new FormLayout("3px, fill:500:grow, 3px", // columns
 		        "2dlu, p, 3px, p, 3px, p, 3px, p, 3px, p, 3px, p, 3px, fill:p:grow, 2dlu"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(getDisplayItemsPanel(), cc.xy(2, 2));
 		builder.addSeparator(Messages.getString("ML.DisplayPanel.sSorting"), cc.xy(2, 4));
@@ -983,7 +983,7 @@ class DisplayPanel extends JPanel {
 		FormLayout layout = new FormLayout("3px, p, 3px, fill:10:grow, 3px, p, 3px", // columns
 		        "p"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		
 		builder.add(cbDisplayItems, cc.xy(2, 1));
 		builder.add(lMaxFiles, cc.xy(4, 1, CellConstraints.RIGHT, CellConstraints.CENTER));
@@ -999,7 +999,7 @@ class DisplayPanel extends JPanel {
 		FormLayout layout = new FormLayout("3px, p, 3px, p, 3px, p, 7px, p, 3px, r:p:grow, 3px", // columns
 		        "p"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(cbSortOption, cc.xy(2, 1));
 		builder.add(cbSortType, cc.xy(4, 1));
@@ -1017,7 +1017,7 @@ class DisplayPanel extends JPanel {
 		FormLayout layout = new FormLayout("3px, p, 3px, p, 3px, p, 3px, p, 3px, p, 3px, p, 3px, p, 3px", // columns
 		        "p"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(lTemplate, cc.xy(2, 1));
 		builder.add(cbTemplate, cc.xy(4, 1));
@@ -1037,7 +1037,7 @@ class DisplayPanel extends JPanel {
 		FormLayout layout = new FormLayout("3px, p, 10px, p, 3px, r:p:grow, 3px", // columns
 		        "p"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(rbDisplayItemAsFile, cc.xy(2, 1));
 		builder.add(rbDisplayIemAsFolder, cc.xy(4, 1));

@@ -88,7 +88,7 @@ public class DLNAViewPanel extends JPanel {
 		FormLayout layout = new FormLayout("fill:10:grow", // columns
 			"p, 2dlu, fill:10:grow"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		builder.add(cbDisplayItems, cc.xy(1, 1));
 
         JScrollPane treeViewScrollPane = new JScrollPane(tree); 

@@ -310,7 +310,7 @@ public class FileImportTemplatePanel extends JPanel {
 		FormLayout layout = new FormLayout("fill:p:grow, 5px, p, 5px, p, 5px, p",
 		        "p, 5px, fill:p:grow");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		

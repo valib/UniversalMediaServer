@@ -113,7 +113,7 @@ public class GeneralOptionsView extends JPanel {
 	private JComponent buildUseMediaLibrary() {
 		FormLayout layout = new FormLayout("10:grow", "p, 7px, p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		CellConstraints cc = new CellConstraints();
 
 		// Header
@@ -210,7 +210,7 @@ public class GeneralOptionsView extends JPanel {
 
 		FormLayout layout = new FormLayout("3px, 10:grow, 3px", "3px, p, 7px, p, 7px, p, 7px, fill:p:grow, 3px, p, 3px");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		CellConstraints cc = new CellConstraints();
 
 		builder.add(buildGeneral(), cc.xy(2, 2));
@@ -228,7 +228,7 @@ public class GeneralOptionsView extends JPanel {
 	private Component buildFolderManager() {
 		FormLayout layout = new FormLayout("fill:p:grow", "p, fill:150:grow");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		CellConstraints cc = new CellConstraints();
 
 		JComponent sManageFolders = builder.addSeparator(Messages.getString("ML.GeneralOptionsView.sManageFolders"), cc.xy(1, 1));
@@ -244,7 +244,7 @@ public class GeneralOptionsView extends JPanel {
 	private Component buildScanner() {
 		FormLayout layout = new FormLayout("p, 5px, 100px, 3dlu, p, 3dlu, p, 3dlu, fill:10:grow", "p, 3dlu,  p, 3dlu, p, 3dlu, p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		CellConstraints cc = new CellConstraints();
 
 		JComponent sScanner = builder.addSeparator(Messages.getString("ML.GeneralOptionsView.sScanner"), cc.xyw(1, 1, 9));
@@ -323,7 +323,7 @@ public class GeneralOptionsView extends JPanel {
 		FormLayout layout = new FormLayout("r:p, 3px, fill:10:grow, 3px, p, 3px, p, 3px, p, 3px, p", 
 				"p, 3px, p, 3px, p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		CellConstraints cc = new CellConstraints();
 
 		//header
@@ -393,7 +393,7 @@ public class GeneralOptionsView extends JPanel {
 	private JComponent buildLibrary() {
 		FormLayout layout = new FormLayout("p, right:p, 5px, 40px, 3dlu, p, 3dlu, fill:0:grow, p", "p, p, p, p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		CellConstraints cc = new CellConstraints();
 
 		JComponent sManageLibrary = builder.addSeparator(Messages.getString("ML.GeneralOptionsView.sManageLibrary"), cc.xyw(1, 1, 9));

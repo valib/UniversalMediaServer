@@ -37,7 +37,7 @@ public class PluginAboutPanel extends JPanel {
 				"5px, p, 5px, f:p:g, 5px, p, 5px",
 				"5px, p, 15px,  p, 5px,  f:p:g, 5px");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 

@@ -55,7 +55,7 @@ public class ConditionsViewer extends JDialog{
 		        "p, p, p, p, p, p, p, p, p, p, " +
 		        "p, p, p, p, p, p, p, p, p, p, 5px, p, 2px, p, p"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
     	
 		//add conditions
 		int i = 2;

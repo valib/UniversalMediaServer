@@ -146,7 +146,7 @@ public class ConfigureFileEntryDialog extends JDialog {
 		FormLayout layout = new FormLayout("3px, fill:300:grow, 3px", // columns
 		        "3px, fill:p:grow, p, p"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(pFilterFile, cc.xy(2, 2));
 		builder.addSeparator("", cc.xy(2, 3));

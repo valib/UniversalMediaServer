@@ -106,7 +106,7 @@ public class ScanFolderDialog extends JDialog {
 				"5px, p, 5px, fill:p:grow, 5px, p, 5px, p, 5px",
 				"p, 2px,  p, 5px,  p, 2px,  p");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 

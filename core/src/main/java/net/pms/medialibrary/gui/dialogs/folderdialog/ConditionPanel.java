@@ -165,7 +165,7 @@ class ConditionPanel extends JPanel {
 		FormLayout layout = new FormLayout("3px, fill:50:grow, 3px", // columns
 		        "3px, p, 3px, fill:120:grow, 3px"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(getInheritPanel(), cc.xy(2, 2));
 		builder.add(filterEditor, cc.xy(2, 4));
@@ -182,7 +182,7 @@ class ConditionPanel extends JPanel {
 		FormLayout layout = new FormLayout("p, 3px, p, 3px, p:grow", // columns
 		        "p"); // rows
 		builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		builder.add(lInherit, cc.xy(1, 1));
 		builder.add(bShowInherit, cc.xy(3, 1));

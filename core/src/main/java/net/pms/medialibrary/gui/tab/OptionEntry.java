@@ -63,7 +63,6 @@ public class OptionEntry extends JPanel implements MouseListener {
 		FormLayout layout = new FormLayout("p, 7px, fill:10:grow",
 		"p");
         PanelBuilder builder = new PanelBuilder(layout);
-        builder.setOpaque(false);
         
         CellConstraints cc = new CellConstraints();
 

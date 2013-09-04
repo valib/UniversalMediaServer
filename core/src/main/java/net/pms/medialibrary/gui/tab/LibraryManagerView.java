@@ -39,7 +39,7 @@ public class LibraryManagerView extends JPanel {
 	private Component build(){
 		FormLayout layout = new FormLayout("fill:10:grow", "fill:10:grow");
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 		CellConstraints cc = new CellConstraints();
 
 		builder.add(new JLabel("****** Needs to be done ******"), cc.xy(1, 1, CellConstraints.CENTER, CellConstraints.CENTER));

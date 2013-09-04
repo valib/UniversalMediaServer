@@ -95,7 +95,7 @@ public class InstanceConfigurationPanel extends JPanel {
 		FormLayout layout = new FormLayout("5px, p, 5px, f:200:g, 5px, p, 10px, p, 5px", //columns
 				"5px, p, f:5px:g"); //rows
 		PanelBuilder builder = new PanelBuilder(layout);
-		builder.setOpaque(true);
+		builder.opaque(true);
 
 		CellConstraints cc = new CellConstraints();
 		
