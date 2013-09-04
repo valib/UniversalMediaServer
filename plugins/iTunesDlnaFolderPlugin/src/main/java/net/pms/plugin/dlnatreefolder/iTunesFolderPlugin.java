@@ -71,8 +71,8 @@ public class iTunesFolderPlugin implements DlnaTreeFolderPlugin {
 			pInstanceConfiguration = new InstanceConfigurationPanel(instanceConfig);
 		}
 		
-		//make sure the iTunes file path points to an existing file
-		if(instanceConfig.getiTunesFilePath() == null || !new File(instanceConfig.getiTunesFilePath()).exists()) {
+		//make sure the iTunes file path has been set
+		if(instanceConfig.getiTunesFilePath() == null || instanceConfig.getiTunesFilePath().equals("")) {
 			try {
 				instanceConfig.setiTunesFilePath(getiTunesFile());
 			} catch (Exception e) {
@@ -428,11 +428,7 @@ public class iTunesFolderPlugin implements DlnaTreeFolderPlugin {
 
 	@Override
     public boolean isInstanceAvailable() {
-		String iTunesFile = instanceConfig.getiTunesFilePath();
-		if(isPluginAvailable() && iTunesFile != null && (new File(iTunesFile)).exists()) {
-			return true;
-	    }
-		return false;
+		return isPluginAvailable();
     }
 
 	@Override

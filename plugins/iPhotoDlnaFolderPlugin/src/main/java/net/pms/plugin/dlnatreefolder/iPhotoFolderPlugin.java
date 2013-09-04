@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import xmlwise.Plist;
-import xmlwise.XmlParseException;
 
 import net.pms.dlna.DLNAResource;
 import net.pms.dlna.RealFile;
@@ -113,11 +111,7 @@ public class iPhotoFolderPlugin implements DlnaTreeFolderPlugin {
 				} else {
 					logger.info("iPhoto folder not found");
 				}
-			} catch (XmlParseException e) {
-				logger.error("Something went wrong with the iPhoto Library scan: ", e);
-			} catch (URISyntaxException e) {
-				logger.error("Something went wrong with the iPhoto Library scan: ", e);
-			} catch (IOException e) {
+			} catch (Exception e) {
 				logger.error("Something went wrong with the iPhoto Library scan: ", e);
 			} finally {
 				IOUtils.closeQuietly(inputStream);
