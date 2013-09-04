@@ -48,6 +48,8 @@
 							</artifactItems>
 							<includeArtifactIds>jtmdb</includeArtifactIds>
 							<outputDirectory>${project.build.directory}/classes</outputDirectory>
+							<overWriteReleases>true</overWriteReleases>
+							<overWriteSnapshots>true</overWriteSnapshots>
 						</configuration>
 					</execution>
 				</executions>
