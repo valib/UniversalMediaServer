@@ -345,24 +345,37 @@ class DBVideoFileInfo extends DBFileInfo {
 					}
 
 					// Subtitle track
-					DLNAMediaSubtitle subtitleTrack = new DLNAMediaSubtitle();
 					String subtitleFilePath = rs.getString(pos++);
-					File subTitleFile;
-					if (subtitleFilePath != null && !subtitleFilePath.equals("") && (subTitleFile = new File(subtitleFilePath)).exists()) {
-						subtitleTrack.setExternalFile(subTitleFile);
-					}
-					subtitleTrack.setLang(rs.getString(pos++));
-					subtitleTrack.setType(SubtitleType.values()[rs.getInt(pos++)]);
-
 					boolean doInsertSubtitleTrack = true;
 					for (DLNAMediaSubtitle currTrack : videoFile.getSubtitlesCodes()) {
-						if(currTrack.equals(subtitleTrack)) { 
+						if(currTrack.isExternal() && currTrack.getExternalFile() != null && currTrack.getExternalFile().getAbsolutePath().equals(subtitleFilePath)) { 
+							// Avoid checking an external subtitle file multiple times
 							doInsertSubtitleTrack = false;
 							break;
 						}
 					}
-					if (doInsertSubtitleTrack) {
-						videoFile.getSubtitlesCodes().add(subtitleTrack);
+					
+					if(doInsertSubtitleTrack){
+						DLNAMediaSubtitle subtitleTrack = new DLNAMediaSubtitle();
+						File subTitleFile;
+						if (subtitleFilePath != null && !subtitleFilePath.equals("") && (subTitleFile = new File(subtitleFilePath)).exists()) {
+							subtitleTrack.setExternalFile(subTitleFile);
+						}
+						subtitleTrack.setLang(rs.getString(pos++));
+						subtitleTrack.setType(SubtitleType.values()[rs.getInt(pos++)]);
+
+						for (DLNAMediaSubtitle currTrack : videoFile.getSubtitlesCodes()) {
+							if(currTrack.equals(subtitleTrack)) { 
+								doInsertSubtitleTrack = false;
+								break;
+							}
+						}
+						if (doInsertSubtitleTrack) {
+							videoFile.getSubtitlesCodes().add(subtitleTrack);
+						}
+					} else {
+						// Skip two columns as the external subtitle file has been previously added
+						pos += 2;
 					}
 
 					// Genres and Tags
