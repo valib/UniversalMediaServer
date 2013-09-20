@@ -8,7 +8,7 @@
 		target directory, to prepare for OS specific assembly.
 	-->
 
-	<id>assembly-dependencies</id>
+	<id>jar-with-dependencies</id>
 	<formats>
 		<format>dir</format>
 	</formats>

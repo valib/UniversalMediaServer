@@ -30,7 +30,7 @@ SetCompressorDictSize 32
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
 
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "${PROJECT_BASEDIR}\LICENSE.txt"
+!insertmacro MUI_PAGE_LICENSE "${PROJECT_CORE_BASEDIR}\LICENSE.txt"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -123,16 +123,17 @@ Section "Program Files"
   SetOutPath "$INSTDIR"
   SetOverwrite on
   nsSCM::Stop "${PROJECT_NAME}"
-  File /r /x "*.conf" /x "*.zip" /x "*.dll" /x "third-party" "${PROJECT_CORE_BASEDIR}\src\main\external-resources\plugins"
+  File /r /x "*.conf" /x "*.zip" /x "*.dll" /x "third-party" "${PROJECT_CORE_BASEDIR}\src\main\external-resources\plugins" 
+  File /r "${PROJECT_BASEDIR}\src\main\resources"
   File /r "${PROJECT_CORE_BASEDIR}\src\main\external-resources\documentation"
   File /r "${PROJECT_CORE_BASEDIR}\src\main\external-resources\renderers"
-  File /r "${PROJECT_BINARIES}\win32"
+  File /r "${PROJECT_BUILD_DIR}\bin\win32"
   ;Install private JRE folder if needed.
   !insertmacro installPrivateJRE
   File "${PROJECT_BUILD_DIR}\PMS.exe"
   File "${PROJECT_BASEDIR}\target\pms.jar"
-  File "${PROJECT_BINARIES}\MediaInfo.dll"
-  File "${PROJECT_BINARIES}\MediaInfo64.dll"
+  File "${PROJECT_BASEDIR}\src\main\external-resources\transcode-tools\win32\MediaInfo.dll"
+  File "${PROJECT_BASEDIR}\src\main\external-resources\transcode-tools\win32\MediaInfo64.dll"
   File "${PROJECT_CORE_BASEDIR}\CHANGELOG"
   File "${PROJECT_CORE_BASEDIR}\README.md"
   File "${PROJECT_CORE_BASEDIR}\LICENSE.txt"

@@ -156,6 +156,7 @@
 		<maven-javadoc-plugin-version>2.9.1</maven-javadoc-plugin-version>
 		<maven-pmd-plugin-version>3.0.1</maven-pmd-plugin-version>
 		<maven-dependency-plugin-version>2.8</maven-dependency-plugin-version>
+		<maven-assembly-plugin-version>2.4</maven-assembly-plugin-version>
 
 		<doxia-module-docbook-simple-version>1.4</doxia-module-docbook-simple-version>
 		<git-commit-id-plugin-version>2.1.5</git-commit-id-plugin-version>

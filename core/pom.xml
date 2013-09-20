@@ -343,6 +343,12 @@
 		</dependency>
 
 		<dependency>
+			<groupId>xmlwise</groupId>
+			<artifactId>xmlwise</artifactId>
+			<version>${xmlwise-version}</version>
+		</dependency>
+
+		<dependency>
 			<groupId>com.googlecode.juniversalchardet</groupId>
 			<artifactId>juniversalchardet</artifactId>
 			<version>${juniversalchardet-version}</version>

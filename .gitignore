@@ -15,10 +15,14 @@ maven-eclipse.xml
 pms.iml
 target/
 core/src/main/external-resources/plugins/*.jar
-core/src/main/external-resources/private-jre/*.zip
-core/src/main/external-resources/private-jre/*.tar.gz
 core/src/main/external-resources/transcode-tools/transcode-tools-*
 core/src/main/external-resources/transcode-tools/linux/*
 core/src/main/external-resources/transcode-tools/osx/*
 core/src/main/external-resources/transcode-tools/win32/*
-core/src/main/external-resources/plugins/*.jar
+core/src/main/external-resources/plugins/*.jar   
+packaging/src/main/external-resources/private-jre/*.zip
+packaging/src/main/external-resources/private-jre/*.tar.gz
+packaging/src/main/external-resources/transcode-tools/transcode-tools-*
+packaging/src/main/external-resources/transcode-tools/linux/*
+packaging/src/main/external-resources/transcode-tools/osx/*
+packaging/src/main/external-resources/transcode-tools/win32/*
