@@ -540,14 +540,6 @@
 				</os>
 			</activation>
 
-			<dependencies>
-				<dependency>
-					<groupId>net.java.dev.jna</groupId>
-					<artifactId>jna</artifactId>
-					<version>${jna-version-posix}</version>
-				</dependency>
-			</dependencies>
-
 			<build>
 				<resources>
 					<!-- Copy precompiled Linux binaries. -->
