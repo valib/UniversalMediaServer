@@ -528,61 +528,95 @@
 		<!-- Linux profile: takes care of building the final package for Linux -->
 		<profile>
 			<id>linux</id>
+			<!--
+				 this setting does the right thing on Linux
+				 and is needed for the Hudson profile to work
+			 -->
 			<activation>
-				<activeByDefault>false</activeByDefault>
+				<activeByDefault>true</activeByDefault>
 				<os>
 					<family>unix</family>
+					<name>Linux</name>
 				</os>
 			</activation>
 
+			<dependencies>
+				<dependency>
+					<groupId>net.java.dev.jna</groupId>
+					<artifactId>jna</artifactId>
+					<version>${jna-version-posix}</version>
+				</dependency>
+			</dependencies>
+
 			<build>
+				<resources>
+					<!-- Copy precompiled Linux binaries. -->
+					<resource>
+						<directory>${external-resources.transcode-tools.directory}/linux</directory>
+						<targetPath>${target.transcode-tools.directory}/linux</targetPath>
+						<!-- Avoid inadvertently filtering binaries -->
+						<filtering>false</filtering>
+					</resource>
+				</resources>
+				
 				<plugins>
-					<!-- Plugin to copy the pms-x.x.x-jar-with-dependencies.jar to pms.jar -->
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<version>${maven-antrun-plugin-version}</version>
-						<executions>
-							<execution>
-								<id>process-resources-linux</id>
-								<phase>process-resources</phase>
-								<goals>
-									<goal>run</goal>
-								</goals>
-								<configuration>
-									<target>
-										<!-- Make sure the binaries folder exists -->
-										<mkdir dir="${project.binaries}" />
-
-										<!-- Download binaries -->
-										<get src="${project.binaries-base}/linux/tsMuxeR" dest="${project.binaries}/tsMuxeR" usetimestamp="true" />
-									</target>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-
-					<!-- Plugin to assemble the PMS distribution file. -->
+					<!-- Assemble the PMS tar.gz archive distribution file. -->
 					<plugin>
 						<artifactId>maven-assembly-plugin</artifactId>
 						<executions>
 							<execution>
-								<id>build-pms-linux</id>
+								<id>make-pms-tar-gz-archive-linux</id>
 								<phase>package</phase>
 								<goals>
 									<goal>single</goal>
 								</goals>
 								<configuration>
-									<finalName>${project.parent.artifactId}-generic-linux-unix-${project.parent.version}</finalName>
-									<appendAssemblyId>false</appendAssemblyId>
 									<descriptors>
 										<descriptor>${project.basedir}/src/main/assembly/assembly-linux.xml</descriptor>
 									</descriptors>
 									<archive>
 										<manifest>
 											<mainClass>net.pms.PMS</mainClass>
+											<addDefaultImplementationEntries>true</addDefaultImplementationEntries> <!-- see above for documentation -->
 										</manifest>
 									</archive>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+
+					<!-- Download external resources. -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>download-external-resources-linux</id>
+								<phase>generate-resources</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<!-- Make sure the download folder exists. -->
+										<mkdir dir="${external-resources.transcode-tools.directory}/linux" />
+
+										<!-- Download and unpack binaries. -->
+ 										<get src="${transcode-tools.download.url}/linux/${transcode-tools.linux.filename}"
+												dest="${external-resources.transcode-tools.directory}/${transcode-tools.linux.filename}"
+												usetimestamp="true" />
+
+										<untar src="${external-resources.transcode-tools.directory}/${transcode-tools.linux.filename}"
+												dest="${external-resources.transcode-tools.directory}/linux"
+												compression="gzip"
+												stripAbsolutePathSpec="true"
+												overwrite="true"
+												failOnEmptyArchive="true">
+										</untar>
+
+										<!-- Make all downloaded binaries executable. -->
+										<chmod dir="${external-resources.transcode-tools.directory}/linux" perm="a+x" includes="*" />
+									</target>
 								</configuration>
 							</execution>
 						</executions>
