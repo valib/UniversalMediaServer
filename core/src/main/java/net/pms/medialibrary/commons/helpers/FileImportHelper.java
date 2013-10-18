@@ -352,8 +352,7 @@ public class FileImportHelper {
 		if(fileInfo instanceof DOVideoFileInfo) {
 			DOVideoFileInfo videoFileInfo = (DOVideoFileInfo) fileInfo;
 			if(!videoFileInfo.getName().equals("")) {
-				String yearString = videoFileInfo.getYear() == 0 ? "" : String.format(" (%s)", videoFileInfo.getYear());
-				cleanName = videoFileInfo.getName() + yearString;
+				cleanName = videoFileInfo.getName();
 			}
 		}
 		if(cleanName == null) {

@@ -260,11 +260,13 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 				queryString = "imdbRating";				
 			}
 			Object ratingObj = getValue(queryString);
-			if(ratingObj != null) {
+			if(ratingObj != null && !ratingObj.toString().equals("N/A")) {
 				try {
 					double r = Double.parseDouble(ratingObj.toString());
 					if(!globalConfig.isUseRottenTomatoes()) {
 						res = (int)(10 * r);
+					}else{
+						res = r;
 					}
 				} catch (NumberFormatException ex) {
 					logger.error(String.format("Failed to parse rating='%s' as a double", ratingObj.toString()), ex);
@@ -278,7 +280,7 @@ public class ImdbMovieImportPlugin implements FileImportPlugin {
 				queryString = "imdbVotes";				
 			}
 			ratingObj = getValue(queryString);
-			if(ratingObj != null) {
+			if(ratingObj != null && !ratingObj.toString().equals("N/A")) {
 				try {
 					res = Integer.parseInt(ratingObj.toString().replace(",", ""));
 				} catch (NumberFormatException ex) {
