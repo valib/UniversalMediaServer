@@ -22,13 +22,16 @@ import com.jgoodies.forms.builder.PanelBuilder;
 import com.jgoodies.forms.factories.Borders;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
+
 import java.awt.Font;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
 import javax.swing.*;
+
 import net.pms.Messages;
 import net.pms.configuration.PmsConfiguration;
 import net.pms.dlna.DLNAMediaInfo;
@@ -39,6 +42,7 @@ import net.pms.io.ProcessWrapper;
 import net.pms.io.ProcessWrapperImpl;
 import net.pms.network.HTTPResource;
 import net.pms.util.PlayerUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,7 +134,7 @@ public class FFmpegAudio extends FFMpegVideo {
 	}
 
 	@Override
-	public ProcessWrapper launchTranscode(
+	public synchronized ProcessWrapper launchTranscode(
 		DLNAResource dlna,
 		DLNAMediaInfo media,
 		OutputParams params
@@ -178,8 +182,16 @@ public class FFmpegAudio extends FFMpegVideo {
 			cmdList.add("" + nThreads);
 		}
 
-		cmdList.add("-i");
-		cmdList.add(filename);
+		if (params.mediaRenderer.isPlayAudioAsVideo()) {
+			cmdList.add("-i:v");
+			cmdList.add("images/thumbnail-sound-256.png");
+			cmdList.add("-i:a");
+			cmdList.add(filename);
+		} else {
+			cmdList.add("-i");
+			cmdList.add(filename);
+		}
+		
 
 		// Encoder threads
 		if (nThreads > 0) {
@@ -192,7 +204,9 @@ public class FFmpegAudio extends FFMpegVideo {
 			cmdList.add("" + params.timeend);
 		}
 
-		if (params.mediaRenderer.isTranscodeToMP3()) {
+		if (params.mediaRenderer.isPlayAudioAsVideo()) {
+			cmdList.addAll(getVideoTranscodeOptions(dlna, media, params));
+		} else if (params.mediaRenderer.isTranscodeToMP3()) {
 			cmdList.add("-f");
 			cmdList.add("mp3");
 			cmdList.add("-ab");
@@ -205,7 +219,7 @@ public class FFmpegAudio extends FFMpegVideo {
 			cmdList.add("s16be"); // same as -f wav, but without a WAV header
 		}
 
-		if (configuration.isAudioResample()) {
+		if (configuration.isAudioResample() && !params.mediaRenderer.isPlayAudioAsVideo()) {
 			if (params.mediaRenderer.isTranscodeAudioTo441()) {
 				cmdList.add("-ar");
 				cmdList.add("44100");

@@ -454,6 +454,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 			|| getFormat().isUnknown()
 			|| (getFormat().isVideo() && renderer.isVideoSupported())
 			|| (getFormat().isAudio() && renderer.isAudioSupported())
+			|| (getFormat().isAudio() && renderer.isPlayAudioAsVideo())
 			|| (getFormat().isImage() && renderer.isImageSupported());
 	}
 
@@ -1492,7 +1493,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 			);
 		}
 
-		if (firstAudioTrack != null) {
+		if (firstAudioTrack != null && !mediaRenderer.isPlayAudioAsVideo()) {
 			if (StringUtils.isNotBlank(firstAudioTrack.getAlbum())) {
 				addXMLTagAndAttribute(sb, "upnp:album", encodeXML(firstAudioTrack.getAlbum()));
 			}
@@ -1964,7 +1965,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 						addAttribute(sb, "resolution", getMedia().getResolution());
 					}
 					addAttribute(sb, "bitrate", getMedia().getRealVideoBitrate());
-					if (firstAudioTrack != null) {
+					if (firstAudioTrack != null && !mediaRenderer.isPlayAudioAsVideo()) {
 						if (firstAudioTrack.getAudioProperties().getNumberOfChannels() > 0) {
 							addAttribute(sb, "nrAudioChannels", firstAudioTrack.getAudioProperties().getNumberOfChannels());
 						}
@@ -1983,7 +1984,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 						wireshark.append(" size=").append(length());
 						addAttribute(sb, "size", length());
 					}
-				} else if (getFormat() != null && getFormat().isAudio()) {
+				} else if (getFormat() != null && getFormat().isAudio() && !mediaRenderer.isPlayAudioAsVideo()) {
 					if (getMedia() != null && getMedia().isMediaparsed()) {
 						addAttribute(sb, "bitrate", getMedia().getBitrate());
 						if (getMedia().getDuration() != null) {
@@ -2090,7 +2091,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 				uclass = "object.item.videoItem";
 			} else if (getFormat() != null && getFormat().isImage()) {
 				uclass = "object.item.imageItem.photo";
-			} else if (getFormat() != null && getFormat().isAudio()) {
+			} else if (getFormat() != null && getFormat().isAudio() && !mediaRenderer.isPlayAudioAsVideo()) {
 				uclass = "object.item.audioItem.musicTrack";
 			} else {
 				uclass = "object.item.videoItem";
