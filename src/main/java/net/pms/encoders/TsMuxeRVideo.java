@@ -34,6 +34,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import net.pms.Messages;
+import net.pms.configuration.DeviceConfiguration;
 import net.pms.configuration.PmsConfiguration;
 import net.pms.configuration.RendererConfiguration;
 import net.pms.dlna.DLNAMediaAudio;
@@ -121,6 +122,8 @@ public class TsMuxeRVideo extends Player {
 		DLNAMediaInfo media,
 		OutputParams params
 	) throws IOException {
+		PmsConfiguration prev = configuration;
+		configuration = (DeviceConfiguration) params.mediaRenderer;
 		final String filename = dlna.getSystemName();
 		setAudioAndSubs(filename, media, params);
 
@@ -294,9 +297,6 @@ public class TsMuxeRVideo extends Player {
 				boolean dtsRemux;
 				boolean encodedAudioPassthrough;
 				boolean pcm;
-
-				// Disable LPCM transcoding for MP4 container with non-H264 video as workaround for MEncoder's A/V sync bug
-				boolean mp4_with_non_h264 = (media.getContainer().equals("mp4") && !media.isH264());
 
 				if (numAudioTracks <= 1) {
 					ffAudioPipe = new PipeIPCProcess[numAudioTracks];
@@ -756,6 +756,7 @@ public class TsMuxeRVideo extends Player {
 		}
 
 		p.runInNewThread();
+		configuration = prev;
 		return p;
 	}
 

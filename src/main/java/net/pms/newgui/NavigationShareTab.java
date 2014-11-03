@@ -40,6 +40,7 @@ import net.pms.configuration.PmsConfiguration;
 import net.pms.dlna.DLNAMediaDatabase;
 import net.pms.util.FormLayoutUtil;
 import net.pms.util.KeyedComboBoxModel;
+import net.pms.util.UMSUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +81,7 @@ public class NavigationShareTab {
 	private JTextField atzLimit;
 	private JCheckBox liveSubtitles;
 	private JCheckBox prettifyfilenames;
+	private JCheckBox episodeTitles;
 	private JCheckBox newmediafolder;
 	private JCheckBox recentlyplayedfolder;
 	private JCheckBox resume;
@@ -178,6 +180,7 @@ public class NavigationShareTab {
 			builder.add(ignorethewordthe, FormLayoutUtil.flip(cc.xy(9, 11), colSpec, orientation));
 
 			builder.add(prettifyfilenames, FormLayoutUtil.flip(cc.xyw(1, 13, 5), colSpec, orientation));
+			builder.add(episodeTitles, FormLayoutUtil.flip(cc.xy(9, 13), colSpec, orientation));
 
 			cmp = builder.addSeparator(Messages.getString("NetworkTab.60"), FormLayoutUtil.flip(cc.xyw(1, 15, 10), colSpec, orientation));
 			cmp = (JComponent) cmp.getComponent(0);
@@ -238,6 +241,9 @@ public class NavigationShareTab {
 				try {
 					int ab = Integer.parseInt(seekpos.getText());
 					configuration.setThumbnailSeekPos(ab);
+					if (configuration.getUseCache()) {
+						PMS.get().getDatabase().init(true);
+					}
 				} catch (NumberFormatException nfe) {
 					LOGGER.debug("Could not parse thumbnail seek position from \"" + seekpos.getText() + "\"");
 				}
@@ -498,12 +504,13 @@ public class NavigationShareTab {
 		// File order
 		final KeyedComboBoxModel kcbm = new KeyedComboBoxModel(
 			new Object[]{
-				"0", // alphabetical
-				"4", // natural sort
-				"3", // ASCIIbetical
-				"1", // newest first
-				"2", // oldest first
-				"5"  // random
+				String.valueOf(UMSUtils.SORT_LOC_SENS),  // alphabetical
+				String.valueOf(UMSUtils.SORT_LOC_NAT),   // natural sort
+				String.valueOf(UMSUtils.SORT_INS_ASCII), // ASCIIbetical
+				String.valueOf(UMSUtils.SORT_MOD_NEW),   // newest first
+				String.valueOf(UMSUtils.SORT_MOD_OLD),   // oldest first
+				String.valueOf(UMSUtils.SORT_RANDOM),    // random
+				String.valueOf(UMSUtils.SORT_NO_SORT)    // no sorting
 			},
 			new Object[]{
 				Messages.getString("FoldTab.15"),
@@ -511,12 +518,13 @@ public class NavigationShareTab {
 				Messages.getString("FoldTab.20"),
 				Messages.getString("FoldTab.16"),
 				Messages.getString("FoldTab.17"),
-				Messages.getString("FoldTab.58")
+				Messages.getString("FoldTab.58"),
+				Messages.getString("FoldTab.62")
 			}
 		);
 		sortmethod = new JComboBox(kcbm);
 		sortmethod.setEditable(false);
-		kcbm.setSelectedKey("" + configuration.getSortMethod());
+		kcbm.setSelectedKey("" + configuration.getSortMethod(null));
 
 		sortmethod.addItemListener(new ItemListener() {
 			@Override
@@ -576,6 +584,20 @@ public class NavigationShareTab {
 			public void itemStateChanged(ItemEvent e) {
 				configuration.setPrettifyFilenames((e.getStateChange() == ItemEvent.SELECTED));
 				hideextensions.setEnabled((e.getStateChange() != ItemEvent.SELECTED));
+				episodeTitles.setEnabled((e.getStateChange() == ItemEvent.SELECTED));
+			}
+		});
+
+		episodeTitles = new JCheckBox(Messages.getString("FoldTab.63"), configuration.isUseInfoFromIMDB());
+		episodeTitles.setToolTipText(Messages.getString("FoldTab.64"));
+		episodeTitles.setContentAreaFilled(false);
+		if (!configuration.isPrettifyFilenames()) {
+			episodeTitles.setEnabled(false);
+		}
+		episodeTitles.addItemListener(new ItemListener() {
+			@Override
+			public void itemStateChanged(ItemEvent e) {
+				configuration.setUseInfoFromIMDB((e.getStateChange() == ItemEvent.SELECTED));
 			}
 		});
 
@@ -654,7 +676,6 @@ public class NavigationShareTab {
 
 		CustomJButton but2 = new CustomJButton(LooksFrame.readImageIcon("button-remove.png"));
 		but2.setToolTipText(Messages.getString("FoldTab.36"));
-		//but2.setBorder(BorderFactory.createEtchedBorder());
 		but2.addActionListener(new java.awt.event.ActionListener() {
 			@Override
 			public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -671,7 +692,6 @@ public class NavigationShareTab {
 
 		CustomJButton but3 = new CustomJButton(LooksFrame.readImageIcon("button-arrow-down.png"));
 		but3.setToolTipText(Messages.getString("FoldTab.12"));
-		// but3.setBorder(BorderFactory.createEmptyBorder());
 		but3.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -695,7 +715,6 @@ public class NavigationShareTab {
 
 		CustomJButton but4 = new CustomJButton(LooksFrame.readImageIcon("button-arrow-up.png"));
 		but4.setToolTipText(Messages.getString("FoldTab.12"));
-		//  but4.setBorder(BorderFactory.createEmptyBorder());
 		but4.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -720,7 +739,6 @@ public class NavigationShareTab {
 
 		but5 = new CustomJButton(LooksFrame.readImageIcon("button-scan.png"));
 		but5.setToolTipText(Messages.getString("FoldTab.2"));
-		//but5.setBorder(BorderFactory.createEmptyBorder());
 		but5.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -794,6 +812,8 @@ public class NavigationShareTab {
 	}
 
 	public class SharedFoldersTableModel extends DefaultTableModel {
+		private static final long serialVersionUID = -4247839506937958655L;
+
 		public SharedFoldersTableModel() {
 			super(new String[]{Messages.getString("FoldTab.56"), Messages.getString("FoldTab.57")}, 0);
 		}

@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.swing.*;
@@ -18,6 +19,7 @@ import net.pms.Messages;
 import net.pms.PMS;
 import net.pms.configuration.PmsConfiguration;
 import net.pms.configuration.RendererConfiguration;
+import net.pms.configuration.DeviceConfiguration;
 import net.pms.external.DebugPacker;
 import net.pms.external.ExternalFactory;
 import net.pms.external.ExternalListener;
@@ -29,22 +31,17 @@ import org.slf4j.LoggerFactory;
 public class DbgPacker implements ActionListener {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TracesTab.class);
 
-	private boolean init;
 	private LinkedHashMap<File, JCheckBox> items;
 	private String debug_log, dbg_zip;
 
 	public DbgPacker() {
-		init = true;
 		items = new LinkedHashMap<>();
 		debug_log = LoggingConfigFileLoader.getLogFilePaths().get("debug.log");
 		dbg_zip = debug_log.replace("debug.log", "ums_dbg.zip");
 	}
 
 	public JComponent config() {
-		if (init) {
-			poll();
-			init = false;
-		}
+		poll();
 		JPanel top = new JPanel(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
 		c.fill = GridBagConstraints.BOTH;
@@ -118,6 +115,9 @@ public class DbgPacker implements ActionListener {
 			if (r.getFile() != null) {
 				add(r.getFile());
 			}
+			if (((DeviceConfiguration)r).isCustomized()) {
+				add(((DeviceConfiguration)r).getParentFile());
+			}
 		}
 
 		// add core items with debug.log last (LinkedHashMap preserves insertion order)
@@ -167,6 +167,11 @@ public class DbgPacker implements ActionListener {
 			}
 			out.closeEntry();
 		}
+	}
+
+	public Set<File> getItems() {
+		poll();
+		return items.keySet();
 	}
 
 	private boolean saveDialog() {
@@ -250,7 +255,6 @@ public class DbgPacker implements ActionListener {
 	private void reload(JComponent c) {
 		// Rebuild and restart
 		LOGGER.debug("reloading.");
-		init = true;
 		((Window) c.getTopLevelAncestor()).dispose();
 		JOptionPane.showOptionDialog(
 			(JFrame) (SwingUtilities.getWindowAncestor((Component) PMS.get().getFrame())),

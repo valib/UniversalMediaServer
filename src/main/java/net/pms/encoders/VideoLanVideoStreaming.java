@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
+import net.pms.configuration.DeviceConfiguration;
 import net.pms.configuration.PmsConfiguration;
 import net.pms.dlna.DLNAMediaInfo;
 import net.pms.dlna.DLNAResource;
@@ -82,10 +83,6 @@ public class VideoLanVideoStreaming extends Player {
 
 	protected String getEncodingArgs() {
 		/*
-			VLC doesn't accept or understand MPEG-2 framerates of 23.97 or 30000/1001, so use the
-			one remaining valid DVD framerate it accepts (i.e. PAL)
-			https://secure.wikimedia.org/wikipedia/en/wiki/MPEG-2#DVD-Video
-
 			FIXME (or, rather, FIXVLC): channels=2 causes various recent VLCs (from 1.1.4 to 1.1.7)
 			to segfault on both Windows and Linux.
 
@@ -101,7 +98,7 @@ public class VideoLanVideoStreaming extends Player {
 			http://feedproxy.google.com/~r/TEDTalks_video/~5/wdul2VS10rw/BillGates_2011U.mp4 vlc://quit
 		 */
 
-		return "vcodec=mp2v,vb=4096,fps=25,scale=1,acodec=mp2a,ab=128,channels=2";
+		return "vcodec=mp2v,vb=4096,scale=1,acodec=mp2a,ab=128,channels=2";
 	}
 
 	protected String getMux() {
@@ -113,6 +110,8 @@ public class VideoLanVideoStreaming extends Player {
 		DLNAResource dlna,
 		DLNAMediaInfo media,
 		OutputParams params) throws IOException {
+		PmsConfiguration prev = configuration;
+		configuration = (DeviceConfiguration) params.mediaRenderer;
 		boolean isWindows = Platform.isWindows();
 		final String filename = dlna.getSystemName();
 		PipeProcess tsPipe = new PipeProcess("VLC" + System.currentTimeMillis() + "." + getMux());
@@ -190,6 +189,7 @@ public class VideoLanVideoStreaming extends Player {
 		}
 
 		pw.runInNewThread();
+		configuration = prev;
 		return pw;
 	}
 

@@ -20,9 +20,11 @@ package net.pms.dlna;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.FileInputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import net.pms.network.HTTPResourceAuthenticator;
+import net.pms.util.FileUtil;
 
 /**
  * TODO: Change all instance variables to private. For backwards compatibility
@@ -62,31 +64,31 @@ public class WebStream extends DLNAResource {
 		try {
 			URL tmpUrl = new URL(url);
 			tmpUrl = HTTPResourceAuthenticator.concatenateUserInfo(tmpUrl);
-			setUrl(tmpUrl.toString());
+			this.url = tmpUrl.toString();
 		} catch (MalformedURLException e) {
-			setUrl(url);
+			this.url = url;
 		}
 
 		try {
 			URL tmpUrl = new URL(thumbURL);
 			tmpUrl = HTTPResourceAuthenticator.concatenateUserInfo(tmpUrl);
-			setThumbURL(tmpUrl.toString());
+			this.thumbURL = tmpUrl.toString();
 		} catch (MalformedURLException e) {
-			setThumbURL(thumbURL);
+			this.thumbURL = thumbURL;
 		}
 
-		setFluxName(fluxName);
+		this.fluxName = fluxName;
 	}
 
 	@Override
 	public String write() {
-		return getFluxName() + ">" + getUrl() + ">" + getThumbURL() + ">" + getSpecificType();
+		return fluxName + ">" + url + ">" + thumbURL + ">" + getSpecificType();
 	}
 
 	@Override
 	public InputStream getThumbnailInputStream() throws IOException {
-		if (getThumbURL() != null) {
-			return downloadAndSend(getThumbURL(), true);
+		if (thumbURL != null) {
+			return FileUtil.isUrl(thumbURL) ? downloadAndSend(thumbURL, true) : new FileInputStream(thumbURL);
 		} else {
 			return super.getThumbnailInputStream();
 		}

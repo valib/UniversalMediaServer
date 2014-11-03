@@ -25,11 +25,13 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.StringTokenizer;
 import net.pms.PMS;
 import net.pms.configuration.RendererConfiguration;
 import net.pms.external.StartStopListenerDelegate;
 import static net.pms.util.StringUtil.convertStringToTime;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +59,6 @@ public class RequestHandler implements Runnable {
 		"User-Agent"
 	};
 
-
 	public RequestHandler(Socket socket) throws IOException {
 		this.socket = socket;
 		this.output = socket.getOutputStream();
@@ -71,7 +72,6 @@ public class RequestHandler implements Runnable {
 
 		try {
 			int receivedContentLength = -1;
-			String headerLine = br.readLine();
 			String userAgentString = null;
 			StringBuilder unknownHeaders = new StringBuilder();
 			String separator = "";
@@ -79,6 +79,8 @@ public class RequestHandler implements Runnable {
 
 			InetSocketAddress remoteAddress = (InetSocketAddress) socket.getRemoteSocketAddress();
 			InetAddress ia = remoteAddress.getAddress();
+
+			boolean isSelf = ia.getHostAddress().equals(PMS.get().getServer().getHost());
 
 			// Apply the IP filter
 			if (filterIp(ia)) {
@@ -88,50 +90,51 @@ public class RequestHandler implements Runnable {
 			LOGGER.trace("Opened request handler on socket " + socket);
 			PMS.get().getRegistry().disableGoToSleep();
 
-			while (headerLine != null && headerLine.length() > 0) {
+			// The handler makes a couple of attempts to recognize a renderer from its requests.
+			// IP address matches from previous requests are preferred, when that fails request
+			// header matches are attempted and if those fail as well we're stuck with the
+			// default renderer.
+
+			// Attempt 1: try to recognize the renderer by its socket address from previous requests
+			renderer = RendererConfiguration.getRendererConfigurationBySocketAddress(ia);
+
+			// If the renderer exists but isn't marked as loaded it means it's unrecognized
+			// by upnp and we still need to attempt http recognition here.
+			boolean unrecognized = renderer == null || !renderer.loaded;
+			RendererConfiguration.SortedHeaderMap sortedHeaders = unrecognized ? new RendererConfiguration.SortedHeaderMap() : null;
+
+			// Gather all the headers
+			ArrayList<String> headerLines = new ArrayList<>();
+			String line = br.readLine();
+			while (line != null && line.length() > 0) {
+				headerLines.add(line);
+				if (unrecognized) {
+					sortedHeaders.put(line);
+				}
+				line = br.readLine();
+			}
+
+			if (unrecognized) {
+				// Attempt 2: try to recognize the renderer by matching headers
+				renderer = RendererConfiguration.getRendererConfigurationByHeaders(sortedHeaders, ia);
+			}
+
+			for (String headerLine : headerLines) {
 				LOGGER.trace("Received on socket: " + headerLine);
 
 				// The request object is created inside the while loop.
-				if (request != null && request.getMediaRenderer() == null) {
-					// The handler makes a couple of attempts to recognize a renderer from its requests.
-					// IP address matches from previous requests are preferred, when that fails request
-					// header matches are attempted and if those fail as well we're stuck with the
-					// default renderer.
-
-					// Attempt 1: try to recognize the renderer by its socket address from previous requests
-					renderer = RendererConfiguration.getRendererConfigurationBySocketAddress(ia);
-
-					if (renderer != null) {
-						PMS.get().setRendererFound(renderer);
-						request.setMediaRenderer(renderer);
-						LOGGER.trace("Matched media renderer \"" + renderer.getRendererName() + "\" based on address " + ia);
-					}
+				if (request != null && request.getMediaRenderer() == null && renderer != null) {
+					request.setMediaRenderer(renderer);
 				}
-
-				if (renderer == null && headerLine.toUpperCase().startsWith("USER-AGENT") && request != null) {
+				if (headerLine.toUpperCase().startsWith("USER-AGENT")) {
+					// FIXME: this would also block an external cling-based client running on the same host
+					if (isSelf && headerLine.contains("Cling/")) {
+						LOGGER.trace("Ignoring self-originating request from " + ia + ":" + remoteAddress.getPort());
+						return;
+					}
 					userAgentString = headerLine.substring(headerLine.indexOf(':') + 1).trim();
-
-					// Attempt 2: try to recognize the renderer by matching the "User-Agent" header
-					renderer = RendererConfiguration.getRendererConfigurationByUA(userAgentString);
-
-					if (renderer != null) {
-						PMS.get().setRendererFound(renderer);
-						request.setMediaRenderer(renderer);
-						renderer.associateIP(ia);	// Associate IP address for later requests
-						LOGGER.trace("Matched media renderer \"" + renderer.getRendererName() + "\" based on header \"" + headerLine + "\"");
-					}
 				}
-				if (renderer == null && request != null) {
-					// Attempt 3: try to recognize the renderer by matching an additional header
-					renderer = RendererConfiguration.getRendererConfigurationByUAAHH(headerLine);
 
-					if (renderer != null) {
-						PMS.get().setRendererFound(renderer);
-						request.setMediaRenderer(renderer);
-						renderer.associateIP(ia);	// Associate IP address for later requests
-						LOGGER.trace("Matched media renderer \"" + renderer.getRendererName() + "\" based on header \"" + headerLine + "\"");
-					}
-				}
 				try {
 					StringTokenizer s = new StringTokenizer(headerLine);
 					String temp = s.nextToken();
@@ -146,7 +149,7 @@ public class RequestHandler implements Runnable {
 						request.setSoapaction(s.nextToken());
 					} else if (headerLine.toUpperCase().contains("CONTENT-LENGTH:")) {
 						receivedContentLength = Integer.parseInt(headerLine.substring(headerLine.toUpperCase().indexOf("CONTENT-LENGTH: ") + 16));
-					} else if (headerLine.toUpperCase().indexOf("RANGE: BYTES=") > -1) {
+					} else if (headerLine.toUpperCase().contains("RANGE: BYTES=")) {
 						String nums = headerLine.substring(headerLine.toUpperCase().indexOf("RANGE: BYTES=") + 13).trim();
 						StringTokenizer st = new StringTokenizer(nums, "-");
 						if (!nums.startsWith("-")) {
@@ -157,11 +160,11 @@ public class RequestHandler implements Runnable {
 						} else {
 							request.setHighRange(-1);
 						}
-					} else if (headerLine.toLowerCase().indexOf("transfermode.dlna.org:") > -1) {
+					} else if (headerLine.toLowerCase().contains("transfermode.dlna.org:")) {
 						request.setTransferMode(headerLine.substring(headerLine.toLowerCase().indexOf("transfermode.dlna.org:") + 22).trim());
-					} else if (headerLine.toLowerCase().indexOf("getcontentfeatures.dlna.org:") > -1) {
+					} else if (headerLine.toLowerCase().contains("getcontentfeatures.dlna.org:")) {
 						request.setContentFeatures(headerLine.substring(headerLine.toLowerCase().indexOf("getcontentfeatures.dlna.org:") + 28).trim());
-					} else if (headerLine.toUpperCase().indexOf("TIMESEEKRANGE.DLNA.ORG: NPT=") > -1) { // firmware 2.50+
+					} else if (headerLine.toUpperCase().contains("TIMESEEKRANGE.DLNA.ORG: NPT=")) { // firmware 2.50+
 						String timeseek = headerLine.substring(headerLine.toUpperCase().indexOf("TIMESEEKRANGE.DLNA.ORG: NPT=") + 28);
 						if (timeseek.endsWith("-")) {
 							timeseek = timeseek.substring(0, timeseek.length() - 1);
@@ -169,7 +172,7 @@ public class RequestHandler implements Runnable {
 							timeseek = timeseek.substring(0, timeseek.indexOf('-'));
 						}
 						request.setTimeseek(convertStringToTime(timeseek));
-					} else if (headerLine.toUpperCase().indexOf("TIMESEEKRANGE.DLNA.ORG : NPT=") > -1) { // firmware 2.40
+					} else if (headerLine.toUpperCase().contains("TIMESEEKRANGE.DLNA.ORG : NPT=")) { // firmware 2.40
 						String timeseek = headerLine.substring(headerLine.toUpperCase().indexOf("TIMESEEKRANGE.DLNA.ORG : NPT=") + 29);
 						if (timeseek.endsWith("-")) {
 							timeseek = timeseek.substring(0, timeseek.length() - 1);
@@ -186,10 +189,19 @@ public class RequestHandler implements Runnable {
 						boolean isKnown = false;
 
 						// Try to match possible known headers.
+						String lowerCaseHeaderLine = headerLine.toLowerCase();
 						for (String knownHeaderString : KNOWN_HEADERS) {
-							if (headerLine.toLowerCase().startsWith(knownHeaderString.toLowerCase())) {
+							if (lowerCaseHeaderLine.startsWith(knownHeaderString.toLowerCase())) {
 								isKnown = true;
 								break;
+							}
+						}
+
+						// It may be unusual but already known
+						if (renderer != null) {
+							String additionalHeader = renderer.getUserAgentAdditionalHttpHeader();
+							if (StringUtils.isNotBlank(additionalHeader) && lowerCaseHeaderLine.startsWith(additionalHeader)) {
+								isKnown = true;
 							}
 						}
 
@@ -202,24 +214,27 @@ public class RequestHandler implements Runnable {
 				} catch (IllegalArgumentException e) {
 					LOGGER.error("Error in parsing HTTP headers", e);
 				}
-
-				headerLine = br.readLine();
 			}
 
 			if (request != null) {
 				// Still no media renderer recognized?
 				if (request.getMediaRenderer() == null) {
-					// Attempt 4: Not really an attempt; all other attempts to recognize
+					// Attempt 3: Not really an attempt; all other attempts to recognize
 					// the renderer have failed. The only option left is to assume the
 					// default renderer.
-					request.setMediaRenderer(RendererConfiguration.getDefaultConf());
-					LOGGER.trace("Using default media renderer: " + request.getMediaRenderer().getRendererName());
+					request.setMediaRenderer(RendererConfiguration.resolve(ia, null));
+					if (request.getMediaRenderer() != null) {
+						LOGGER.trace("Using default media renderer: " + request.getMediaRenderer().getRendererName());
 
-					if (userAgentString != null && !userAgentString.equals("FDSSDP")) {
-						// We have found an unknown renderer
-						LOGGER.info("Media renderer was not recognized. Possible identifying HTTP headers: User-Agent: " + userAgentString +
-								("".equals(unknownHeaders.toString()) ? "" : ", " + unknownHeaders.toString()));
-						PMS.get().setRendererFound(request.getMediaRenderer());
+						if (userAgentString != null && !userAgentString.equals("FDSSDP")) {
+							// We have found an unknown renderer
+							LOGGER.info("Media renderer was not recognized. Possible identifying HTTP headers: User-Agent: " + userAgentString +
+									("".equals(unknownHeaders.toString()) ? "" : ", " + unknownHeaders.toString()));
+						}
+					} else {
+						// If RendererConfiguration.resolve() didn't return the default renderer
+						// it means we know via upnp that it's not really a renderer.
+						return;
 					}
 				} else {
 					if (userAgentString != null) {

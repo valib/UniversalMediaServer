@@ -32,7 +32,6 @@ import net.pms.Messages;
 import net.pms.PMS;
 import net.pms.configuration.DownloadPlugins;
 import net.pms.configuration.MapFileConfiguration;
-import net.pms.configuration.PmsConfiguration;
 import net.pms.configuration.RendererConfiguration;
 import net.pms.dlna.virtual.VirtualFolder;
 import net.pms.dlna.virtual.VirtualVideoAction;
@@ -42,7 +41,9 @@ import net.pms.external.ExternalFactory;
 import net.pms.external.ExternalListener;
 import net.pms.formats.Format;
 import net.pms.newgui.IFrame;
+import net.pms.util.CodeDb;
 import net.pms.util.FileUtil;
+import net.pms.util.FileWatcher;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -54,16 +55,17 @@ import xmlwise.XmlParseException;
 
 public class RootFolder extends DLNAResource {
 	private static final Logger LOGGER = LoggerFactory.getLogger(RootFolder.class);
-	private static final PmsConfiguration configuration = PMS.getConfiguration();
 	private boolean running;
 	private FolderLimit lim;
 	private MediaMonitor mon;
 	private RecentlyPlayed last;
 	private ArrayList<String> tags;
+	private ArrayList<DLNAResource> webFolders;
 
 	public RootFolder(ArrayList<String> tags) {
 		setIndexId(0);
 		this.tags = tags;
+		webFolders = new ArrayList<>();
 	}
 
 	public RootFolder() {
@@ -124,7 +126,7 @@ public class RootFolder extends DLNAResource {
 			}
 		}
 
-		if (configuration.getFolderLimit()) {
+		if (configuration.getFolderLimit() && getDefaultRenderer() != null && getDefaultRenderer().isLimitFolders()) {
 			lim = new FolderLimit();
 			addChild(lim);
 		}
@@ -137,16 +139,7 @@ public class RootFolder extends DLNAResource {
 			addChild(r);
 		}
 
-		if (configuration.getSearchFolder()) {
-			SearchFolder sf = new SearchFolder("Search disc folders", new FileSearch(getConfiguredFolders(null)));
-			addChild(sf);
-		}
-
-		String webConfPath = configuration.getWebConfPath();
-		File webConf = new File(webConfPath);
-		if (webConf.exists() && configuration.getExternalNetwork() && !configuration.isHideWebFolder(tags)) {
-			addWebFolder(webConf);
-		}
+		loadWebConf();
 
 		if (Platform.isMac() && configuration.isShowIphotoLibrary()) {
 			DLNAResource iPhotoRes = getiPhotoFolder();
@@ -262,8 +255,8 @@ public class RootFolder extends DLNAResource {
 
 	private List<RealFile> getConfiguredFolders(ArrayList<String> tags) {
 		List<RealFile> res = new ArrayList<>();
-		File[] files = PMS.get().getSharedFoldersArray(false, tags);
-		String s = PMS.getConfiguration().getFoldersIgnored(tags);
+		File[] files = PMS.get().getSharedFoldersArray(false, tags, configuration);
+		String s = configuration.getFoldersIgnored(tags);
 		String[] skips = null;
 
 		if (s != null) {
@@ -279,6 +272,11 @@ public class RootFolder extends DLNAResource {
 				continue;
 			}
 			res.add(new RealFile(f));
+		}
+
+		if (configuration.getSearchFolder()) {
+			SearchFolder sf = new SearchFolder(Messages.getString("PMS.143"), new FileSearch(res));
+			addChild(sf);
 		}
 
 		return res;
@@ -309,6 +307,20 @@ public class RootFolder extends DLNAResource {
 		}
 
 		return res;
+	}
+
+	private void loadWebConf() {
+		for (DLNAResource d : webFolders) {
+			getChildren().remove(d);
+		}
+		webFolders.clear();
+		String webConfPath = configuration.getWebConfPath();
+		File webConf = new File(webConfPath);
+		if (webConf.exists() && configuration.getExternalNetwork() && !configuration.isHideWebFolder(tags)) {
+			addWebFolder(webConf);
+			PMS.getFileWatcher().add(new FileWatcher.Watch(webConf.getPath(), rootWatcher, this, RELOAD_WEB_CONF));
+		}
+		lastmodified = 1;
 	}
 
 	private void addWebFolder(File webConf) {
@@ -345,6 +357,10 @@ public class RootFolder extends DLNAResource {
 
 											if (parent == null) {
 												parent = new VirtualFolder(folder, "");
+												if (currentRoot == this) {
+													// parent is a top-level web folder
+													webFolders.add(parent);
+												}
 												currentRoot.addChild(parent);
 											}
 
@@ -906,7 +922,7 @@ public class RootFolder extends DLNAResource {
 										// Put the track into its album folder
 										{
 											if (!isCompilation) {
-												albumName += " – " + artistName;
+												albumName += " - " + artistName;
 											}
 
 											VirtualFolder individualAlbumFolder = null;
@@ -1183,6 +1199,25 @@ public class RootFolder extends DLNAResource {
 			VirtualFolder vfSub = new VirtualFolder(Messages.getString("PMS.8"), null);
 			res.addChild(vfSub);
 
+			if (configuration.useCode() && !PMS.get().masterCodeValid() &&
+				StringUtils.isNotEmpty(PMS.get().codeDb().lookup(CodeDb.MASTER))) {
+				// if the master code is valid we don't add this
+				VirtualVideoAction vva = new VirtualVideoAction("MasterCode", true) {
+					@Override
+					public boolean enable() {
+						CodeEnter ce = (CodeEnter) getParent();
+						if (ce.validCode(this)) {
+							PMS.get().setMasterCode(ce);
+							return true;
+						}
+						return false;
+					}
+				};
+				CodeEnter ce1 = new CodeEnter(vva);
+				ce1.setCode(CodeDb.MASTER);
+				res.addChild(ce1);
+			}
+
 			res.addChild(new VirtualVideoAction(Messages.getString("PMS.3"), configuration.isMencoderNoOutOfSync()) {
 				@Override
 				public boolean enable() {
@@ -1238,12 +1273,12 @@ public class RootFolder extends DLNAResource {
 				}
 			});
 
-			vfSub.addChild(new VirtualVideoAction(Messages.getString("MEncoderVideo.36"), configuration.isMencoderAssDefaultStyle()) {
+			vfSub.addChild(new VirtualVideoAction(Messages.getString("MEncoderVideo.36"), configuration.isUseEmbeddedSubtitlesStyle()) {
 				@Override
 				public boolean enable() {
-					boolean oldValue = configuration.isMencoderAssDefaultStyle();
+					boolean oldValue = configuration.isUseEmbeddedSubtitlesStyle();
 					boolean newValue = !oldValue;
-					configuration.setMencoderAssDefaultStyle(newValue);
+					configuration.setUseEmbeddedSubtitlesStyle(newValue);
 					return newValue;
 				}
 			});
@@ -1390,4 +1425,20 @@ public class RootFolder extends DLNAResource {
 	public ArrayList<String> getTags() {
 		return tags;
 	}
+
+	// Automatic reloading
+
+	public final static int RELOAD_WEB_CONF = 1;
+
+	public static FileWatcher.Listener rootWatcher = new FileWatcher.Listener() {
+		@Override
+		public void notify(String filename, String event, FileWatcher.Watch watch, boolean isDir) {
+			RootFolder r = (RootFolder) watch.getItem();
+			if (r != null) {
+				if (watch.flag == RELOAD_WEB_CONF) {
+					r.loadWebConf();
+				}
+			}
+		}
+	};
 }

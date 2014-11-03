@@ -21,17 +21,11 @@ package net.pms.dlna;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.Collator;
 import java.util.*;
-import net.pms.PMS;
 import net.pms.configuration.MapFileConfiguration;
-import net.pms.configuration.PmsConfiguration;
-import net.pms.dlna.virtual.TranscodeVirtualFolder;
-import net.pms.dlna.virtual.VirtualFolder;
-import net.pms.formats.FormatFactory;
 import net.pms.network.HTTPResource;
 import net.pms.util.FileUtil;
-import net.pms.util.NaturalComparator;
+import net.pms.util.UMSUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,9 +39,10 @@ import org.slf4j.LoggerFactory;
  */
 public class MapFile extends DLNAResource {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MapFile.class);
-	private static final PmsConfiguration configuration = PMS.getConfiguration();
 	private List<File> discoverable;
 	private String forcedName;
+
+	private ArrayList<RealFile> searchList;
 
 	/**
 	 * @deprecated Use standard getter and setter to access this variable.
@@ -61,27 +56,20 @@ public class MapFile extends DLNAResource {
 	@Deprecated
 	protected MapFileConfiguration conf;
 
-	private static final Collator collator;
-
-	static {
-		collator = Collator.getInstance();
-		collator.setStrength(Collator.PRIMARY);
-	}
-
 	public MapFile() {
-		setConf(new MapFileConfiguration());
+		this.conf = new MapFileConfiguration();
 		setLastModified(0);
 		forcedName = null;
 	}
 
 	public MapFile(MapFileConfiguration conf) {
-		setConf(conf);
+		this.conf = conf;
 		setLastModified(0);
 		forcedName = null;
 	}
 
 	public MapFile(MapFileConfiguration conf, List<File> list) {
-		setConf(conf);
+		this.conf = conf;
 		setLastModified(0);
 		this.discoverable = list;
 		forcedName = null;
@@ -90,10 +78,6 @@ public class MapFile extends DLNAResource {
 	private void manageFile(File f, String str) {
 		if (f.isFile() || f.isDirectory()) {
 			String lcFilename = f.getName().toLowerCase();
-			if (str != null && !lcFilename.contains(str)) {
-				// this is not searched for
-				return;
-			}
 
 			if (!f.isHidden()) {
 				if (configuration.isArchiveBrowsing() && (lcFilename.endsWith(".zip") || lcFilename.endsWith(".cbz"))) {
@@ -113,7 +97,11 @@ public class MapFile extends DLNAResource {
 					if (f.isDirectory() && configuration.isHideEmptyFolders() && !FileUtil.isFolderRelevant(f, configuration)) {
 						LOGGER.debug("Ignoring empty/non-relevant directory: " + f.getName());
 					} else { // Otherwise add the file
-						addChild(new RealFile(f));
+						RealFile rf = new RealFile(f);
+						if (searchList != null) {
+							searchList.add(rf);
+						}
+						addChild(rf);
 					}
 				}
 			}
@@ -121,7 +109,7 @@ public class MapFile extends DLNAResource {
 			// FIXME this causes folder thumbnails to take precedence over file thumbnails
 			if (f.isFile()) {
 				if (lcFilename.equals("folder.jpg") || lcFilename.equals("folder.png") || (lcFilename.contains("albumart") && lcFilename.endsWith(".jpg"))) {
-					setPotentialCover(f);
+					potentialCover = f;
 				}
 			}
 		}
@@ -158,6 +146,12 @@ public class MapFile extends DLNAResource {
 	public boolean analyzeChildren(int count) {
 		int currentChildrenCount = getChildren().size();
 		int vfolder = 0;
+		FileSearch fs = null;
+		if (!discoverable.isEmpty() && configuration.getSearchInFolder()) {
+			searchList = new ArrayList<>();
+			fs = new FileSearch(searchList);
+			addChild(new SearchFolder(fs));
+		}
 		while (((getChildren().size() - currentChildrenCount) < count) || (count == -1)) {
 			if (vfolder < getConf().getChildren().size()) {
 				addChild(new MapFile(getConf().getChildren().get(vfolder)));
@@ -169,91 +163,10 @@ public class MapFile extends DLNAResource {
 				manageFile(discoverable.remove(0), null);
 			}
 		}
+		if (fs != null) {
+			fs.update(searchList);
+		}
 		return discoverable.isEmpty();
-	}
-
-	private String renameForSorting(String filename) {
-		if (configuration.isPrettifyFilenames()) {
-			// This chunk makes anime sort properly
-			int squareBracketIndex;
-			if (filename.substring(0, 1).matches("\\[")) {
-				filename = filename.replaceAll("_", " ");
-				squareBracketIndex = filename.indexOf(']');
-				if (squareBracketIndex != -1) {
-					filename = filename.substring(squareBracketIndex + 1);
-					if (filename.substring(0, 1).matches("\\s")) {
-						filename = filename.substring(1);
-					}
-				}
-			}
-
-			// Replace periods with spaces
-			filename = filename.replaceAll("\\.", " ");
-		}
-
-		if (configuration.isIgnoreTheWordThe()) {
-			// Remove "The" from the beginning of files
-			filename = filename.replaceAll("^(?i)The[ .]", "");
-		}
-
-		return filename;
-	}
-
-	private void sort(List<File> files) {
-		switch (configuration.getSortMethod()) {
-			case 5: // Random
-				Collections.shuffle(files, new Random(System.currentTimeMillis()));
-				break;
-			case 4: // Locale-sensitive natural sort
-				Collections.sort(files, new Comparator<File>() {
-					@Override
-					public int compare(File f1, File f2) {
-						String filename1ToSort = renameForSorting(f1.getName());
-						String filename2ToSort = renameForSorting(f2.getName());
-
-						return NaturalComparator.compareNatural(collator, filename1ToSort, filename2ToSort);
-					}
-				});
-				break;
-			case 3: // Case-insensitive ASCIIbetical sort
-				Collections.sort(files, new Comparator<File>() {
-					@Override
-					public int compare(File f1, File f2) {
-						String filename1ToSort = renameForSorting(f1.getName());
-						String filename2ToSort = renameForSorting(f2.getName());
-
-						return filename1ToSort.compareToIgnoreCase(filename2ToSort);
-					}
-				});
-				break;
-			case 2: // Sort by modified date, oldest first
-				Collections.sort(files, new Comparator<File>() {
-					@Override
-					public int compare(File f1, File f2) {
-						return Long.valueOf(f1.lastModified()).compareTo(Long.valueOf(f2.lastModified()));
-					}
-				});
-				break;
-			case 1: // Sort by modified date, newest first
-				Collections.sort(files, new Comparator<File>() {
-					@Override
-					public int compare(File f1, File f2) {
-						return Long.valueOf(f2.lastModified()).compareTo(Long.valueOf(f1.lastModified()));
-					}
-				});
-				break;
-			default: // Locale-sensitive A-Z
-				Collections.sort(files, new Comparator<File>() {
-					@Override
-					public int compare(File f1, File f2) {
-						String filename1ToSort = renameForSorting(f1.getName());
-						String filename2ToSort = renameForSorting(f2.getName());
-
-						return collator.compare(filename1ToSort, filename2ToSort);
-					}
-				});
-				break;
-		}
 	}
 
 	@Override
@@ -264,15 +177,14 @@ public class MapFile extends DLNAResource {
 	@Override
 	public void discoverChildren(String str) {
 		//super.discoverChildren(str);
-		if (str != null) {
-			str = str.toLowerCase();
-		}
 
 		if (discoverable == null) {
 			discoverable = new ArrayList<>();
 		} else {
 			return;
 		}
+
+		int sm = configuration.getSortMethod(getPath());
 
 		List<File> files = getFileList();
 
@@ -296,7 +208,7 @@ public class MapFile extends DLNAResource {
 					continue;
 				}
 
-				String filenameToSort = renameForSorting(f.getName());
+				String filenameToSort = FileUtil.renameForSorting(f.getName());
 
 				char c = filenameToSort.toUpperCase().charAt(0);
 
@@ -317,34 +229,30 @@ public class MapFile extends DLNAResource {
 				// loop over all letters, this avoids adding
 				// empty letters
 				ArrayList<File> l = map.get(letter);
-				sort(l);
+				UMSUtils.sort(l, sm);
 				MapFile mf = new MapFile(getConf(), l);
 				mf.forcedName = letter;
 				addChild(mf);
 			}
 			return;
 		}
-		
-		sort(files);
-		
+
+		UMSUtils.sort(files, (sm == UMSUtils.SORT_RANDOM ? UMSUtils.SORT_LOC_NAT : sm));
+
 		for (File f : files) {
 			if (f.isDirectory()) {
-				if (str == null || f.getName().toLowerCase().contains(str)) {
-					discoverable.add(f); // manageFile(f);
-				}
+				discoverable.add(f); // manageFile(f);
 			}
 		}
 
 		// For random sorting, we only randomize file entries
-		if (configuration.getSortMethod() == 5) {
-			Collections.shuffle(files);
+		if (sm == UMSUtils.SORT_RANDOM) {
+			UMSUtils.sort(files, sm);
 		}
 
 		for (File f : files) {
 			if (f.isFile()) {
-				if (str == null || f.getName().toLowerCase().contains(str)) {
-					discoverable.add(f); // manageFile(f);
-				}
+				discoverable.add(f); // manageFile(f);
 			}
 		}
 	}
@@ -359,7 +267,7 @@ public class MapFile extends DLNAResource {
 			}
 		}
 
-		return getLastRefreshTime() < modified;
+		return (getLastRefreshTime() < modified) || (configuration.getSortMethod(getPath()) == UMSUtils.SORT_RANDOM);
 	}
 
 	@Override
@@ -369,7 +277,7 @@ public class MapFile extends DLNAResource {
 
 	@Override
 	public void doRefreshChildren(String str) {
-		List<File> files = getFileList();
+		/*List<File> files = getFileList();
 		List<File> addedFiles = new ArrayList<>();
 		List<DLNAResource> removedFiles = new ArrayList<>();
 
@@ -379,12 +287,6 @@ public class MapFile extends DLNAResource {
 
 			if (isNeedMatching && !found) {
 				removedFiles.add(d);
-			} else if (str != null && found) {
-				String s = d.getName().toLowerCase();
-				if (!s.contains(str)) {
-					// new search, this doesn't match
-					removedFiles.add(d);
-				}
 			}
 		}
 
@@ -403,7 +305,7 @@ public class MapFile extends DLNAResource {
 		}
 
 		// false: don't create the folder if it doesn't exist i.e. find the folder
-		TranscodeVirtualFolder transcodeFolder = getTranscodeFolder(false);
+		TranscodeVirtualFolder transcodeFolder = getTranscodeFolder(false, configuration);
 
 		for (DLNAResource f : removedFiles) {
 			getChildren().remove(f);
@@ -423,7 +325,11 @@ public class MapFile extends DLNAResource {
 
 		for (MapFileConfiguration f : this.getConf().getChildren()) {
 			addChild(new MapFile(f));
-		}
+		} */
+		getChildren().clear();
+		discoverable = null;
+		discoverChildren(str);
+		analyzeChildren(-1);
 	}
 
 	private boolean foundInList(List<File> files, DLNAResource dlna) {
@@ -549,6 +455,13 @@ public class MapFile extends DLNAResource {
 
 	@Override
 	public boolean isSearched() {
-		return true;
+		return (getParent() instanceof SearchFolder);
+	}
+
+	private File getPath() {
+		if (this instanceof RealFile) {
+			return ((RealFile) this).getFile();
+		}
+		return null;
 	}
 }

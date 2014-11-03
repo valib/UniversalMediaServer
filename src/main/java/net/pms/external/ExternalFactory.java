@@ -40,7 +40,6 @@ import net.pms.Messages;
 import net.pms.PMS;
 import net.pms.configuration.PmsConfiguration;
 import net.pms.configuration.RendererConfiguration;
-import net.pms.dlna.RootFolder;
 import net.pms.external.URLResolver.URLResult;
 import net.pms.newgui.LooksFrame;
 import org.apache.commons.io.FileUtils;
@@ -246,12 +245,7 @@ public class ExternalFactory {
 			}
 		}
 
-		ArrayList<RendererConfiguration> renders = RendererConfiguration.getEnabledRenderersConfigurations();
-
-		for (RendererConfiguration r : renders) {
-			RootFolder rf = r.getRootFolder();
-			rf.reset();
-		}
+		RendererConfiguration.resetAllRenderers();
 
 		if (remove != null) {
 			externalListeners.remove(remove);
@@ -319,8 +313,7 @@ public class ExternalFactory {
 		}
 
 		try {
-			try (FileInputStream fis = new FileInputStream(purge)) {
-				BufferedReader in = new BufferedReader(new InputStreamReader(fis)); 
+			try (FileInputStream fis = new FileInputStream(purge); BufferedReader in = new BufferedReader(new InputStreamReader(fis))) { 
 				String line;
 
 				while ((line = in.readLine()) != null) {
@@ -333,7 +326,6 @@ public class ExternalFactory {
 						f.delete();
 					}
 				}
-				in.close();
 			}
 		} catch (IOException e) { }
 		purge.delete();
