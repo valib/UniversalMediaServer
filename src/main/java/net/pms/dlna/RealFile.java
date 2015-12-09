@@ -61,7 +61,7 @@ public class RealFile extends MapFile {
 
 		if (valid && getParent().getDefaultRenderer() != null && getParent().getDefaultRenderer().isUseMediaInfo()) {
 			// we need to resolve the DLNA resource now
-			run();
+//			run();
 
 			if (getMedia() != null && getMedia().getThumb() == null && getType() != Format.AUDIO) { // MediaInfo retrieves cover art now
 				getMedia().setThumbready(false);
