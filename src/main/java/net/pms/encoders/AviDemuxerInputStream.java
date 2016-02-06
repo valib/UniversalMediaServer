@@ -33,7 +33,7 @@ public class AviDemuxerInputStream extends InputStream {
 	private static final Logger LOGGER = LoggerFactory.getLogger(AviDemuxerInputStream.class);
 	private static final PmsConfiguration configuration = PMS.getConfiguration();
 
-	private Process process;
+	private volatile Process process;
 	private InputStream stream;
 	private ArrayList<ProcessWrapper> attachedProcesses;
 	private long readCount = -1;
@@ -44,7 +44,7 @@ public class AviDemuxerInputStream extends InputStream {
 	private OutputStream vOut;
 	private long audiosize;
 	private long videosize;
-	private InputStream realIS;
+	private volatile InputStream realIS;
 	private Thread parsing;
 	private OutputParams params;
 

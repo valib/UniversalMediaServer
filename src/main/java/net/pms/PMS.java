@@ -92,11 +92,11 @@ public class PMS {
 	@Deprecated
 	public static String VERSION;
 
-	private boolean ready = false;
+	private volatile boolean ready = false;
 
-	private static FileWatcher fileWatcher;
+	private static volatile FileWatcher fileWatcher;
 
-	private GlobalIdRepo globalRepo;
+	private volatile GlobalIdRepo globalRepo;
 
 	public static final String AVS_SEPARATOR = "\1";
 
@@ -104,7 +104,7 @@ public class PMS {
 	private static final Logger LOGGER = LoggerFactory.getLogger(PMS.class);
 
 	// TODO(tcox):  This shouldn't be static
-	private static PmsConfiguration configuration;
+	private static volatile PmsConfiguration configuration;
 
 	/**
 	 * Universally Unique Identifier used in the UPnP server.
@@ -117,7 +117,7 @@ public class PMS {
 	 */
 	private static String helpPage = "index.html";
 
-	private NameFilter filter;
+	private volatile NameFilter filter;
 
 	private JmDNS jmDNS;
 
@@ -238,7 +238,7 @@ public class PMS {
 	 * Interface to Windows-specific functions, like Windows Registry. registry is set by {@link #init()}.
 	 * @see net.pms.io.WinUtils
 	 */
-	private SystemUtils registry;
+	private volatile SystemUtils registry;
 
 	/**
 	 * @see net.pms.io.WinUtils
@@ -810,7 +810,7 @@ public class PMS {
 		return true;
 	}
 
-	private MediaLibrary mediaLibrary;
+	private volatile MediaLibrary mediaLibrary;
 
 	/**
 	 * Returns the MediaLibrary used by PMS.
@@ -1541,13 +1541,13 @@ public class PMS {
 		}
 	}
 
-	private DbgPacker dbgPack;
+	private volatile DbgPacker dbgPack;
 
 	public DbgPacker dbgPack() {
 		return dbgPack;
 	}
 
-	private TempFileMgr tfm;
+	private volatile TempFileMgr tfm;
 
 	public void addTempFile(File f) {
 		tfm.add(f);
@@ -1696,7 +1696,7 @@ public class PMS {
 		setLocale(language, "", "");
 	}
 
-	private RemoteWeb web;
+	private volatile RemoteWeb web;
 
 	public RemoteWeb getWebInterface() {
 		return web;
@@ -1759,7 +1759,7 @@ public class PMS {
 	}
 
 	private InfoDb infoDb;
-	private CodeDb codes;
+	private volatile CodeDb codes;
 	private CodeEnter masterCode;
 
 	public void infoDbAdd(File f, String formattedName) {

@@ -4,7 +4,7 @@ import net.pms.dlna.virtual.*;
 
 public class Search extends VirtualFolder {
 	private SearchObj sobj;
-	private StringBuilder sb;
+	private volatile StringBuilder sb;
 	private boolean searched;
 
 	public Search(SearchObj obj) {

@@ -24,7 +24,7 @@ import org.apache.commons.io.IOUtils;
 
 public abstract class OutputConsumer extends Thread {
 	protected InputStream inputStream;
-	protected boolean filtered;
+	protected volatile boolean filtered;
 
 	public OutputConsumer(InputStream inputStream) {
 		this.inputStream = inputStream;

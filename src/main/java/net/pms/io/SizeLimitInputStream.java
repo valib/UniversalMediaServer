@@ -61,7 +61,7 @@ public class SizeLimitInputStream extends InputStream {
 	 * 
 	 * @since ostermillerutils 1.04.00
 	 */
-	protected long bytesReadSinceMark = 0;
+	protected volatile long bytesReadSinceMark = 0;
 
 	/**
 	 * The number of bytes the user has request to have been marked for reset.

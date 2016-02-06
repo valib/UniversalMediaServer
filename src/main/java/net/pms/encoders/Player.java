@@ -70,7 +70,7 @@ public abstract class Player {
 	public abstract String mimeType();
 	public abstract String executable();
 	protected static final PmsConfiguration _configuration = PMS.getConfiguration();
-	protected PmsConfiguration configuration = _configuration;
+	volatile PmsConfiguration configuration = _configuration;
 	private static List<FinalizeTranscoderArgsListener> finalizeTranscoderArgsListeners = new ArrayList<>();
 
 	public static void initializeFinalizeTranscoderArgsListeners() {

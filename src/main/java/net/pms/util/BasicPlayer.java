@@ -22,10 +22,10 @@ import java.util.regex.Pattern;
 
 public interface BasicPlayer extends ActionListener {
 	public class State {
-		public int playback;
+		public volatile int playback;
 		public boolean mute;
 		public int volume;
-		public String position, duration;
+		public volatile String position, duration;
 		public String name, uri, metadata;
 		public long buffer;
 	}

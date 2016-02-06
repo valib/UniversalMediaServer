@@ -64,7 +64,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class DLNAResource extends HTTPResource implements Cloneable, Runnable {
 	private final Map<String, Integer> requestIdToRefcount = new HashMap<>();
-	private boolean resolved;
+	private volatile boolean resolved;
 	private static final int STOP_PLAYING_DELAY = 4000;
 	private static final Logger LOGGER = LoggerFactory.getLogger(DLNAResource.class);
 	private final SimpleDateFormat SDF_DATE = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
@@ -77,12 +77,12 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	/**
 	 * The name displayed on the renderer. Cached the first time getDisplayName(RendererConfiguration) is called.
 	 */
-	private String displayName;
+	private volatile String displayName;
 
 	/**
 	 * The suffix added to the name. Contains additional info about audio and subtitles.
 	 */
-	private String nameSuffix = "";
+	private volatile String nameSuffix = "";
 
 	/**
 	 * @deprecated This field will be removed. Use {@link net.pms.configuration.PmsConfiguration#getTranscodeFolderName()} instead.
@@ -100,14 +100,14 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 * @deprecated Use standard getter and setter to access this field.
 	 */
 	@Deprecated
-	protected String id;
-	protected String pathId;
+	protected volatile String id;
+	protected volatile String pathId;
 
 	/**
 	 * @deprecated Use standard getter and setter to access this field.
 	 */
 	@Deprecated
-	protected DLNAResource parent;
+	protected volatile DLNAResource parent;
 
 	/**
 	 * @deprecated This field will be removed. Use {@link #getFormat()} and
@@ -125,7 +125,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 * @deprecated Use standard getter and setter to access this field.
 	 */
 	@Deprecated
-	protected DLNAMediaInfo media;
+	protected volatile DLNAMediaInfo media;
 
 	/**
 	 * @deprecated Use {@link #getMediaAudio()} and {@link
@@ -152,13 +152,13 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 *
 	 * @see Player
 	 */
-	private Player player;
+	private volatile Player player;
 
 	/**
 	 * @deprecated Use standard getter and setter to access this field.
 	 */
 	@Deprecated
-	protected boolean discovered = false;
+	protected volatile boolean discovered = false;
 
 	private ProcessWrapper externalProcess;
 
@@ -178,13 +178,13 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 * @deprecated Use standard getter and setter to access this field.
 	 */
 	@Deprecated
-	protected int updateId = 1;
+	protected volatile int updateId = 1;
 
 	/**
 	 * @deprecated Use standard getter and setter to access this field.
 	 */
 	@Deprecated
-	public static int systemUpdateId = 1;
+	public volatile static int systemUpdateId = 1;
 
 	/**
 	 * @deprecated Use standard getter and setter to access this field.
@@ -208,7 +208,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 * @deprecated Use standard getter and setter to access this field.
 	 */
 	@Deprecated
-	protected int splitTrack;
+	protected volatile int splitTrack;
 
 	/**
 	 * @deprecated Use standard getter and setter to access this field.
@@ -221,7 +221,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 */
 	// Ditlew - needs this in one of the derived classes
 	@Deprecated
-	protected RendererConfiguration defaultRenderer;
+	protected volatile RendererConfiguration defaultRenderer;
 
 	/**
 	 * @deprecated Use standard getter and setter to access this field.
@@ -243,8 +243,8 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 * List of children objects associated with this DLNAResource. This is only valid when the DLNAResource is of the container type.
 	 */
 	@Deprecated
-	protected DLNAList children;
-	//protected List<DLNAResource> children;
+	//protected DLNAList children;
+	protected List<DLNAResource> children;
 
 	/**
 	 * @deprecated Use standard getter and setter to access this field.
@@ -261,7 +261,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 * The last time refresh was called.
 	 */
 	@Deprecated
-	protected long lastRefreshTime;
+	protected volatile long lastRefreshTime;
 
 	@SuppressWarnings("unused")
 	private String lastSearch;
@@ -1003,7 +1003,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 *
 	 * @param child the DLNA resource to add to this node's list of children
 	 */
-	protected synchronized void addChildInternal(DLNAResource child) {
+	protected void addChildInternal(DLNAResource child) {
 		if (child.getInternalId() != null) {
 			LOGGER.debug(
 				"Node ({}) already has an ID ({}), which is overridden now. The previous parent node was: {}",
@@ -2806,7 +2806,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	/**
 	 * The system time when the resource was last (re)started.
 	 */
-	private long lastStartSystemTime;
+	private volatile long lastStartSystemTime;
 
 	/**
 	 * Gets the system time when the resource was last (re)started.
@@ -2829,7 +2829,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	/**
 	 * The most recently requested time offset in seconds.
 	 */
-	private double lastStartPosition;
+	private volatile double lastStartPosition;
 
 	/**
 	 * Gets the most recently requested time offset in seconds.
@@ -3874,9 +3874,9 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	// Resume handling
 	////////////////////////////////////////////////////
 
-	private ResumeObj resume;
-	private int resHash;
-	private long startTime;
+	private volatile ResumeObj resume;
+	private volatile int resHash;
+	private volatile long startTime;
 
 	private void internalStop() {
 		DLNAResource res = resumeStop();

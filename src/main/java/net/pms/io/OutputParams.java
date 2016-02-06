@@ -41,7 +41,7 @@ public class OutputParams {
 	public double timeend;
 	public int fromFrame;
 	public int toFrame;
-	public int waitbeforestart;
+	public volatile int waitbeforestart;
 	public PipeProcess[] input_pipes = new PipeProcess[2];
 	public PipeProcess[] output_pipes = new PipeProcess[2];
 	public DLNAMediaAudio aid;

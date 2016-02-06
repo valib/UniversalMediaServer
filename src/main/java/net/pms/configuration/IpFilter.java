@@ -211,7 +211,7 @@ public class IpFilter {
 		return rawFilter;
 	}
 
-	public synchronized void setRawFilter(String rawFilter) {
+	public void setRawFilter(String rawFilter) {
 		if (this.rawFilter != null && this.rawFilter.equals(rawFilter)) {
 			return;
 		}

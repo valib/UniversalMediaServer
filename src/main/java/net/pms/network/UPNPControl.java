@@ -149,7 +149,8 @@ public class UPNPControl {
 		public Map<String, String> details;
 		public LinkedHashSet<ActionListener> listeners;
 		private Thread monitor;
-		public volatile boolean active, renew;
+		public volatile boolean active;
+		public boolean renew;
 
 		public Renderer(String uuid) {
 			this();

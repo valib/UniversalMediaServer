@@ -37,19 +37,19 @@ public class ProcessWrapperImpl extends Thread implements ProcessWrapper {
 	/** FONTCONFIG_PATH environment variable name */
 	private static final String FONTCONFIG_PATH = "FONTCONFIG_PATH";
 
-	private Process process;
-	private OutputConsumer stdoutConsumer;
-	private OutputConsumer stderrConsumer;
+	private volatile Process process;
+	private volatile OutputConsumer stdoutConsumer;
+	private volatile OutputConsumer stderrConsumer;
 	private OutputParams params;
 	private boolean destroyed;
 	private String[] cmdArray;
 	private boolean nullable;
 	private ArrayList<ProcessWrapper> attachedProcesses;
-	private BufferedOutputFile bo = null;
+	private volatile BufferedOutputFile bo = null;
 	private boolean keepStdout;
 	private boolean keepStderr;
 	private static int processCounter = 0;
-	private boolean success;
+	private volatile boolean success;
 
 	@Override
 	public String toString() {

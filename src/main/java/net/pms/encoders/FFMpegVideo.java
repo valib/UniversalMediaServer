@@ -111,7 +111,7 @@ public class FFMpegVideo extends Player {
 	 * or an empty list if the video doesn't need to be resized.
 	 * @throws java.io.IOException
 	 */
-	public List<String> getVideoFilterOptions(DLNAResource dlna, DLNAMediaInfo media, OutputParams params) throws IOException {
+	public synchronized List<String> getVideoFilterOptions(DLNAResource dlna, DLNAMediaInfo media, OutputParams params) throws IOException {
 		List<String> videoFilterOptions = new ArrayList<>();
 		ArrayList<String> filterChain = new ArrayList<>();
 		ArrayList<String> scalePadFilterChain = new ArrayList<>();
@@ -428,7 +428,7 @@ public class FFMpegVideo extends Player {
 	 * @param params
 	 * @return a {@link List} of <code>String</code>s representing the video bitrate options for this transcode
 	 */
-	public List<String> getVideoBitrateOptions(DLNAResource dlna, DLNAMediaInfo media, OutputParams params) {
+	public synchronized List<String> getVideoBitrateOptions(DLNAResource dlna, DLNAMediaInfo media, OutputParams params) {
 		List<String> videoBitrateOptions = new ArrayList<>();
 		boolean low = false;
 
@@ -641,7 +641,7 @@ public class FFMpegVideo extends Player {
 		return false;
 	}
 
-	public String initialString() {
+	public synchronized String initialString() {
 		String threads = " -threads 1";
 		if (configuration.isFfmpegMultithreading()) {
 			if (Runtime.getRuntime().availableProcessors() == configuration.getNumberOfCpuCores()) {
@@ -1249,7 +1249,7 @@ public class FFMpegVideo extends Player {
 		return config("NetworkTab.5");
 	}
 
-	protected JComponent config(String languageLabel) {
+	protected synchronized JComponent config(String languageLabel) {
 		FormLayout layout = new FormLayout(
 			"left:pref, 0:grow",
 			"p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, p"
@@ -1388,7 +1388,7 @@ public class FFMpegVideo extends Player {
 	 * Set up a filter to parse ffmpeg's stderr output for info
 	 * (e.g. duration) if required.
 	 */
-	public void setOutputParsing(final DLNAResource dlna, ProcessWrapperImpl pw, boolean force) {
+	public synchronized void setOutputParsing(final DLNAResource dlna, ProcessWrapperImpl pw, boolean force) {
 		if (configuration.isResumeEnabled() && dlna.getMedia() != null) {
 			long duration = force ? 0 : (long) dlna.getMedia().getDurationInSeconds();
 			if (duration == 0 || duration == DLNAMediaInfo.TRANS_SIZE) {

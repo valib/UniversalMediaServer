@@ -27,7 +27,7 @@ public abstract class UnusedInputStream extends InputStream {
 	private static final Logger LOGGER = LoggerFactory.getLogger(UnusedInputStream.class);
 
 	private InputStream inputStream;
-	private UnusedProcess processToTerminate;
+	private volatile UnusedProcess processToTerminate;
 	private int timeout;
 
 	public UnusedInputStream(InputStream inputStream, UnusedProcess processToTerminate, int timeout) {
