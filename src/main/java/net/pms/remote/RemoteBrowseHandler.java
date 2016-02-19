@@ -160,7 +160,7 @@ public class RemoteBrowseHandler implements HttpHandler {
 				}
 
 				sb.append("\n<a class=\"download\" href=\"/m3u8/").append(idForWeb).append(".m3u8\" title=\"")
-					.append(RemoteUtil.getMsgString("Web.10", t)).append("\"></a>");
+					.append(RemoteUtil.getMsgString("Web.11", t)).append("\"></a>");
 
 				item.put("actions", sb.toString());
 				sb.setLength(0);
@@ -206,7 +206,7 @@ public class RemoteBrowseHandler implements HttpHandler {
 		}
 		if (hasFile) {
 			vars.put("folderId", id);
-			vars.put("downloadFolderTooltip", RemoteUtil.getMsgString("Web.11", t));
+			vars.put("downloadFolderTooltip", RemoteUtil.getMsgString("Web.12", t));
 		}
 
 		return parent.getResources().getTemplate("browse.html").execute(vars);
