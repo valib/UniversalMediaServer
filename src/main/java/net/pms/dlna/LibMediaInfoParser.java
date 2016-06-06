@@ -5,19 +5,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import net.pms.configuration.FormatConfiguration;
 import net.pms.configuration.RendererConfiguration;
 import net.pms.dlna.MediaInfo.StreamType;
 import net.pms.formats.v2.SubtitleType;
 import net.pms.util.FileUtil;
 import net.pms.util.ImagesUtil;
-
 import org.apache.commons.codec.binary.Base64;
 import org.apache.sanselan.ImageInfo;
-
 import static org.apache.commons.lang3.StringUtils.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -765,18 +761,23 @@ public class LibMediaInfoParser {
 	}
 
 	/**
-	 * Returns an ColorType value of the Color Space string provided by MediaInfo.
+	 * Convert Color Space string provided by MediaInfo to the Sanselan.ColorType value.
+	 * 
+	 * @param value Color Space value to convert.
+	 * @return Sanselan ColorType.
 	 */
 	public static int getColorType(String value) {
-		switch (value)
-		{
-		case "YUV":
-			return ImageInfo.COLOR_TYPE_RGB;
-		case "YCCB":
-			return ImageInfo.COLOR_TYPE_CMYK;
+		switch (value) {
+			case "Y":
+				return ImageInfo.COLOR_TYPE_GRAYSCALE;
+			case "RGB":
+			case "YUV":
+				return ImageInfo.COLOR_TYPE_RGB;
+			case "YCCB":
+				return ImageInfo.COLOR_TYPE_CMYK;
 
-		default:
-			return ImageInfo.COLOR_TYPE_UNKNOWN;
+			default:
+				return ImageInfo.COLOR_TYPE_UNKNOWN;
 		}
 	}
 }
