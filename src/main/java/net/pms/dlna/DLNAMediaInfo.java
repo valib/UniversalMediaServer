@@ -1653,6 +1653,8 @@ public class DLNAMediaInfo implements Cloneable {
 
 		result.append(", attached fonts: ");
 		result.append(embeddedFontExists);
+		result.append(", attached images: ");
+		result.append(embeddedImageExists);
 
 		if (isNotBlank(fileTitleFromMetadata)) {
 			result.append(", file title from metadata: ");
@@ -2856,5 +2858,22 @@ public class DLNAMediaInfo implements Cloneable {
 
 	public boolean isDVDResolution() {
 		return (width == 720 && height == 576) || (width == 720 && height == 480);
+	}
+
+	private boolean embeddedImageExists;
+	
+	/**
+	 * Sets whether the file container has custom Cover images attached.
+	 *
+	 * @param exists true if at least one attached Cover image exists.
+	 * 
+	 * TODO: Somewhere make method to extract Cover images from this file
+	 */
+	public void setEmbeddedImageExists(boolean exists) {
+		this.embeddedImageExists = exists;
+	}
+
+	public boolean isEmbeddedImageExists() {
+		return embeddedImageExists;
 	}
 }
