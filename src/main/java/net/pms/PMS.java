@@ -1286,9 +1286,33 @@ public class PMS {
 		}
 	}
 
+	/**
+	 * Stores the file in the cache.
+	 * Note: Also checks if the data exists first, unlike the one below.
+	 *
+	 * @param file
+	 * @param formatType 
+	 */
 	public void storeFileInCache(File file, int formatType) {
 		if (getConfiguration().getUseCache() && !getDatabase().isDataExists(file.getAbsolutePath(), file.lastModified())) {
 			getDatabase().insertData(file.getAbsolutePath(), file.lastModified(), formatType, null);
+		}
+	}
+
+	/**
+	 * Appends the existing file record in the cache with metadata from
+	 * OpenSubtitles or if that lookup failed, data extracted from the filename.
+	 *
+	 * Note: Does not check if the data already exists, unlike the one above,
+	 * because that check is done before this is used.
+	 *
+	 * @param file
+	 * @param formatType 
+	 * @param media 
+	 */
+	public void storeOpenSubtitlesMetadataInCache(File file, int formatType, DLNAMediaInfo media) {
+		if (getConfiguration().getUseCache()) {
+			getDatabase().appendWithDataFromOpenSubtitles(file.getAbsolutePath(), file.lastModified(), formatType, media);
 		}
 	}
 
@@ -1310,10 +1334,11 @@ public class PMS {
 	 * This function should be used to resolve the relevant PmsConfiguration wherever the renderer
 	 * is known or can be determined.
 	 *
-	 * @return The DeviceConfiguration object, if any, or the global PmsConfiguration.
+	 * @param  renderer The renderer configuration.
+	 * @return          The DeviceConfiguration object, if any, or the global PmsConfiguration.
 	 */
-	public static PmsConfiguration getConfiguration(RendererConfiguration r) {
-		return (r != null && (r instanceof DeviceConfiguration)) ? (DeviceConfiguration)r : configuration;
+	public static PmsConfiguration getConfiguration(RendererConfiguration renderer) {
+		return (renderer != null && (renderer instanceof DeviceConfiguration)) ? (DeviceConfiguration) renderer : configuration;
 	}
 
 	public static PmsConfiguration getConfiguration(OutputParams params) {

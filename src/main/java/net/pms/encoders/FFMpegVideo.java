@@ -351,9 +351,6 @@ public class FFMpegVideo extends Player {
 				} else if (renderer.isTranscodeToAAC()) {
 					transcodeOptions.add("-c:a");
 					transcodeOptions.add("aac");
-
-					transcodeOptions.add("-strict");
-					transcodeOptions.add("experimental");
 				} else {
 					if (!customFFmpegOptions.contains("-c:a ")) {
 						transcodeOptions.add("-c:a");
@@ -823,7 +820,11 @@ public class FFMpegVideo extends Player {
 			File avsFile = AviSynthFFmpeg.getAVSScript(filename, params.sid, params.fromFrame, params.toFrame, frameRateRatio, frameRateNumber, configuration);
 			cmdList.add(ProcessUtil.getShortFileNameIfWideChars(avsFile.getAbsolutePath()));
 		} else {
-			cmdList.add(filename);
+			if (params.stdin != null) {		
+				cmdList.add("pipe:");
+			} else {
+				cmdList.add(filename);
+			}	
 		}
 
 		/**
