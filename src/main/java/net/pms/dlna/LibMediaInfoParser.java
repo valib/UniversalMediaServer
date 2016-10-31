@@ -80,7 +80,11 @@ public class LibMediaInfoParser {
 
 				// set General
 				getFormat(general, media, currentAudioTrack, MI.Get(general, 0, "Format"), file);
-				getFormat(general, media, currentAudioTrack, MI.Get(general, 0, "CodecID").trim(), file);
+				value = MI.Get(general, 0, "CodecID");
+				if (!value.isEmpty()) {
+					getFormat(general, media, currentAudioTrack, value.trim(), file);
+				}
+
 				media.setDuration(getDuration(MI.Get(general, 0, "Duration/String1")));
 				media.setBitrate(getBitrate(MI.Get(general, 0, "OverallBitRate")));
 				value = MI.Get(general, 0, "Cover_Data");
@@ -108,8 +112,16 @@ public class LibMediaInfoParser {
 							addSub(currentSubTrack, media);
 						} else {
 							getFormat(video, media, currentAudioTrack, MI.Get(video, i, "Format"), file);
-							getFormat(video, media, currentAudioTrack, MI.Get(video, i, "Format_Version"), file);
-							getFormat(video, media, currentAudioTrack, MI.Get(video, i, "CodecID"), file);
+							value = MI.Get(video, i, "Format_Version");
+							if (!value.isEmpty()) {
+								getFormat(video, media, currentAudioTrack, value, file);
+							}
+
+							value = MI.Get(video, i, "CodecID");
+							if (!value.isEmpty()) {
+								getFormat(video, media, currentAudioTrack, value, file);
+							}
+
 							media.setWidth(getPixelValue(MI.Get(video, i, "Width")));
 							media.setHeight(getPixelValue(MI.Get(video, i, "Height")));
 							media.setMatrixCoefficients(MI.Get(video, i, "matrix_coefficients"));
@@ -163,9 +175,21 @@ public class LibMediaInfoParser {
 					for (int i = 0; i < audioTracks; i++) {
 						currentAudioTrack = new DLNAMediaAudio();
 						getFormat(audio, media, currentAudioTrack, MI.Get(audio, i, "Format"), file);
-						getFormat(audio, media, currentAudioTrack, MI.Get(audio, i, "Format_Version"), file);
-						getFormat(audio, media, currentAudioTrack, MI.Get(audio, i, "Format_Profile"), file);
-						getFormat(audio, media, currentAudioTrack, MI.Get(audio, i, "CodecID"), file);
+						value = MI.Get(audio, i, "Format_Version");
+						if (!value.isEmpty()) {
+							getFormat(audio, media, currentAudioTrack, value, file);
+						}
+
+						value = MI.Get(audio, i, "Format_Profile");
+						if (!value.isEmpty()) {
+							getFormat(audio, media, currentAudioTrack, value, file);
+						}
+
+						value = MI.Get(audio, i, "CodecID");
+						if (!value.isEmpty()) {
+							getFormat(audio, media, currentAudioTrack, value, file);
+						}
+
 						currentAudioTrack.setLang(getLang(MI.Get(audio, i, "Language/String")));
 						currentAudioTrack.setAudioTrackTitleFromMetadata((MI.Get(audio, i, "Title")).trim());
 						currentAudioTrack.getAudioProperties().setNumberOfChannels(MI.Get(audio, i, "Channel(s)"));
