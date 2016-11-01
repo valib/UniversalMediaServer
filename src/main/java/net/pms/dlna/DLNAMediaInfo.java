@@ -1371,9 +1371,6 @@ public class DLNAMediaInfo implements Cloneable {
 				case "mov":
 					mimeType = HTTPResource.MOV_TYPEMIME;
 					break;
-				case "ogg":
-					mimeType = HTTPResource.AUDIO_OGG_TYPEMIME;
-					break;
 			}
 		}
 
@@ -1393,14 +1390,23 @@ public class DLNAMediaInfo implements Cloneable {
 					mimeType = HTTPResource.MP4_TYPEMIME;
 				} else if (codecV.contains("mpeg") || codecV.contains("mpg")) {
 					mimeType = HTTPResource.MPEG_TYPEMIME;
+				} else if (codecV.contains("theora") && "ogg".equals(container)) {
+					mimeType = HTTPResource.VIDEO_OGG_TYPEMIME;
 				}
 			} else if (codecV == null && codecA != null) {
 				if (codecA.contains("mp3")) {
 					mimeType = HTTPResource.AUDIO_MP3_TYPEMIME;
 				} else if (codecA.contains("aac")) {
 					mimeType = HTTPResource.AUDIO_MP4_TYPEMIME;
+				} else if (codecA.contains("vorbis")) {
+					mimeType = HTTPResource.AUDIO_OGG_TYPEMIME;	
 				} else if (codecA.contains("flac")) {
-					mimeType = HTTPResource.AUDIO_FLAC_TYPEMIME;
+					if ("ogg".equals(container)) {
+						mimeType = HTTPResource.AUDIO_OGG_TYPEMIME;
+					} else {
+						mimeType = HTTPResource.AUDIO_FLAC_TYPEMIME;
+					}
+					
 				} else if (codecA.contains("asf") || codecA.startsWith("wm")) {
 					mimeType = HTTPResource.AUDIO_WMA_TYPEMIME;
 				} else if (codecA.contains("pcm") || codecA.contains("wav") || codecA.contains("dts")) {
