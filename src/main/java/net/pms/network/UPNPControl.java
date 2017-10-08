@@ -238,6 +238,10 @@ public class UPNPControl {
 		public boolean needsRenewal() {
 			return !active || renew;
 		}
+
+		public DeviceProtocolInfo getDeviceProtocolInfo() {
+			return deviceProtocolInfo;
+		}
 	}
 
 	public static Device getDevice(String uuid) {

@@ -34,6 +34,7 @@ import net.pms.configuration.FormatConfiguration;
 import net.pms.configuration.PmsConfiguration;
 import net.pms.configuration.RendererConfiguration;
 import net.pms.dlna.DLNAImageProfile.HypotheticalResult;
+import net.pms.dlna.protocolinfo.ProtocolInfo;
 import net.pms.dlna.virtual.TranscodeVirtualFolder;
 import net.pms.dlna.virtual.VirtualFolder;
 import net.pms.dlna.virtual.VirtualVideoAction;
@@ -441,6 +442,12 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 
 	public String getDlnaContentFeatures(RendererConfiguration mediaRenderer) {
 		// TODO: Determine renderer's correct localization value
+		ProtocolInfo[] ProtocolArray = mediaRenderer.getDeviceProtocolInfo().toArray();
+		for (ProtocolInfo protocol : ProtocolArray) {
+			if (protocol.toString().equals("MPEG_PAL")) {
+				LOGGER.trace("Matched supported protocol {}", protocol.toString());
+			}
+		}
 		int localizationValue = 0;
 		String dlnaOrgPnFlags = getDlnaOrgPnFlags(mediaRenderer, localizationValue);
 		return (dlnaOrgPnFlags != null ? (dlnaOrgPnFlags + ";") : "") + getDlnaOrgOpFlags(mediaRenderer) + ";DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
