@@ -34,6 +34,7 @@ import net.pms.configuration.FormatConfiguration;
 import net.pms.configuration.PmsConfiguration;
 import net.pms.configuration.RendererConfiguration;
 import net.pms.dlna.DLNAImageProfile.HypotheticalResult;
+import net.pms.dlna.protocolinfo.KnownDLNAOrgProfileName;
 import net.pms.dlna.protocolinfo.ProtocolInfo;
 import net.pms.dlna.virtual.TranscodeVirtualFolder;
 import net.pms.dlna.virtual.VirtualFolder;
@@ -442,13 +443,17 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 
 	public String getDlnaContentFeatures(RendererConfiguration mediaRenderer) {
 		// TODO: Determine renderer's correct localization value
+		int localizationValue = 0;
 		ProtocolInfo[] ProtocolArray = mediaRenderer.getDeviceProtocolInfo().toArray();
 		for (ProtocolInfo protocol : ProtocolArray) {
-			if (protocol.toString().equals("MPEG_PAL")) {
+			if (protocol.toString().contains("MPEG_PS")) {
+				localizationValue = 2;
 				LOGGER.trace("Matched supported protocol {}", protocol.toString());
+			} else if (protocol.toString().contains("MPEG_TS")) {
+				localizationValue = 1;
 			}
 		}
-		int localizationValue = 0;
+		
 		String dlnaOrgPnFlags = getDlnaOrgPnFlags(mediaRenderer, localizationValue);
 		return (dlnaOrgPnFlags != null ? (dlnaOrgPnFlags + ";") : "") + getDlnaOrgOpFlags(mediaRenderer) + ";DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
 	}
@@ -1935,10 +1940,11 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 * @return String representation of the DLNA.ORG_PN flags
 	 */
 	@SuppressWarnings("deprecation")
-	private String getDlnaOrgPnFlags(RendererConfiguration mediaRenderer, int localizationValue) {
+	private String getDlnaOrgPnFlags(RendererConfiguration mediaRenderer, int localization) {
 		// Use device-specific pms conf, if any
 		PmsConfiguration configurationSpecificToRenderer = PMS.getConfiguration(mediaRenderer);
 		String mime = getRendererMimeType(mediaRenderer);
+		int localizationValue = localization;
 
 		String dlnaOrgPnFlags = null;
 
@@ -1951,6 +1957,17 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 				}
 			} else {
 				if (mime.equals(MPEG_TYPEMIME)) {
+					localizationValue = 0;
+					ProtocolInfo[] ProtocolArray = mediaRenderer.getDeviceProtocolInfo().toArray();
+					for (ProtocolInfo protocol : ProtocolArray) {
+						if (protocol.toString().contains("MPEG_PS")) {
+							localizationValue = 2;
+							LOGGER.trace("Matched supported protocol {}", protocol.toString());
+						} else if (protocol.toString().contains("MPEG_TS")) {
+							localizationValue = 1;
+						}
+					}
+
 					dlnaOrgPnFlags = "DLNA.ORG_PN=" + getMPEG_PS_PALLocalizedValue(localizationValue);
 
 					if (player != null) {
