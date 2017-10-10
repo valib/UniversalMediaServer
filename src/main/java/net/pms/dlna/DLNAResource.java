@@ -443,17 +443,8 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 
 	public String getDlnaContentFeatures(RendererConfiguration mediaRenderer) {
 		// TODO: Determine renderer's correct localization value
+		String url = getURL(this.getId());
 		int localizationValue = 0;
-		ProtocolInfo[] ProtocolArray = mediaRenderer.getDeviceProtocolInfo().toArray();
-		for (ProtocolInfo protocol : ProtocolArray) {
-			if (protocol.toString().contains("MPEG_PS")) {
-				localizationValue = 2;
-				LOGGER.trace("Matched supported protocol {}", protocol.toString());
-			} else if (protocol.toString().contains("MPEG_TS")) {
-				localizationValue = 1;
-			}
-		}
-		
 		String dlnaOrgPnFlags = getDlnaOrgPnFlags(mediaRenderer, localizationValue);
 		return (dlnaOrgPnFlags != null ? (dlnaOrgPnFlags + ";") : "") + getDlnaOrgOpFlags(mediaRenderer) + ";DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
 	}
@@ -1957,18 +1948,19 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 				}
 			} else {
 				if (mime.equals(MPEG_TYPEMIME)) {
-					localizationValue = 0;
+					// check renderer protocol info if given mime is supported. Take the first occurrence which is possibly DLNA.ORG_PN=MPEG_PS...
+					// For MPEG_TS is dlnaOrgPnFlags checked and changed later
 					ProtocolInfo[] ProtocolArray = mediaRenderer.getDeviceProtocolInfo().toArray();
 					for (ProtocolInfo protocol : ProtocolArray) {
-						if (protocol.toString().contains("MPEG_PS")) {
-							localizationValue = 2;
-							LOGGER.trace("Matched supported protocol {}", protocol.toString());
-						} else if (protocol.toString().contains("MPEG_TS")) {
-							localizationValue = 1;
+						if (protocol.getAttributesString().equals(MPEG_TYPEMIME)) {
+							dlnaOrgPnFlags = protocol.getDLNAProfileName().getValue();
+							LOGGER.trace("Matched by renderer supported DLNA.ORG_PN protocol /'{}/'", protocol.getDLNAProfileName().getValue());
 						}
 					}
 
-					dlnaOrgPnFlags = "DLNA.ORG_PN=" + getMPEG_PS_PALLocalizedValue(localizationValue);
+					if (dlnaOrgPnFlags == null) { // rendered doesn't send the protocol info or not match the mime so use default MPEG_PS_PAL
+						dlnaOrgPnFlags = "DLNA.ORG_PN=" + getMPEG_PS_PALLocalizedValue(localizationValue);
+					}
 
 					if (player != null) {
 						// VLC Web Video (Legacy) and tsMuxeR always output MPEG-TS
