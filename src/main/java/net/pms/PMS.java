@@ -66,6 +66,7 @@ import net.pms.network.HTTPServer;
 import net.pms.network.ProxyServer;
 import net.pms.network.UPNPHelper;
 import net.pms.newgui.*;
+import net.pms.newgui.NavigationShareTab.SharedFoldersTableModel;
 import net.pms.remote.RemoteWeb;
 import net.pms.update.AutoUpdater;
 import net.pms.util.*;
@@ -556,6 +557,19 @@ public class PMS {
 				} else if (whetherToHideAdvancedOptions == JOptionPane.NO_OPTION) {
 					configuration.setHideAdvancedOptions(false);
 					save();
+				}
+				
+				JFileChooser chooser;
+				try {
+					chooser = new JFileChooser();
+				} catch (Exception ee) {
+					chooser = new JFileChooser(new RestrictedFileSystemView());
+				}
+				chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+				chooser.setDialogTitle("Choose the shared folder with media");
+				int returnVal = chooser.showOpenDialog(null);
+				if (returnVal == JFileChooser.APPROVE_OPTION) {
+					configuration.setFolders(chooser.getSelectedFile().getAbsolutePath());
 				}
 
 				JOptionPane.showMessageDialog(
