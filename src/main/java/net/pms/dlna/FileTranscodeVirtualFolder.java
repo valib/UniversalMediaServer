@@ -18,6 +18,7 @@
  */
 package net.pms.dlna;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -36,9 +37,11 @@ import org.slf4j.LoggerFactory;
  */
 public class FileTranscodeVirtualFolder extends TranscodeVirtualFolder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(FileTranscodeVirtualFolder.class);
+	private final DLNAResource originalResource;
 
-	public FileTranscodeVirtualFolder(String name, String thumbnailIcon) { // XXX thumbnailIcon is always null
-		super(name, thumbnailIcon);
+	public FileTranscodeVirtualFolder(DLNAResource resource) {
+		super(resource.getDisplayNameBase(resource.configuration), (String) null);
+		originalResource = resource;
 	}
 
 	/**
@@ -164,15 +167,33 @@ public class FileTranscodeVirtualFolder extends TranscodeVirtualFolder {
 		}
 	}
 
+	@Override
+	public DLNAThumbnailInputStream getThumbnailInputStream() throws IOException {
+		try {
+			return originalResource.getThumbnailInputStream();
+		} catch (Exception e) {
+			return super.getThumbnailInputStream();
+		}
+	}
+
+	@Override
+	public void checkThumbnail() {
+		originalResource.checkThumbnail();
+	}
+
 	/**
 	 * This populates the file-specific transcode folder with all combinations of players,
 	 * audio tracks and subtitles.
 	 */
+	@SuppressWarnings("deprecation")
 	@Override
 	protected void resolveOnce() {
 		if (getChildren().size() == 1) { // OK
 			DLNAResource child = getChildren().get(0);
 			child.syncResolve();
+			if (child.getMedia() != null && child.getMedia().isVideo()) {
+				child.registerExternalSubtitles(true);
+			}
 
 			RendererConfiguration renderer = null;
 			if (this.getParent() != null) {
@@ -182,7 +203,13 @@ public class FileTranscodeVirtualFolder extends TranscodeVirtualFolder {
 			// create copies of the audio/subtitle track lists as we're making (local)
 			// modifications to them
 			List<DLNAMediaAudio> audioTracks = new ArrayList<>(child.getMedia().getAudioTracksList());
-			List<DLNAMediaSubtitle> subtitleTracks = new ArrayList<>(child.getMedia().getSubtitleTracksList());
+			List<DLNAMediaSubtitle> subtitleTracks;
+			if (media_subtitle != null) {
+				// Transcode folder of live subtitles folder
+				subtitleTracks = Collections.singletonList(media_subtitle);
+			} else {
+				subtitleTracks = new ArrayList<>(child.getMedia().getSubtitleTracksList());
+			}
 
 			// assemble copies for each combination of audio, subtitle and player
 			ArrayList<DLNAResource> entries = new ArrayList<>();
@@ -201,7 +228,7 @@ public class FileTranscodeVirtualFolder extends TranscodeVirtualFolder {
 			addChapterFolder(noTranscode);
 
 			/*
-			 we add (or may add) a null entry to the audio list and/or subtitle list
+			 We add (or may add) a null entry to the audio list and/or subtitle list
 			 to ensure the inner loop is always entered:
 
 			 for audio in audioTracks:
@@ -229,24 +256,22 @@ public class FileTranscodeVirtualFolder extends TranscodeVirtualFolder {
 			 If a null audio or subtitle track is passed to createResourceWithAudioSubtitlePlayer,
 			 it sets the copy's corresponding mediaAudio (AKA params.aid) or mediaSubtitle
 			 (AKA params.sid) value to null.
-
-			 Note: this is the only place in the codebase where mediaAudio and mediaSubtitle
-			 are assigned (ignoring the trivial clone operation in ChapterFileTranscodeVirtualFolder),
-			 so setting one or both of them to null is a no-op as they're already null.
 			 */
 
 			if (audioTracks.isEmpty()) {
 				audioTracks.add(null);
 			}
 
-			if (subtitleTracks.isEmpty()) {
-				subtitleTracks.add(null);
-			} else {
-				// if there are subtitles, make sure a no-subtitle option is added
-				// for each player
-				DLNAMediaSubtitle noSubtitle = new DLNAMediaSubtitle();
-				noSubtitle.setId(-1);
-				subtitleTracks.add(noSubtitle);
+			if (media_subtitle == null) {
+				if (subtitleTracks.isEmpty()) {
+					subtitleTracks.add(null);
+				} else {
+					// if there are subtitles, make sure a no-subtitle option is added
+					// for each player
+					DLNAMediaSubtitle noSubtitle = new DLNAMediaSubtitle();
+					noSubtitle.setId(-1);
+					subtitleTracks.add(noSubtitle);
+				}
 			}
 
 			for (DLNAMediaAudio audio : audioTracks) {
