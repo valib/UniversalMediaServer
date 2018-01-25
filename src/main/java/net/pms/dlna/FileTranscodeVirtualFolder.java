@@ -269,7 +269,7 @@ public class FileTranscodeVirtualFolder extends TranscodeVirtualFolder {
 					// if there are subtitles, make sure a no-subtitle option is added
 					// for each player
 					DLNAMediaSubtitle noSubtitle = new DLNAMediaSubtitle();
-					noSubtitle.setId(-1);
+					noSubtitle.setId(DLNAMediaLang.DUMMY_ID);
 					subtitleTracks.add(noSubtitle);
 				}
 			}
