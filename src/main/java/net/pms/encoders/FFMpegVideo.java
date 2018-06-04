@@ -29,6 +29,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.JCheckBox;
@@ -198,7 +199,7 @@ public class FFMpegVideo extends Player {
 						originalSubsFilename = params.sid.getExternalFile().getAbsolutePath();
 					}
 				} else if (params.sid.isEmbedded()) {
-					originalSubsFilename = dlna.getSystemName();
+					originalSubsFilename = dlna.getFileName();
 				}
 
 				if (originalSubsFilename != null) {
@@ -266,14 +267,21 @@ public class FFMpegVideo extends Player {
 			filterChain.add(overrideVF);
 		}
 
-		// Convert 3D video to the other output 3D format
+		// Convert 3D video to the other output 3D format or to 2D using "Output3DFormat = ml" or "Output3DFormat = mr" in the renderer conf
+		String stereoLayout = null;
+		String renderer3DOutputFormat = null;
+		if (media.get3DLayout() != null) {
+			stereoLayout = media.get3DLayout().toString().toLowerCase(Locale.ROOT);
+			renderer3DOutputFormat = params.mediaRenderer.getOutput3DFormat();
+		}
+		
 		if (
 			is3D &&
-			media.get3DLayout() != null &&
-			isNotBlank(params.mediaRenderer.getOutput3DFormat()) &&
-			!media.get3DLayout().toString().toLowerCase().equals(params.mediaRenderer.getOutput3DFormat().trim())
+			stereoLayout != null &&
+			isNotBlank(renderer3DOutputFormat) &&
+			!stereoLayout.equals(renderer3DOutputFormat)
 		) {
-			filterChain.add("stereo3d=" + media.get3DLayout().toString().toLowerCase() + ":" + params.mediaRenderer.getOutput3DFormat().trim().toLowerCase());
+			filterChain.add("stereo3d=" + stereoLayout + ":" + renderer3DOutputFormat);
 		}
 
 		if (filterChain.size() > 0) {
@@ -299,7 +307,7 @@ public class FFMpegVideo extends Player {
 	 */
 	public synchronized List<String> getVideoTranscodeOptions(DLNAResource dlna, DLNAMediaInfo media, OutputParams params) {
 		List<String> transcodeOptions = new ArrayList<>();
-		final String filename = dlna.getSystemName();
+		final String filename = dlna.getFileName();
 		final RendererConfiguration renderer = params.mediaRenderer;
 		String customFFmpegOptions = renderer.getCustomFFmpegOptions();
 
@@ -725,7 +733,7 @@ public class FFMpegVideo extends Player {
 		DLNAMediaInfo media,
 		OutputParams params
 	) throws IOException {
-		final String filename = dlna.getSystemName();
+		final String filename = dlna.getFileName();
 		InputFile newInput = new InputFile();
 		newInput.setFilename(filename);
 		newInput.setPush(params.stdin);
@@ -849,7 +857,7 @@ public class FFMpegVideo extends Player {
 			!(renderer instanceof RendererConfiguration.OutputOverride) &&
 			params.sid != null &&
 			!(
-				!configuration.getHideTranscodeEnabled() &&
+				configuration.isShowTranscodeFolder() &&
 				dlna.isNoName() &&
 				(dlna.getParent() instanceof FileTranscodeVirtualFolder)
 			) &&
@@ -873,7 +881,7 @@ public class FFMpegVideo extends Player {
 			// Decide whether to defer to tsMuxeR or continue to use FFmpeg
 			boolean deferToTsmuxer = true;
 			String prependTraceReason = "Not muxing the video stream with tsMuxeR via FFmpeg because ";
-			if (deferToTsmuxer == true && !configuration.getHideTranscodeEnabled() && dlna.isNoName() && (dlna.getParent() instanceof FileTranscodeVirtualFolder)) {
+			if (deferToTsmuxer == true && configuration.isShowTranscodeFolder() && dlna.isNoName() && (dlna.getParent() instanceof FileTranscodeVirtualFolder)) {
 				deferToTsmuxer = false;
 				LOGGER.trace(prependTraceReason + "the file is being played via a FFmpeg entry in the transcode folder.");
 			}
@@ -1243,7 +1251,8 @@ public class FFMpegVideo extends Player {
 		try {
 			Thread.sleep(200);
 		} catch (InterruptedException e) {
-			LOGGER.error("Thread interrupted while waiting for transcode to start", e);
+			LOGGER.error("Thread interrupted while waiting for transcode to start", e.getMessage());
+			LOGGER.trace("", e);
 		}
 		configuration = prev;
 		return pw;
@@ -1383,6 +1392,7 @@ public class FFMpegVideo extends Player {
 		if (
 			PlayerUtil.isVideo(resource, Format.Identifier.MKV) ||
 			PlayerUtil.isVideo(resource, Format.Identifier.MPG) ||
+			PlayerUtil.isVideo(resource, Format.Identifier.OGG) ||
 			"m3u8".equals(resource.getFormat().getMatchedExtension())
 		) {
 			return true;

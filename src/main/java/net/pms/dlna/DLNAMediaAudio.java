@@ -42,7 +42,7 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	 * @deprecated Use standard getter and setter to access this variable.
 	 */
 	@Deprecated
-	public int bitsperSample;
+	public int bitsperSample = 16;
 
 	private int bitRate;
 
@@ -119,13 +119,6 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	public String muxingModeAudio;
 
 	/**
-	 * Constructor
-	 */
-	public DLNAMediaAudio() {
-		setBitsperSample(16);
-	}
-
-	/**
 	 * Returns the sample rate for this audio media.
 	 *
 	 * @return The sample rate.
@@ -150,24 +143,17 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	}
 
 	/**
-	 * @return True if the audio codec is AAC.
+	 * @return True if the audio codec is one of the AAC variants.
 	 */
 	public boolean isAAC() {
-		return isAACLC() || isAACHE();
+		return isAACLC() || isHEAAC();
 	}
 
 	/**
-	 * @return True if the audio codec is AAC LC.
+	 * @return True if the audio codec is AAC-LC.
 	 */
 	public boolean isAACLC() {
-		return FormatConfiguration.AAC.equalsIgnoreCase(getCodecA());
-	}
-
-	/**
-	 * @return True if the audio codec is AAC HE.
-	 */
-	public boolean isAACHE() {
-		return FormatConfiguration.AAC_HE.equalsIgnoreCase(getCodecA());
+		return FormatConfiguration.AAC_LC.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
@@ -175,6 +161,13 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	 */
 	public boolean isAC3() {
 		return FormatConfiguration.AC3.equalsIgnoreCase(getCodecA()) || getCodecA() != null && getCodecA().contains("a52");
+	}
+
+	/**
+	 * @return True if the audio codec is ACELP.
+	 */
+	public boolean isACELP() {
+		return FormatConfiguration.ACELP.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
@@ -196,6 +189,13 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	 */
 	public boolean isALAC() {
 		return FormatConfiguration.ALAC.equalsIgnoreCase(getCodecA());
+	}
+
+	/**
+	 * @return True if the audio codec is ALS.
+	 */
+	public boolean isALS() {
+		return FormatConfiguration.ALS.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
@@ -223,7 +223,7 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	 * @return True if the audio codec is DSD Audio.
 	 */
 	public boolean isDSDAudio() {
-		return FormatConfiguration.DSDAudio.equalsIgnoreCase(getCodecA()); //TODO: CHANGE
+		return FormatConfiguration.DSD.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
@@ -248,17 +248,31 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	}
 
 	/**
+	 * @return whether the audio codec is ER BSAC.
+	 */
+	public boolean isERBSAC() {
+		return FormatConfiguration.ER_BSAC.equalsIgnoreCase(getCodecA());
+	}
+
+	/**
 	 * @return True if the audio codec is FLAC.
 	 */
 	public boolean isFLAC() {
-		return getCodecA() != null && getCodecA().startsWith("fla");
+		return FormatConfiguration.FLAC.equalsIgnoreCase(getCodecA());
+	}
+
+	/**
+	 * @return True if the audio codec is G729.
+	 */
+	public boolean isG729() {
+		return FormatConfiguration.G729.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
 	 * @return True if the audio codec is HE-AAC.
 	 */
 	public boolean isHEAAC() {
-		return FormatConfiguration.AAC_HE.equalsIgnoreCase(getCodecA());
+		return FormatConfiguration.HE_AAC.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
@@ -328,7 +342,21 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	 * @return True if the audio codec is RealAudio Lossless.
 	 */
 	public boolean isRALF() {
-		return FormatConfiguration.REALAUDIO_LOSSLESS.equalsIgnoreCase(getCodecA());
+		return FormatConfiguration.RALF.equalsIgnoreCase(getCodecA());
+	}
+
+	/**
+	 * @return True if the audio codec is RealAudio 14.4.
+	 */
+	public boolean isRealAudio14_4() {
+		return FormatConfiguration.REALAUDIO_14_4.equalsIgnoreCase(getCodecA());
+	}
+
+	/**
+	 * @return True if the audio codec is RealAudio 28.8.
+	 */
+	public boolean isRealAudio28_8() {
+		return FormatConfiguration.REALAUDIO_28_8.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
@@ -339,10 +367,17 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	}
 
 	/**
-	 * @return True if the audio codec is Vorbis.
+	 * @return True if the audio codec is Sipro Lab Telecom Audio Codec.
 	 */
-	public boolean isVorbis() {
-		return FormatConfiguration.VORBIS.equalsIgnoreCase(getCodecA());
+	public boolean isSipro() {
+		return FormatConfiguration.SIPRO.equalsIgnoreCase(getCodecA());
+	}
+
+	/**
+	 * @return True if the audio codec is SLS.
+	 */
+	public boolean isSLS() {
+		return FormatConfiguration.SLS.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
@@ -357,6 +392,13 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	 */
 	public boolean isTTA() {
 		return FormatConfiguration.TTA.equalsIgnoreCase(getCodecA());
+	}
+
+	/**
+	 * @return True if the audio codec is Vorbis.
+	 */
+	public boolean isVorbis() {
+		return FormatConfiguration.VORBIS.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
@@ -378,6 +420,13 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	 */
 	public boolean isWMA() {
 		return FormatConfiguration.WMA.equalsIgnoreCase(getCodecA());
+	}
+
+	/**
+	 * @return True if the audio codec is WMA10.
+	 */
+	public boolean isWMA10() {
+		return FormatConfiguration.WMA10.equalsIgnoreCase(getCodecA());
 	}
 
 	/**
@@ -414,9 +463,9 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	public boolean isLossless() {
 		return getCodecA() != null &&
 			(
-				isAIFF() || isALAC() || isFLAC() || isMLP() ||
+				isAIFF() || isALAC() || isALS() || isFLAC() || isMLP() ||
 				isMonkeysAudio() || isPCM() || isRALF() || isShorten() ||
-				isTrueHD() || isTTA() || isWAV() || isWavPack() ||
+				isSLS() || isTrueHD() || isTTA() || isWAV() || isWavPack() ||
 				isWMALossless()
 			);
 	}
@@ -430,15 +479,19 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 		if (is3GA()) {
 			return "3GA";
 		} else if (isAACLC()) {
-			return "AAC";
+			return "AAC-LC";
 		} else if (isAC3()) {
 			return "AC3";
+		} else if (isACELP()) {
+			return "ACELP";
 		} else if (isADPCM()) {
 			return "ADPCM";
 		} else if (isAIFF()) {
 			return "AIFF";
 		} else if (isALAC()) {
 			return "ALAC";
+		} else if (isALS()) {
+			return "ALS";
 		} else if (isAtmos()) {
 			return "Atmos";
 		} else if (isATRAC()) {
@@ -453,8 +506,12 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 			return "DTS HD";
 		} else if (isEAC3()) {
 			return "Enhanced AC-3";
+		} else if (isERBSAC()) {
+			return "ER BSAC";
 		} else if (isFLAC()) {
 			return "FLAC";
+		} else if (isG729()) {
+			return "G.729";
 		} else if (isHEAAC()) {
 			return "HE-AAC";
 		} else if (isMKA()) {
@@ -475,22 +532,32 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 			return "LPCM";
 		} else if (isQDesign()) {
 			return "QDesign";
+		} else if (isRealAudio14_4()) {
+			return "RealAudio 14.4";
+		} else if (isRealAudio28_8()) {
+			return "RealAudio 28.8";
 		} else if (isRALF()) {
 			return "RealAudio Lossless";
 		} else if (isShorten()) {
 			return "Shorten";
-		} else if (isVorbis()) {
-			return "Vorbis";
+		} else if (isSipro()) {
+			return "Sipro";
+		} else if (isSLS()) {
+			return "SLS";
 		} else if (isTrueHD()) {
 			return "TrueHD";
 		} else if (isTTA()) {
 			return "TTA";
+		} else if (isVorbis()) {
+			return "Vorbis";
 		} else if (isWAV()) {
 			return "WAV";
 		} else if (isWavPack()) {
 			return "WavPack";
 		} else if (isWMA()) {
 			return "WMA";
+		} else if (isWMA10()) {
+			return "WMA 10";
 		} else if (isWMALossless()) {
 			return "WMA Lossless";
 		} else if (isWMAPro()) {
@@ -509,40 +576,52 @@ public class DLNAMediaAudio extends DLNAMediaLang implements Cloneable {
 	@Override
 	public String toString() {
 		StringBuilder result = new StringBuilder();
-		result.append("id: ");
-		result.append(getId());
-		result.append(", lang: ");
-		result.append(getLang());
+		if (getLang() != null && !getLang().equals("und")) {
+			result.append("Id: ").append(getId());
+			result.append(", Language Code: ").append(getLang());
+		}
 
 		if (isNotBlank(getAudioTrackTitleFromMetadata())) {
-			result.append(", audio track title from metadata: ");
-			result.append(getAudioTrackTitleFromMetadata());
+			if (result.length() > 0) {
+				result.append(", ");
+			}
+			result.append("Audio Track Title From Metadata: ").append(getAudioTrackTitleFromMetadata());
 		}
 
-		result.append(", audio codec: ");
-		result.append(getAudioCodec());
-		result.append(", sample frequency:");
-		result.append(getSampleFrequency());
-
-		if (getAudioProperties() != null && getAudioProperties().getNumberOfChannels() != 0) {
-			result.append(", number of channels: ");
-			result.append(getAudioProperties().getNumberOfChannels());
+		if (result.length() > 0) {
+			result.append(", ");
 		}
+		result.append("Audio Codec: ").append(getAudioCodec());
 
-		result.append(", bits per sample: ");
-		result.append(getBitsperSample());
+		result.append(", Bitrate: ").append(getBitRate());
+		if (getBitsperSample() != 16) {
+			result.append(", Bits per Sample: ").append(getBitsperSample());
+		}
+		if (getAudioProperties() != null) {
+			result.append(", ").append(getAudioProperties());
+		}
 
 		if (isNotBlank(getArtist())) {
-			result.append(", artist: ");
-			result.append(getArtist());
-			result.append(", album: ");
-			result.append(getAlbum());
-			result.append(", song name: ");
-			result.append(getSongname());
-			result.append(", year: ");
-			result.append(getYear());
-			result.append(", track: ");
-			result.append(getTrack());
+			result.append(", Artist: ").append(getArtist());
+		}
+		if (isNotBlank(getAlbum())) {
+			result.append(", Album: ").append(getAlbum());
+		}
+		if (isNotBlank(getSongname())) {
+			result.append(", Track Name: ").append(getSongname());
+		}
+		if (getYear() != 0) {
+			result.append(", Year: ").append(getYear());
+		}
+		if (getTrack() != 0) {
+			result.append(", Track: ").append(getTrack());
+		}
+		if (isNotBlank(getGenre())) {
+			result.append(", Genre: ").append(getGenre());
+		}
+
+		if (isNotBlank(getMuxingModeAudio())) {
+			result.append(", Muxing Mode: ").append(getMuxingModeAudio());
 		}
 
 		return result.toString();

@@ -18,11 +18,13 @@
  */
 package net.pms.formats;
 
+import java.util.Locale;
 import net.pms.configuration.RendererConfiguration;
 import net.pms.dlna.DLNAMediaInfo;
 import net.pms.dlna.InputFile;
 import net.pms.network.HTTPResource;
 import net.pms.util.FileUtil;
+import net.pms.util.GenericIcons;
 import net.pms.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,8 +62,13 @@ public abstract class Format implements Cloneable {
 		EAC3,
 		FLAC,
 		GIF,
+		RGBE,
+		ICNS,
+		ICO,
+		IFF,
 		IDX,
 		ISO,
+		ISOVOB,
 		JPG,
 		M4A,
 		MICRODVD,
@@ -72,21 +79,29 @@ public abstract class Format implements Cloneable {
 		MPA,
 		MPC,
 		MPG,
+		OGA,
 		OGG,
+		PCX,
+		PICT,
 		PNG,
+		PNM,
+		PSD,
 		RA,
 		RAW,
 		SAMI,
+		SGI,
 		SHN,
 		SUBRIP,
 		SUP,
+		TGA,
 		THD,
 		THREEGA,
 		THREEG2A,
-		TIF,
+		TIFF,
 		TTA,
 		TXT,
 		WAV,
+		WBMP,
 		WEB,
 		WEBVTT,
 		WMA,
@@ -203,6 +218,12 @@ public abstract class Format implements Cloneable {
 		return HTTPResource.getDefaultMimeType(type);
 	}
 
+	/**
+	 * Not in use, handled by {@link GenericIcons}
+	 *
+	 * @deprecated
+	 */
+	@Deprecated
 	public void setIcon(String filename) {
 		icon = filename;
 	}
@@ -224,7 +245,7 @@ public abstract class Format implements Cloneable {
 			return false;
 		}
 
-		filename = filename.toLowerCase();
+		filename = filename.toLowerCase(Locale.ROOT);
 		String[] supportedExtensions = getSupportedExtensions();
 
 		if (supportedExtensions != null) {
@@ -234,7 +255,7 @@ public abstract class Format implements Cloneable {
 			}
 
 			for (String extension : supportedExtensions) {
-				String ext = extension.toLowerCase();
+				String ext = extension.toLowerCase(Locale.ROOT);
 				if (filename.endsWith("." + ext)) {
 					setMatchedExtension(ext);
 					return true;

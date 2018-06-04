@@ -128,8 +128,8 @@ public class FormatFactoryTest {
 		testSingleFormat("test.mk3d", "MKV", Format.VIDEO);
 		testSingleFormat("test.mkv", "MKV", Format.VIDEO);
 		testSingleFormat("test.mov", "MKV", Format.VIDEO);
-		testSingleFormat("test.ogm", "MKV", Format.VIDEO);
-		testSingleFormat("test.ogv", "MKV", Format.VIDEO);
+		testSingleFormat("test.ogm", "OGG", Format.VIDEO);
+		testSingleFormat("test.ogv", "OGG", Format.VIDEO);
 		testSingleFormat("test.rmv", "MKV", Format.VIDEO);
 		testSingleFormat("test.rmvb", "MKV", Format.VIDEO);
 		testSingleFormat("test.rm", "MKV", Format.VIDEO);
@@ -148,6 +148,8 @@ public class FormatFactoryTest {
 		testSingleFormat("test.m2t", "MPG", Format.VIDEO);
 		testSingleFormat("test.m2ts", "MPG", Format.VIDEO);
 		testSingleFormat("test.m4v", "MPG", Format.VIDEO);
+		testSingleFormat("test.mj2", "MPG", Format.VIDEO);
+		testSingleFormat("test.mjp2", "MPG", Format.VIDEO);
 		testSingleFormat("test.mod", "MPG", Format.VIDEO);
 		testSingleFormat("test.mp4", "MPG", Format.VIDEO);
 		testSingleFormat("test.mpe", "MPG", Format.VIDEO);
@@ -168,10 +170,10 @@ public class FormatFactoryTest {
 		testSingleFormat("test.mp2", "MPGAudio", Format.AUDIO);
 		testSingleFormat("test.sub", "MicroDVD", Format.SUBTITLE);
 		testSingleFormat("test.ape", "MonkeysAudio", Format.AUDIO);
-		testSingleFormat("test.oga", "OGG", Format.AUDIO);
-		testSingleFormat("test.ogg", "OGG", Format.AUDIO);
-		testSingleFormat("test.spx", "OGG", Format.AUDIO);
-		testSingleFormat("test.opus", "OGG", Format.AUDIO);
+		testSingleFormat("test.oga", "OGA", Format.AUDIO);
+		testSingleFormat("test.ogg", "OGG", Format.VIDEO);
+		testSingleFormat("test.spx", "OGA", Format.AUDIO);
+		testSingleFormat("test.opus", "OGA", Format.AUDIO);
 		testSingleFormat("test.pls", "PLAYLIST", Format.PLAYLIST);
 		testSingleFormat("test.m3u", "PLAYLIST", Format.PLAYLIST);
 		testSingleFormat("test.m3u8", "PLAYLIST", Format.PLAYLIST);
@@ -228,8 +230,8 @@ public class FormatFactoryTest {
 		testSingleFormat("test.tta", "TTA", Format.AUDIO);
 		testSingleFormat("test.txt", "TXT", Format.SUBTITLE);
 		testSingleFormat("test.thd", "TrueHD", Format.AUDIO);
-		testSingleFormat("test.tif", "TIF", Format.IMAGE);
-		testSingleFormat("test.tiff", "TIF", Format.IMAGE);
+		testSingleFormat("test.tif", "TIFF", Format.IMAGE);
+		testSingleFormat("test.tiff", "TIFF", Format.IMAGE);
 		testSingleFormat("test.wav", "WAV", Format.AUDIO);
 		testSingleFormat("test.wave", "WAV", Format.AUDIO);
 		testSingleFormat("test.wv", "WavPack", Format.AUDIO);

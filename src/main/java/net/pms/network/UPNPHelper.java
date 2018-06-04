@@ -172,10 +172,12 @@ public class UPNPHelper extends UPNPControl {
 
 		String msg = discovery.toString();
 
-		if (st.equals(lastSearch)) {
-			LOGGER.trace("Resending last discovery [" + host + ":" + port + "]");
-		} else {
-			LOGGER.trace("Sending discovery [" + host + ":" + port + "]: " + StringUtils.replace(msg, CRLF, "<CRLF>"));
+		if (LOGGER.isTraceEnabled()) {
+			if (st.equals(lastSearch)) {
+				LOGGER.trace("Resending last discovery [" + host + ":" + port + "]");
+			} else {
+				LOGGER.trace("Sending discovery [" + host + ":" + port + "]: " + StringUtils.replace(msg, CRLF, "<CRLF>"));
+			}
 		}
 
 		sendReply(host, port, msg);
