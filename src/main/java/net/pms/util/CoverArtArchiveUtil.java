@@ -656,7 +656,7 @@ public class CoverArtArchiveUtil extends CoverUtil {
 			CoverArtArchiveEntry result = TableCoverArtArchive.findMBID(mBID);
 			if (result.found) {
 				if (result.cover != null) {
-					return result.cover;
+					return result.thumbnail;
 				} else if (System.currentTimeMillis() - result.modified.getTime() < EXPIRATION_PERIOD) {
 					// If a lookup has been done within expireTime and no result,
 					// return null. Do another lookup after expireTime has passed
@@ -682,7 +682,7 @@ public class CoverArtArchiveUtil extends CoverUtil {
 			}
 			if (coverArt == null || coverArt.getImages().isEmpty()) {
 				LOGGER.debug("MBID \"{}\" has no cover at CoverArtArchive", mBID);
-				TableCoverArtArchive.writeMBID(mBID, null);
+				TableCoverArtArchive.writeMBID(mBID, null, null);
 				return null;
 			}
 			CoverArtImage image = coverArt.getFrontImage();
@@ -699,12 +699,13 @@ public class CoverArtArchiveUtil extends CoverUtil {
 						cover = IOUtils.toByteArray(is);
 					}
 				}
-				TableCoverArtArchive.writeMBID(mBID, cover);
-				return cover;
+
+				TableCoverArtArchive.writeMBID(mBID, cover, DLNABinaryThumbnail.toThumbnail(cover));
+				return DLNABinaryThumbnail.toThumbnail(cover);
 			} catch (HttpResponseException e) {
 				if (e.getStatusCode() == 404) {
 					LOGGER.debug("Cover for MBID \"{}\" was not found at CoverArtArchive", mBID);
-					TableCoverArtArchive.writeMBID(mBID, null);
+					TableCoverArtArchive.writeMBID(mBID, null, null);
 					return null;
 				}
 				LOGGER.warn(
@@ -721,6 +722,7 @@ public class CoverArtArchiveUtil extends CoverUtil {
 		} finally {
 			releaseCoverLatch(latch);
 		}
+		return null;
 	}
 
 	private static String fuzzString(String s) {
