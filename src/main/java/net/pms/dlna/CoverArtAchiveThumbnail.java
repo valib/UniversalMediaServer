@@ -11,10 +11,10 @@ public class CoverArtAchiveThumbnail implements DLNAThumbnail {
 	private static final long serialVersionUID = 1L;
 
 	/** The {@link ImageInfo} describing this {@link CoverArtAchiveThumbnail} */
-	protected final ImageInfo imageInfo;
+	protected ImageInfo imageInfo;
 
 	/** The {@link DLNAImageProfile} for this {@link CoverArtAchiveThumbnail} */
-	protected final DLNAImageProfile profile;
+	protected DLNAImageProfile profile;
 
 	public CoverArtAchiveThumbnail() {
 		// TODO Auto-generated constructor stub
