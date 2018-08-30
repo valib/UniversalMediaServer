@@ -20,13 +20,15 @@ package net.pms.test;
 
 import ch.qos.logback.classic.LoggerContext;
 import net.pms.dlna.DLNAMediaInfo;
-import static org.junit.Assert.*;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 public class Issue1278 {
-	@Before
+	@BeforeEach
     public void setUp() {
         // Silence all log messages from the PMS code that is being tested
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();

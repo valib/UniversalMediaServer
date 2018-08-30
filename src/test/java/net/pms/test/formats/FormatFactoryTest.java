@@ -22,10 +22,10 @@ package net.pms.test.formats;
 import ch.qos.logback.classic.LoggerContext;
 import net.pms.formats.Format;
 import net.pms.formats.FormatFactory;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -35,7 +35,7 @@ public class FormatFactoryTest {
 	/**
 	 * Set up testing conditions before running the tests.
 	 */
-	@Before
+	@BeforeEach
 	public final void setUp() {
 		// Silence all log messages from the PMS code that is being tested
 		LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -49,19 +49,18 @@ public class FormatFactoryTest {
 	public final void testFormatFactoryEdgeCases() {
 		// Null string
 		Format result = FormatFactory.getAssociatedFormat(null);
-		assertNull("Null string matches no format", result);
+		assertNull(result, "Null string matches no format");
 
 		// Empty string
 		result = FormatFactory.getAssociatedFormat("");
-		assertNull("Empty string matches no extension", result);
+		assertNull(result, "Empty string matches no extension");
 
 		// Unsupported extension
 		result = FormatFactory.getAssociatedFormat(
 			"test.bogus"
 		);
-		assertNull(
-			"Unsupported extension: \"test.bogus\" matches no format",
-			result
+		assertNull(result, 
+			"Unsupported extension: \"test.bogus\" matches no format"
 		);
 
 		// Confirm the protocol (e.g. WEB) is checked before the extension
@@ -257,7 +256,7 @@ public class FormatFactoryTest {
 		if (result != null) {
 			assertEquals("\"" + filename + "\" is expected to match",
 					formatName, result.toString());
-			assertEquals("\"" + filename + "\" is expected to be of type " + type, type, result.getType());
+			assertEquals(type, result.getType(), "\"" + filename + "\" is expected to be of type " + type);
 		} else {
 			assertNull("\"" + filename + "\" is expected to match nothing", formatName);
 		}

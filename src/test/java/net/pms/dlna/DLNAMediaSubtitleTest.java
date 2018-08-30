@@ -18,15 +18,19 @@
  */
 package net.pms.dlna;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import ch.qos.logback.classic.LoggerContext;
 import java.io.File;
 import java.io.FileNotFoundException;
 import static net.pms.formats.v2.SubtitleType.*;
 import static net.pms.util.Constants.*;
 import org.apache.commons.io.FileUtils;
-import static org.assertj.core.api.Assertions.*;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 public class DLNAMediaSubtitleTest {
@@ -35,7 +39,7 @@ public class DLNAMediaSubtitleTest {
 	/**
 	 * Set up testing conditions before running the tests.
 	 */
-	@Before
+	@BeforeEach
 	public final void setUp() {
 		// Silence all log messages from the PMS code that is being tested
 		LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -45,7 +49,7 @@ public class DLNAMediaSubtitleTest {
 	@Test
 	public void testDefaultSubtitleType() {
 		DLNAMediaSubtitle dlnaMediaSubtitle = new DLNAMediaSubtitle();
-		assertThat(dlnaMediaSubtitle.getType()).isEqualTo(UNKNOWN);
+		assertThat(dlnaMediaSubtitle.getType(), is(equalTo(UNKNOWN)));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -65,26 +69,26 @@ public class DLNAMediaSubtitleTest {
 		File file_utf8 = FileUtils.toFile(CLASS.getResource("../util/russian-utf8-without-bom.srt"));
 		DLNAMediaSubtitle sub1 = new DLNAMediaSubtitle();
 		sub1.setExternalFile(file_utf8, null);
-		assertThat(sub1.getSubCharacterSet()).isEqualTo(CHARSET_UTF_8);
-		assertThat(sub1.isExternalFileUtf8()).isTrue();
-		assertThat(sub1.isExternalFileUtf16()).isFalse();
-		assertThat(sub1.isExternalFileUtf()).isTrue();
+		assertThat(sub1.getSubCharacterSet(), is(equalTo(CHARSET_UTF_8)));
+		assertTrue(sub1.isExternalFileUtf8());
+		assertFalse(sub1.isExternalFileUtf16());
+		assertTrue(sub1.isExternalFileUtf());
 
 		File file_utf8_2 = FileUtils.toFile(CLASS.getResource("../util/russian-utf8-with-bom.srt"));
 		DLNAMediaSubtitle sub2 = new DLNAMediaSubtitle();
 		sub2.setExternalFile(file_utf8_2, null);
-		assertThat(sub2.getSubCharacterSet()).isEqualTo(CHARSET_UTF_8);
-		assertThat(sub2.isExternalFileUtf8()).isTrue();
-		assertThat(sub2.isExternalFileUtf16()).isFalse();
-		assertThat(sub2.isExternalFileUtf()).isTrue();
+		assertThat(sub2.getSubCharacterSet(), is(equalTo(CHARSET_UTF_8)));
+		assertTrue(sub2.isExternalFileUtf8());
+		assertFalse(sub2.isExternalFileUtf16());
+		assertTrue(sub2.isExternalFileUtf());
 
 		File file_utf16_le = FileUtils.toFile(CLASS.getResource("../util/russian-utf16-le.srt"));
 		DLNAMediaSubtitle sub3 = new DLNAMediaSubtitle();
 		sub3.setExternalFile(file_utf16_le, null);
-		assertThat(sub3.getSubCharacterSet()).isEqualTo(CHARSET_UTF_16LE);
-		assertThat(sub3.isExternalFileUtf8()).isFalse();
-		assertThat(sub3.isExternalFileUtf16()).isTrue();
-		assertThat(sub3.isExternalFileUtf()).isTrue();
+		assertThat(sub3.getSubCharacterSet(), is(equalTo(CHARSET_UTF_16LE)));
+		assertFalse(sub3.isExternalFileUtf8());
+		assertTrue(sub3.isExternalFileUtf16());
+		assertTrue(sub3.isExternalFileUtf());
 
 		File file_utf16_be = FileUtils.toFile(CLASS.getResource("../util/russian-utf16-be.srt"));
 		DLNAMediaSubtitle sub4 = new DLNAMediaSubtitle();

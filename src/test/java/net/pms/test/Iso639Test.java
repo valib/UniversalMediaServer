@@ -22,9 +22,12 @@ package net.pms.test;
 import ch.qos.logback.classic.LoggerContext;
 import net.pms.dlna.DLNAMediaLang;
 import net.pms.util.Iso639;
-import static org.junit.Assert.*;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 
@@ -33,7 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Iso639Test {
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		// Silence all log messages from the PMS code that is being tested
 		LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -59,13 +62,13 @@ public class Iso639Test {
 		assertEquals("ISO code \"EnG\" returns \"English\"", "English", Iso639.getLanguage("EnG"));
 
 		// Test codeIsValid()
-		assertTrue("ISO code \"en\" is valid", Iso639.codeIsValid("en"));
-		assertTrue("ISO code \"EN\" is valid", Iso639.codeIsValid("EN"));
-		assertTrue("ISO code \"vie\" is valid", Iso639.codeIsValid("vie"));
-		assertTrue("ISO code \"vIe\" is valid", Iso639.codeIsValid("vIe"));
-		assertFalse("ISO code \"en-uk\" is invalid", Iso639.codeIsValid("en-uk"));
-		assertFalse("ISO code \"\" is invalid", Iso639.codeIsValid(""));
-		assertFalse("ISO code null is invalid", Iso639.codeIsValid(null));
+		assertTrue(Iso639.codeIsValid("en"), "ISO code \"en\" is valid");
+		assertTrue(Iso639.codeIsValid("EN"), "ISO code \"EN\" is valid");
+		assertTrue(Iso639.codeIsValid("vie"), "ISO code \"vie\" is valid");
+		assertTrue(Iso639.codeIsValid("vIe"), "ISO code \"vIe\" is valid");
+		assertFalse(Iso639.codeIsValid("en-uk"), "ISO code \"en-uk\" is invalid");
+		assertFalse(Iso639.codeIsValid(""), "ISO code \"\" is invalid");
+		assertFalse(Iso639.codeIsValid(null), "ISO code null is invalid");
 
 		// Test getISO639_2Code()
 		assertEquals("ISO code \"en\" returns \"eng\"", Iso639.getISO639_2Code("en"), "eng");
@@ -75,14 +78,14 @@ public class Iso639Test {
 		assertNull("ISO code null returns null", Iso639.getISO639_2Code(null));
 
 		// Test isCodeMatching()
-		assertTrue("ISO code \"ful\" matches language \"Fulah\"", Iso639.isCodeMatching("Fulah", "ful"));
-		assertTrue("ISO code \"gd\" matches language \"Gaelic (Scots)\"", Iso639.isCodeMatching("Gaelic (Scots)", "gd"));
-		assertTrue("ISO code \"gla\" matches language \"Gaelic (Scots)\"", Iso639.isCodeMatching("Gaelic (Scots)", "gla"));
-		assertFalse("ISO code \"eng\" doesn't match language \"Gaelic (Scots)\"", Iso639.isCodeMatching("Gaelic (Scots)", "eng"));
-		assertTrue("ISO code \"gla\" matches ISO code \"gd\"", Iso639.isCodesMatching("gla", "gd"));
-		assertTrue("ISO code \"ice\" matches ISO code \"is\"", Iso639.isCodesMatching("ice", "is"));
-		assertTrue("ISO code \"isl\" matches ISO code \"ice\"", Iso639.isCodesMatching("isl", "ice"));
-		assertFalse("ISO code \"lav\" doesn't match ISO code \"en\"", Iso639.isCodesMatching("lav", "en"));
+		assertTrue(Iso639.isCodeMatching("Fulah", "ful"), "ISO code \"ful\" matches language \"Fulah\"");
+		assertTrue(Iso639.isCodeMatching("Gaelic (Scots)", "gd"), "ISO code \"gd\" matches language \"Gaelic (Scots)\"");
+		assertTrue(Iso639.isCodeMatching("Gaelic (Scots)", "gla"), "ISO code \"gla\" matches language \"Gaelic (Scots)\"");
+		assertFalse(Iso639.isCodeMatching("Gaelic (Scots)", "eng"), "ISO code \"eng\" doesn't match language \"Gaelic (Scots)\"");
+		assertTrue(Iso639.isCodesMatching("gla", "gd"), "ISO code \"gla\" matches ISO code \"gd\"");
+		assertTrue(Iso639.isCodesMatching("ice", "is"), "ISO code \"ice\" matches ISO code \"is\"");
+		assertTrue(Iso639.isCodesMatching("isl", "ice"), "ISO code \"isl\" matches ISO code \"ice\"");
+		assertFalse(Iso639.isCodesMatching("lav", "en"), "ISO code \"lav\" doesn't match ISO code \"en\"");
 
 		// Test getISOCode()
 		assertEquals("ISO code \"eng\" returns ISO code \"en\"", Iso639.getISOCode("eng"), "en");
