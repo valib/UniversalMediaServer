@@ -1,19 +1,16 @@
 package net.pms.formats;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import java.util.List;
+import org.junit.jupiter.api.Test;
 import net.pms.formats.audio.*;
 import net.pms.formats.image.*;
 import net.pms.formats.subtitle.*;
-import org.junit.FixMethodOrder;
-import org.junit.Test;
-import org.junit.runners.MethodSorters;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @SuppressWarnings({ "deprecation", "unused" })
 @SuppressFBWarnings({ "DLS_DEAD_LOCAL_STORE", "MS_SHOULD_BE_FINAL" })
 public class FormatsRegressionTest0 {
@@ -50,7 +47,7 @@ public class FormatsRegressionTest0 {
 		String[] str_array2 = mKV0.getId();
 
 		// Regression assertion (captures the current behavior of the code)
-		assertTrue("'" + str1 + "' != '" + "MKV" + "'", str1.equals("MKV"));
+		assertTrue(str1.equals("MKV"), "'" + str1 + "' != '" + "MKV" + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertNotNull(str_array2);
@@ -173,8 +170,8 @@ public class FormatsRegressionTest0 {
 	public void test20() throws Throwable {
 		MPG mPG0 = new MPG();
 		Format.Identifier identifier1 = mPG0.getIdentifier();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.MPG + "'",
-			identifier1.equals(Format.Identifier.MPG));
+		assertTrue(identifier1.equals(Format.Identifier.MPG), 
+			"'" + identifier1 + "' != '" + Format.Identifier.MPG + "'");
 	}
 
 	@Test
@@ -185,9 +182,9 @@ public class FormatsRegressionTest0 {
 		boolean b3 = mKV0.transcodable();
 
 		// Regression assertion (captures the current behavior of the code)
-		assertTrue("'" + str1 + "' != '" + "MKV" + "'", str1.equals("MKV"));
-		assertTrue("'" + identifier2 + "' != '" + Format.Identifier.MKV + "'",
-			identifier2.equals(Format.Identifier.MKV));
+		assertTrue(str1.equals("MKV"), "'" + str1 + "' != '" + "MKV" + "'");
+		assertTrue(identifier2.equals(Format.Identifier.MKV), 
+			"'" + identifier2 + "' != '" + Format.Identifier.MKV + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertTrue(b3 == true);
@@ -210,8 +207,8 @@ public class FormatsRegressionTest0 {
 	public void test25() throws Throwable {
 		MPC mPC0 = new MPC();
 		Format.Identifier identifier1 = mPC0.getIdentifier();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.MPC + "'",
-			identifier1.equals(Format.Identifier.MPC));
+		assertTrue(identifier1.equals(Format.Identifier.MPC), 
+			"'" + identifier1 + "' != '" + Format.Identifier.MPC + "'");
 	}
 
 	@Test
@@ -258,8 +255,8 @@ public class FormatsRegressionTest0 {
 	public void test31() throws Throwable {
 		THREEGA tHREEGA0 = new THREEGA();
 		Format.Identifier identifier1 = tHREEGA0.getIdentifier();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.THREEGA + "'",
-			identifier1.equals(Format.Identifier.THREEGA));
+		assertTrue(identifier1.equals(Format.Identifier.THREEGA), 
+			"'" + identifier1 + "' != '" + Format.Identifier.THREEGA + "'");
 	}
 
 	@Test
@@ -285,8 +282,8 @@ public class FormatsRegressionTest0 {
 		RA rA0 = new RA();
 		Format.Identifier identifier1 = rA0.getIdentifier();
 		String str2 = rA0.getMatchedExtension();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.RA + "'",
-			identifier1.equals(Format.Identifier.RA));
+		assertTrue(identifier1.equals(Format.Identifier.RA), 
+			"'" + identifier1 + "' != '" + Format.Identifier.RA + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertNull(str2);
@@ -297,8 +294,8 @@ public class FormatsRegressionTest0 {
 		RA rA0 = new RA();
 		Format.Identifier identifier1 = rA0.getIdentifier();
 		boolean b2 = rA0.isUnknown();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.RA + "'",
-			identifier1.equals(Format.Identifier.RA));
+		assertTrue(identifier1.equals(Format.Identifier.RA), 
+			"'" + identifier1 + "' != '" + Format.Identifier.RA + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertTrue(b2 == false);
@@ -333,8 +330,8 @@ public class FormatsRegressionTest0 {
 	public void test38() throws Throwable {
 		WebVTT webVTT0 = new WebVTT();
 		Format.Identifier identifier1 = webVTT0.getIdentifier();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.WEBVTT + "'",
-			identifier1.equals(Format.Identifier.WEBVTT));
+		assertTrue(identifier1.equals(Format.Identifier.WEBVTT), 
+			"'" + identifier1 + "' != '" + Format.Identifier.WEBVTT + "'");
 	}
 
 	@Test
@@ -354,8 +351,8 @@ public class FormatsRegressionTest0 {
 	public void test40() throws Throwable {
 		ISO iSO0 = new ISO();
 		Format.Identifier identifier1 = iSO0.getIdentifier();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.ISO + "'",
-			identifier1.equals(Format.Identifier.ISO));
+		assertTrue(identifier1.equals(Format.Identifier.ISO), 
+			"'" + identifier1 + "' != '" + Format.Identifier.ISO + "'");
 	}
 
 	@Test
@@ -375,13 +372,13 @@ public class FormatsRegressionTest0 {
 		String str3 = mKV0.mimeType();
 
 		// Regression assertion (captures the current behavior of the code)
-		assertTrue("'" + str1 + "' != '" + "MKV" + "'", str1.equals("MKV"));
+		assertTrue(str1.equals("MKV"), "'" + str1 + "' != '" + "MKV" + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertNotNull(str_array2);
 
 		// Regression assertion (captures the current behavior of the code)
-		assertTrue("'" + str3 + "' != '" + "video/mpeg" + "'", str3.equals("video/mpeg"));
+		assertTrue(str3.equals("video/mpeg"), "'" + str3 + "' != '" + "video/mpeg" + "'");
 	}
 
 	@Test
@@ -402,8 +399,8 @@ public class FormatsRegressionTest0 {
 		MLP mLP0 = new MLP();
 		Format.Identifier identifier1 = mLP0.getIdentifier();
 		boolean b2 = mLP0.isAudio();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.MLP + "'",
-			identifier1.equals(Format.Identifier.MLP));
+		assertTrue(identifier1.equals(Format.Identifier.MLP), 
+			"'" + identifier1 + "' != '" + Format.Identifier.MLP + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertTrue(b2 == true);
@@ -463,13 +460,13 @@ public class FormatsRegressionTest0 {
 		String str3 = mKV0.toString();
 
 		// Regression assertion (captures the current behavior of the code)
-		assertTrue("'" + str1 + "' != '" + "MKV" + "'", str1.equals("MKV"));
+		assertTrue(str1.equals("MKV"), "'" + str1 + "' != '" + "MKV" + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertNotNull(str_array2);
 
 		// Regression assertion (captures the current behavior of the code)
-		assertTrue("'" + str3 + "' != '" + "MKV" + "'", str3.equals("MKV"));
+		assertTrue(str3.equals("MKV"), "'" + str3 + "' != '" + "MKV" + "'");
 	}
 
 	@Test
@@ -491,8 +488,8 @@ public class FormatsRegressionTest0 {
 		RA rA0 = new RA();
 		Format.Identifier identifier1 = rA0.getIdentifier();
 		String[] str_array2 = rA0.getSupportedExtensions();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.RA + "'",
-			identifier1.equals(Format.Identifier.RA));
+		assertTrue(identifier1.equals(Format.Identifier.RA), 
+			"'" + identifier1 + "' != '" + Format.Identifier.RA + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertNotNull(str_array2);
@@ -530,8 +527,8 @@ public class FormatsRegressionTest0 {
 		WEB wEB0 = new WEB();
 		Format.Identifier identifier1 = wEB0.getIdentifier();
 		boolean b2 = wEB0.transcodable();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.WEB + "'",
-			identifier1.equals(Format.Identifier.WEB));
+		assertTrue(identifier1.equals(Format.Identifier.WEB), 
+			"'" + identifier1 + "' != '" + Format.Identifier.WEB + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertTrue(b2 == true);
@@ -580,8 +577,8 @@ public class FormatsRegressionTest0 {
 	public void test64() throws Throwable {
 		SubRip subRip0 = new SubRip();
 		Format.Identifier identifier1 = subRip0.getIdentifier();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.SUBRIP + "'",
-			identifier1.equals(Format.Identifier.SUBRIP));
+		assertTrue(identifier1.equals(Format.Identifier.SUBRIP), 
+			"'" + identifier1 + "' != '" + Format.Identifier.SUBRIP + "'");
 	}
 
 	@Test
@@ -589,8 +586,8 @@ public class FormatsRegressionTest0 {
 		RA rA0 = new RA();
 		Format.Identifier identifier1 = rA0.getIdentifier();
 		boolean b2 = rA0.transcodable();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.RA + "'",
-			identifier1.equals(Format.Identifier.RA));
+		assertTrue(identifier1.equals(Format.Identifier.RA), 
+			"'" + identifier1 + "' != '" + Format.Identifier.RA + "'");
 
 		// Regression assertion (captures the current behavior of the code)
 		assertTrue(b2 == true);
@@ -609,8 +606,8 @@ public class FormatsRegressionTest0 {
 	public void test67() throws Throwable {
 		JPG jPG0 = new JPG();
 		Format.Identifier identifier1 = jPG0.getIdentifier();
-		assertTrue("'" + identifier1 + "' != '" + Format.Identifier.JPG + "'",
-			identifier1.equals(Format.Identifier.JPG));
+		assertTrue(identifier1.equals(Format.Identifier.JPG), 
+			"'" + identifier1 + "' != '" + Format.Identifier.JPG + "'");
 	}
 
 }

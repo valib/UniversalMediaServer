@@ -1,12 +1,9 @@
 package net.pms.configuration;
 
-import org.junit.FixMethodOrder;
-import org.junit.Test;
-import org.junit.runners.MethodSorters;
+import org.junit.jupiter.api.Test;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 @SuppressFBWarnings({ "DLS_DEAD_LOCAL_STORE", "MS_SHOULD_BE_FINAL" })
-@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class FormatConfigurationRegressionTest0 {
 
 	@Test

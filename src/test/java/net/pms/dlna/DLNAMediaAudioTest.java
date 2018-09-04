@@ -18,18 +18,18 @@
  */
 package net.pms.dlna;
 
-import static org.assertj.core.api.Assertions.*;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import org.junit.jupiter.api.Test;
 
 public class DLNAMediaAudioTest {
 
 	@Test
 	public void testDefaultAudioProperties() {
 		DLNAMediaAudio dlnaMediaAudio = new DLNAMediaAudio();
-		assertThat(dlnaMediaAudio.getAudioProperties()).isNotNull();
+		assertNotNull(dlnaMediaAudio.getAudioProperties());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testSetAudioProperties_withNullAudioProperties() {
 		DLNAMediaAudio dlnaMediaAudio = new DLNAMediaAudio();
 		dlnaMediaAudio.setAudioProperties(null);

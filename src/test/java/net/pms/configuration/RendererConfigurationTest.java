@@ -26,18 +26,18 @@ import net.pms.configuration.RendererConfiguration.SortedHeaderMap;
 import static net.pms.configuration.RendererConfiguration.getRendererConfigurationByHeaders;
 import static net.pms.configuration.RendererConfiguration.getRendererConfigurationByUPNPDetails;
 import static net.pms.configuration.RendererConfiguration.loadRendererConfigurations;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.apache.commons.configuration.ConfigurationException;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 /**
  * Test the RendererConfiguration class
  */
 public class RendererConfigurationTest {
-	@Before
+	@BeforeEach
 	public void setUp() {
 		// Silence all log messages from the PMS code that is being tested
 		LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -266,16 +266,17 @@ public class RendererConfigurationTest {
 		RendererConfiguration rc = getRendererConfigurationByHeaders(headers);
 		if (correctRendererName != null) {
 			// Headers are supposed to match a particular renderer
-			assertNotNull("Recognized renderer for header \"" + headers + "\"", rc);
-			assertEquals("Expected renderer \"" + correctRendererName + "\", " +
+			assertNotNull(rc, "Recognized renderer for header \"" + headers + "\"");
+			assertEquals(correctRendererName, rc.getRendererName(),
+				"Expected renderer \"" + correctRendererName + "\", " +
 				"instead renderer \"" + rc.getRendererName() + "\" was returned for header(s) \"" +
-				headers + "\"", correctRendererName, rc.getRendererName());
+				headers + "\"");
 		} else {
 			// Headers are supposed to match no renderer at all
-			assertEquals("Expected no matching renderer to be found for header(s) \"" + headers +
+			assertEquals(null, rc, 
+				"Expected no matching renderer to be found for header(s) \"" + headers +
 				"\", instead renderer \"" + (rc != null ? rc.getRendererName() : "") +
-				"\" was recognized.", null,
-				rc);
+				"\" was recognized.");
 		}
 	}
 
@@ -291,16 +292,17 @@ public class RendererConfigurationTest {
 		RendererConfiguration rc = getRendererConfigurationByUPNPDetails(upnpDetails);
 		if (correctRendererName != null) {
 			// Headers are supposed to match a particular renderer
-			assertNotNull("Recognized renderer for upnpDetails \"" + upnpDetails + "\"", rc);
-			assertEquals("Expected renderer \"" + correctRendererName + "\", " +
+			assertNotNull(rc, "Recognized renderer for upnpDetails \"" + upnpDetails + "\"");
+			assertEquals(correctRendererName, rc.getRendererName(), 
+				"Expected renderer \"" + correctRendererName + "\", " +
 				"instead renderer \"" + rc.getRendererName() + "\" was returned for upnpDetails \"" +
-				upnpDetails + "\"", correctRendererName, rc.getRendererName());
+				upnpDetails + "\"");
 		} else {
 			// Headers are supposed to match no renderer at all
-			assertEquals("Expected no matching renderer to be found for upnpDetails \"" + upnpDetails +
+			assertEquals(null, rc, 
+				"Expected no matching renderer to be found for upnpDetails \"" + upnpDetails +
 				"\", instead renderer \"" + (rc != null ? rc.getRendererName() : "") +
-				"\" was recognized.", null,
-				rc);
+				"\" was recognized.");
 		}
 	}
 }
