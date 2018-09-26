@@ -78,7 +78,6 @@ import org.slf4j.LoggerFactory;
 public class DLNAMediaInfo implements Cloneable {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DLNAMediaInfo.class);
 	private static final PmsConfiguration configuration = PMS.getConfiguration();
-	private static RendererConfiguration mediaRenderer = PMS.getConfiguration();
 	
 	public static final long ENDFILE_POS = 99999475712L;
 
@@ -1059,7 +1058,7 @@ public class DLNAMediaInfo implements Cloneable {
 
 				synchronized (ffmpeg_failureLock) {
 					if (pw != null && !ffmpeg_failure && !thumbOnly) {
-						parseFFmpegInfo(pw.getResults(), input);
+						parseFFmpegInfo(pw.getResults(), input, renderer);
 					}
 				}
 
@@ -1148,7 +1147,7 @@ public class DLNAMediaInfo implements Cloneable {
 	 * @param lines The stderr output
 	 * @param input The FFmpeg input (-i) argument used
 	 */
-	public void parseFFmpegInfo(List<String> lines, String input) {
+	public void parseFFmpegInfo(List<String> lines, String input, RendererConfiguration renderer) {
 		if (lines != null) {
 			if ("-".equals(input)) {
 				input = "pipe:";
@@ -1415,7 +1414,7 @@ public class DLNAMediaInfo implements Cloneable {
 							}
 							aspectRatioVideoTrack =String.valueOf( width / GCD) + ":" + String.valueOf(height / GCD).trim();
 						}
-						if (!mediaRenderer.isGetExactAspectRatioByFFmpeg()) {
+						if (!renderer.isGetExactAspectRatioByFFmpeg()) {
 							Double tmp_width = 0.0;
 							Double tmp_height = 0.0;
 							try {
@@ -1448,7 +1447,7 @@ public class DLNAMediaInfo implements Cloneable {
 							// In these case, the display aspect rate of the above video stream is used.
 							aspectRatioContainer = aspectRatioVideoTrack;
 						}
-						if (!mediaRenderer.isGetExactAspectRatioByFFmpeg()) {
+						if (!renderer.isGetExactAspectRatioByFFmpeg()) {
 							Double tmp_width = 0.0;
 							Double tmp_height = 0.0;
 							try {
