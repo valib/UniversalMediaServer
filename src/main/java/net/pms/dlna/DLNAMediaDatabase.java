@@ -44,6 +44,7 @@ import org.h2.jdbcx.JdbcDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import net.pms.newgui.NavigationShareTab;
 
 /**
  * This class provides methods for creating and maintaining the database where
@@ -92,10 +93,17 @@ public class DLNAMediaDatabase implements Runnable {
 	// Generic constant for the maximum string size: 255 chars
 	private final int SIZE_MAX = 255;
 
+	/**
+	 * Initializes the database connection pool for the current profile.
+	 *
+	 * Will create the "UMS-tests" profile directory and put the database
+	 * in there if it doesn't exist, in order to prevent overwriting
+	 * real databases.
+	 */
 	public DLNAMediaDatabase(String name) {
 		dbName = name;
 		File profileDirectory = new File(configuration.getProfileDirectory());
-		dbDir = new File(profileDirectory.isDirectory() ? configuration.getProfileDirectory() : null, "database").getAbsolutePath();
+		dbDir = new File(PMS.isRunningTests() || profileDirectory.isDirectory() ? configuration.getProfileDirectory() : null, "database").getAbsolutePath();
 		url = Constants.START_URL + dbDir + File.separator + dbName;
 		LOGGER.debug("Using database URL: " + url);
 		LOGGER.info("Using database located at: " + dbDir);
@@ -1280,6 +1288,20 @@ public class DLNAMediaDatabase implements Runnable {
 				");"
 			);
 			ps.execute();
+
+			/**
+			 * Cleanup of FILES_STATUS table
+			 *
+			 * Removes entries that are not referenced by any rows in the FILES table.
+			 */
+			ps = conn.prepareStatement(
+				"DELETE FROM FILES_STATUS " +
+				"WHERE NOT EXISTS (" +
+					"SELECT ID FROM FILES " +
+					"WHERE FILES.FILENAME = FILES_STATUS.FILENAME" +
+				");"
+			);
+			ps.execute();
 		} catch (SQLException se) {
 			LOGGER.error(null, se);
 		} finally {
@@ -1359,6 +1381,7 @@ public class DLNAMediaDatabase implements Runnable {
 			scanner = new Thread(this, "Library Scanner");
 			scanner.setPriority(scanner.MIN_PRIORITY);
 			scanner.start();
+			NavigationShareTab.setScanLibraryBusy();
 		}
 	}
 
