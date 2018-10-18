@@ -23,7 +23,6 @@ import ch.qos.logback.classic.Level;
 import com.sun.jna.Platform;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Frame;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -83,8 +82,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Container for all configurable UMS settings. Settings are typically defined by three things:
- * a unique key for use in the configuration file "UMS.conf", a getter (and setter) method and
+ * Container for all configurable DMS settings. Settings are typically defined by three things:
+ * a unique key for use in the configuration file "DMS.conf", a getter (and setter) method and
  * a default value. When a key cannot be found in the current configuration, the getter will
  * return a default value. Setters only store a value, they do not permanently save it to
  * file.
@@ -223,7 +222,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	protected static final String KEY_LOGGING_SYSLOG_HOST = "logging_syslog_host";
 	protected static final String KEY_LOGGING_SYSLOG_PORT = "logging_syslog_port";
 	protected static final String KEY_LOGGING_USE_SYSLOG = "logging_use_syslog";
-	protected static final String KEY_LOGGING_DATABASE = "logging_database";
+	protected static final String KEY_LOG_DATABASE = "log_database";
 	protected static final String KEY_MAX_AUDIO_BUFFER = "maximum_audio_buffer_size";
 	protected static final String KEY_MAX_BITRATE = "maximum_bitrate";
 	protected static final String KEY_MAX_MEMORY_BUFFER_SIZE = "maximum_video_buffer_size";
@@ -293,7 +292,6 @@ public class PmsConfiguration extends RendererConfiguration {
 	protected static final String KEY_ROOT_LOG_LEVEL = "log_level";
 	protected static final String KEY_RUN_WIZARD = "run_wizard";
 	protected static final String KEY_SCAN_SHARED_FOLDERS_ON_STARTUP = "scan_shared_folders_on_startup";
-	protected static final String KEY_SCREEN_SIZE = "screen_size";
 	protected static final String KEY_SCRIPT_DIR = "script_dir";
 	protected static final String KEY_SEARCH_FOLDER = "search_folder";
 	protected static final String KEY_SEARCH_IN_FOLDER = "search_in_folder";
@@ -375,15 +373,13 @@ public class PmsConfiguration extends RendererConfiguration {
 	protected static final String KEY_WEB_THREADS = "web_threads";
 	protected static final String KEY_WEB_TRANSCODE = "web_transcode";
 	protected static final String KEY_WEB_WIDTH = "web_width";
-	protected static final String KEY_WINDOW_EXTENDED_STATE = "window_extended_state";
-	protected static final String KEY_WINDOW_GEOMETRY = "window_geometry";
 	protected static final String KEY_X264_CONSTANT_RATE_FACTOR = "x264_constant_rate_factor";
 
 	// Deprecated settings
 	@Deprecated
 	protected static final String KEY_MENCODER_ASS_DEFAULTSTYLE = "mencoder_ass_defaultstyle";
 
-	// The name of the subdirectory under which UMS config files are stored for this build (default: UMS).
+	// The name of the subdirectory under which DMS config files are stored for this build (default: DMS).
 	// See Build for more details
 	protected static final String PROFILE_DIRECTORY_NAME = Build.getProfileDirectoryName();
 
@@ -443,48 +439,48 @@ public class PmsConfiguration extends RendererConfiguration {
 	);
 
 	/*
-		The following code enables a single setting - UMS_PROFILE - to be used to
-		initialize PROFILE_PATH i.e. the path to the current session's profile (AKA UMS.conf).
+		The following code enables a single setting - DMS_PROFILE - to be used to
+		initialize PROFILE_PATH i.e. the path to the current session's profile (AKA DMS.conf).
 		It also initializes PROFILE_DIRECTORY - i.e. the directory the profile is located in -
 		which is needed to detect the default WEB.conf location (anything else?).
 
 		While this convention - and therefore PROFILE_DIRECTORY - will remain,
 		adding more configurables - e.g. web_conf = ... - is on the TODO list.
 
-		UMS_PROFILE is read (in this order) from the property ums.profile.path or the
-		environment variable UMS_PROFILE. If UMS is launched with the command-line option
+		DMS_PROFILE is read (in this order) from the property dms.profile.path or the
+		environment variable DMS_PROFILE. If DMS is launched with the command-line option
 		"profiles" (e.g. from a shortcut), it displays a file chooser dialog that
-		allows the ums.profile.path property to be set. This makes it easy to run UMS
+		allows the dms.profile.path property to be set. This makes it easy to run DMS
 		under multiple profiles without fiddling with environment variables, properties or
 		command-line arguments.
 
-		1) if UMS_PROFILE is not set, UMS.conf is located in:
+		1) if DMS_PROFILE is not set, DMS.conf is located in:
 
 			Windows:             %ALLUSERSPROFILE%\$build
 			Mac OS X:            $HOME/Library/Application Support/$build
 			Everything else:     $HOME/.config/$build
 
-		- where $build is a subdirectory that ensures incompatible UMS builds don't target/clobber
-		the same configuration files. The default value for $build is "UMS". Other builds might use e.g.
-		"UMS Rendr Edition" or "ums-mlx".
+		- where $build is a subdirectory that ensures incompatible DMS builds don't target/clobber
+		the same configuration files. The default value for $build is "DMS". Other builds might use e.g.
+		"DMS Rendr Edition" or "dms-mlx".
 
 		2) if a relative or absolute *directory path* is supplied (the directory must exist),
-		it is used as the profile directory and the profile is located there under the default profile name (UMS.conf):
+		it is used as the profile directory and the profile is located there under the default profile name (DMS.conf):
 
-			UMS_PROFILE = /absolute/path/to/dir
-			UMS_PROFILE = relative/path/to/dir # relative to the working directory
+			DMS_PROFILE = /absolute/path/to/dir
+			DMS_PROFILE = relative/path/to/dir # relative to the working directory
 
-		Amongst other things, this can be used to restore the legacy behaviour of locating UMS.conf in the current
+		Amongst other things, this can be used to restore the legacy behaviour of locating DMS.conf in the current
 		working directory e.g.:
 
-			UMS_PROFILE=. ./UMS.sh
+			DMS_PROFILE=. ./DMS.sh
 
 		3) if a relative or absolute *file path* is supplied (the file doesn't have to exist),
 		it is taken to be the profile, and its parent dir is taken to be the profile (i.e. config file) dir:
 
-			UMS_PROFILE = UMS.conf            # profile dir = .
-			UMS_PROFILE = folder/dev.conf     # profile dir = folder
-			UMS_PROFILE = /path/to/some.file  # profile dir = /path/to/
+			DMS_PROFILE = DMS.conf            # profile dir = .
+			DMS_PROFILE = folder/dev.conf     # profile dir = folder
+			DMS_PROFILE = /path/to/some.file  # profile dir = /path/to/
 	 */
 	protected static final String DEFAULT_PROFILE_FILENAME = "UMS.conf";
 	protected static final String ENV_PROFILE_PATH = "UMS_PROFILE";
@@ -494,13 +490,13 @@ public class PmsConfiguration extends RendererConfiguration {
 	// Path to directory containing UMS config files
 	protected static final String PROFILE_DIRECTORY;
 
-	// Absolute path to profile file e.g. /path/to/UMS.conf
+	// Absolute path to profile file e.g. /path/to/DMS.conf
 	protected static final String PROFILE_PATH;
 
 	// Absolute path to WEB.conf file e.g. /path/to/WEB.conf
 	protected static String WEB_CONF_PATH;
 
-	// Absolute path to skel (default) profile file e.g. /etc/skel/.config/universalmediaserver/UMS.conf
+	// Absolute path to skel (default) profile file e.g. /etc/skel/.config/digitalmediaserver/DMS.conf
 	// "project.skelprofile.dir" project property
 	protected static final String SKEL_PROFILE_PATH;
 
@@ -570,7 +566,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Default constructor that will attempt to load the PMS configuration file
+	 * Default constructor that will attempt to load the DMS configuration file
 	 * from the profile path.
 	 *
 	 * @throws org.apache.commons.configuration.ConfigurationException
@@ -580,9 +576,9 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Constructor that will initialize the PMS configuration.
+	 * Constructor that will initialize the DMS configuration.
 	 *
-	 * @param loadFile Set to true to attempt to load the PMS configuration
+	 * @param loadFile Set to true to attempt to load the DMS configuration
 	 *                 file from the profile path. Set to false to skip
 	 *                 loading.
 	 */
@@ -698,14 +694,14 @@ public class PmsConfiguration extends RendererConfiguration {
 	/**
 	 * @return first writable folder in the following order:
 	 * <p>
-	 *     1. (On Linux only) path to {@code /var/log/ums/%USERNAME%/}.
+	 *     1. (On Linux only) path to {@code /var/log/dms/%USERNAME%/}.
 	 * </p>
 	 * <p>
-	 *     2. Path to profile folder ({@code ~/.config/UMS/} on Linux, {@code %ALLUSERSPROFILE%\UMS} on Windows and
-	 *     {@code ~/Library/Application Support/UMS/} on Mac).
+	 *     2. Path to profile folder ({@code ~/.config/DigitalMediaServer/} on Linux, {@code %ALLUSERSPROFILE%\DigitalMediaServer} on Windows and
+	 *     {@code ~/Library/Application Support/DigitalMediaServer/} on Mac).
 	 * </p>
 	 * <p>
-	 *     3. Path to user-defined temporary folder specified by {@code temp_directory} parameter in UMS.conf.
+	 *     3. Path to user-defined temporary folder specified by {@code temp_directory} parameter in DMS.conf.
 	 * </p>
 	 * <p>
 	 *     4. Path to system temporary folder.
@@ -848,7 +844,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * The server port where PMS listens for TCP/IP traffic. Default value is 5001.
+	 * The server port where DMS listens for TCP/IP traffic. Default value is 5001.
 	 * @return The port number.
 	 */
 	public int getServerPort() {
@@ -856,7 +852,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Set the server port where PMS must listen for TCP/IP traffic.
+	 * Set the server port where DMS must listen for TCP/IP traffic.
 	 * @param value The TCP/IP port number.
 	 */
 	public void setServerPort(int value) {
@@ -924,7 +920,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Gets the {@link java.util.Locale} of the preferred language for the UMS
+	 * Gets the {@link java.util.Locale} of the preferred language for the DMS
 	 * user interface. The default is based on the default (OS) locale.
 	 * @param log determines if any issues should be logged.
 	 * @return The {@link java.util.Locale}.
@@ -955,7 +951,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Gets the {@link java.util.Locale} of the preferred language for the UMS
+	 * Gets the {@link java.util.Locale} of the preferred language for the DMS
 	 * user interface. The default is based on the default (OS) locale. Doesn't
 	 * log potential issues.
 	 * @return The {@link java.util.Locale}.
@@ -966,7 +962,7 @@ public class PmsConfiguration extends RendererConfiguration {
 
 	/**
 	 * Gets the {@link java.util.Locale} compatible tag of the preferred
-	 * language for the UMS user interface. The default is based on the default (OS) locale.
+	 * language for the DMS user interface. The default is based on the default (OS) locale.
 	 * @return The <a href="https://en.wikipedia.org/wiki/IETF_language_tag">IEFT BCP 47</a> language tag.
 	 */
 	public String getLanguageTag() {
@@ -983,7 +979,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Sets the preferred language for the UMS user interface.
+	 * Sets the preferred language for the DMS user interface.
 	 * @param value The {@link java.net.Locale}.
 	 */
 	public void setLanguage(Locale locale) {
@@ -1002,7 +998,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Sets the preferred language for the UMS user interface.
+	 * Sets the preferred language for the DMS user interface.
 	 * @param value The <a href="https://en.wikipedia.org/wiki/IETF_language_tag">IEFT BCP 47</a> language tag.
 	 */
 	public void setLanguage(String value) {
@@ -1788,7 +1784,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Returns true if PMS should generate thumbnails for images. Default value
+	 * Returns true if DMS should generate thumbnails for images. Default value
 	 * is true.
 	 *
 	 * @return True if image thumbnails should be generated.
@@ -1798,7 +1794,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Set to true if PMS should generate thumbnails for images.
+	 * Set to true if DMS should generate thumbnails for images.
 	 *
 	 * @param value True if image thumbnails should be generated.
 	 */
@@ -1829,7 +1825,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	 * get much information about CPUs from AMD and Intel from their Wikipedia
 	 * articles.
 	 * <p>
-	 * PMS will detect and set the correct amount of cores as the default value.
+	 * DMS will detect and set the correct amount of cores as the default value.
 	 *
 	 * @param value The number of CPU cores.
 	 */
@@ -1838,11 +1834,10 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Whether we should start minimized, i.e. without its window opened.
-	 * Always returns false on macOS since it makes it impossible(?) for the
-	 * program to open.
+	 * Returns true if DMS should start minimized, i.e. without its window
+	 * opened. Default value false: to start with a window.
 	 *
-	 * @return whether we should start minimized
+	 * @return True if DMS should start minimized, false otherwise.
 	 */
 	public boolean isMinimized() {
 		if (Platform.isMac()) {
@@ -1853,18 +1848,19 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Whether we should start minimized, i.e. without its window opened.
+	 * Set to true if DMS should start minimized, i.e. without its window
+	 * opened.
 	 *
-	 * @param value whether we should start minimized, false otherwise.
+	 * @param value True if DMS should start minimized, false otherwise.
 	 */
 	public void setMinimized(boolean value) {
 		configuration.setProperty(KEY_MINIMIZED, value);
 	}
 
 	/**
-	 * Returns true if UMS should automatically start on Windows.
+	 * Returns true if DMS should automatically start on Windows.
 	 *
-	 * @return True if UMS should start automatically, false otherwise.
+	 * @return True if DMS should start automatically, false otherwise.
 	 */
 	public boolean isAutoStart() {
 		if (Platform.isWindows()) {
@@ -1879,9 +1875,9 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Set to true if UMS should automatically start on Windows.
+	 * Set to true if DMS should automatically start on Windows.
 	 *
-	 * @param value True if UMS should start automatically, false otherwise.
+	 * @param value True if DMS should start automatically, false otherwise.
 	 */
 	public void setAutoStart(boolean value) {
 		File sourceFile = new File(WindowsRegistry.readRegistry("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders", "Common Programs") + "\\Universal Media Server.lnk");
@@ -1966,18 +1962,20 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Whether to show the "Server Settings" folder on the renderer.
+	 * Returns true if DMS should hide the "# Videosettings #" folder on the
+	 * DLNA device. The default value is false: DMS will display the folder.
 	 *
-	 * @return whether the folder is shown
+	 * @return True if DMS should hide the folder, false othewise.
 	 */
 	public boolean isShowServerSettingsFolder() {
 		return getBoolean(KEY_SHOW_SERVER_SETTINGS_FOLDER, false);
 	}
 
 	/**
-	 * Whether to show the "Server Settings" folder on the renderer.
+	 * Set to true if DMS should hide the "# Videosettings #" folder on the
+	 * DLNA device, or set to false to make DMS display the folder.
 	 *
-	 * @param value whether the folder is shown
+	 * @param value True if DMS should hide the folder.
 	 */
 	public void setShowServerSettingsFolder(boolean value) {
 		configuration.setProperty(KEY_SHOW_SERVER_SETTINGS_FOLDER, value);
@@ -1995,7 +1993,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	/**
 	 * Sets the {@link FullyPlayedAction}.
 	 *
-	 * @param action what to do with a file after it has been fully played
+	 * @param value what to do with a file after it has been fully played
 	 */
 	public void setFullyPlayedAction(FullyPlayedAction action) {
 		configuration.setProperty(KEY_FULLY_PLAYED_ACTION, action.getValue());
@@ -2022,21 +2020,21 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Returns true if PMS should cache scanned media in its internal database,
-	 * speeding up later retrieval. When false is returned, PMS will not use
+	 * Returns true if DMS should cache scanned media in its internal database,
+	 * speeding up later retrieval. When false is returned, DMS will not use
 	 * cache and media will have to be rescanned.
 	 *
-	 * @return True if PMS should cache media.
+	 * @return True if DMS should cache media.
 	 */
 	public boolean getUseCache() {
 		return getBoolean(KEY_USE_CACHE, true);
 	}
 
 	/**
-	 * Set to true if PMS should cache scanned media in its internal database,
+	 * Set to true if DMS should cache scanned media in its internal database,
 	 * speeding up later retrieval.
 	 *
-	 * @param value True if PMS should cache media.
+	 * @param value True if DMS should cache media.
 	 */
 	public void setUseCache(boolean value) {
 		configuration.setProperty(KEY_USE_CACHE, value);
@@ -2124,7 +2122,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Returns the maximum size (in MB) that PMS should use for buffering
+	 * Returns the maximum size (in MB) that DMS should use for buffering
 	 * audio.
 	 *
 	 * @return The maximum buffer size.
@@ -2134,7 +2132,7 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Returns the minimum size (in MB) that PMS should use for the buffer used
+	 * Returns the minimum size (in MB) that DMS should use for the buffer used
 	 * for streaming media.
 	 *
 	 * @return The minimum buffer size.
@@ -2694,12 +2692,12 @@ public class PmsConfiguration extends RendererConfiguration {
 		LOGGER.info("Configuration saved to: " + PROFILE_PATH);
 	}
 
-	public String getFolders(ArrayList<String> tags) {
-		return tagLoop(tags, ".folders", KEY_FOLDERS);
+	public String getFolders() {
+		return getString(KEY_FOLDERS, "");
 	}
 
-	public String getFoldersIgnored(ArrayList<String> tags) {
-		return tagLoop(tags, ".ignore", KEY_FOLDERS_IGNORED);
+	public String getFoldersIgnored() {
+		return getString(KEY_FOLDERS_IGNORED, null);
 	}
 
 	public void setFolders(String value) {
@@ -3393,11 +3391,11 @@ public class PmsConfiguration extends RendererConfiguration {
 
 	/**
 	 * Returns the name of the renderer to fall back on when header matching
-	 * fails. PMS will recognize the configured renderer instead of "Unknown
-	 * renderer". Default value is "", which means PMS will return the unknown
+	 * fails. DMS will recognize the configured renderer instead of "Unknown
+	 * renderer". Default value is "", which means DMS will return the unknown
 	 * renderer when no match can be made.
 	 *
-	 * @return The name of the renderer PMS should fall back on when header
+	 * @return The name of the renderer DMS should fall back on when header
 	 *         matching fails.
 	 * @see #isRendererForceDefault()
 	 */
@@ -3407,8 +3405,8 @@ public class PmsConfiguration extends RendererConfiguration {
 
 	/**
 	 * Sets the name of the renderer to fall back on when header matching
-	 * fails. PMS will recognize the configured renderer instead of "Unknown
-	 * renderer". Set to "" to make PMS return the unknown renderer when no
+	 * fails. DMS will recognize the configured renderer instead of "Unknown
+	 * renderer". Set to "" to make DMS return the unknown renderer when no
 	 * match can be made.
 	 *
 	 * @param value The name of the renderer to fall back on. This has to be
@@ -3421,9 +3419,9 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Returns true when PMS should not try to guess connecting renderers
+	 * Returns true when DMS should not try to guess connecting renderers
 	 * and instead force picking the defined fallback renderer. Default
-	 * value is false, which means PMS will attempt to recognize connecting
+	 * value is false, which means DMS will attempt to recognize connecting
 	 * renderers by their headers.
 	 *
 	 * @return True when the fallback renderer should always be picked.
@@ -3434,9 +3432,9 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Set to true when PMS should not try to guess connecting renderers
+	 * Set to true when DMS should not try to guess connecting renderers
 	 * and instead force picking the defined fallback renderer. Set to false
-	 * to make PMS attempt to recognize connecting renderers by their headers.
+	 * to make DMS attempt to recognize connecting renderers by their headers.
 	 *
 	 * @param value True when the fallback renderer should always be picked.
 	 * @see #setRendererDefault(String)
@@ -3445,12 +3443,12 @@ public class PmsConfiguration extends RendererConfiguration {
 		configuration.setProperty(KEY_RENDERER_FORCE_DEFAULT, value);
 	}
 
-	public String getVirtualFolders(ArrayList<String> tags) {
-		return tagLoop(tags, ".vfolders", KEY_VIRTUAL_FOLDERS);
+	public String getVirtualFolders() {
+		return getString(KEY_VIRTUAL_FOLDERS, "");
 	}
 
-	public String getVirtualFoldersFile(ArrayList<String> tags) {
-		return tagLoop(tags, ".vfolders.file", KEY_VIRTUAL_FOLDERS_FILE);
+	public String getVirtualFoldersFile() {
+		return getString(KEY_VIRTUAL_FOLDERS_FILE, "");
 	}
 
 	public String getProfilePath() {
@@ -3867,8 +3865,17 @@ public class PmsConfiguration extends RendererConfiguration {
 		configuration.setProperty(KEY_LOGGING_USE_SYSLOG, value);
 	}
 
-	public boolean getLoggingDatabase() {
-		return getBoolean(KEY_LOGGING_DATABASE, false) || PMS.getTraceMode() == 2;
+	/**
+	 * Returns whether database logging is enabled. The returned value is
+	 * {@code true} if either the value is {@code true} or a command line
+	 * argument has forced it to {@code true}.
+	 *
+	 * @return {@code true} if database logging is enabled, {@code false}
+	 *         otherwise.
+	 */
+	public boolean getDatabaseLogging() {
+		boolean dbLog = getBoolean(KEY_LOG_DATABASE, false);
+		return dbLog || PMS.getLogDB();
 	}
 
 	public boolean isVlcUseHardwareAccel() {
@@ -4012,6 +4019,14 @@ public class PmsConfiguration extends RendererConfiguration {
 		return b.trim().equalsIgnoreCase("true");
 	}
 
+	public boolean hideSubsInfo() {
+		return getBoolean(KEY_HIDE_SUBS_INFO, false);
+	}
+
+	public String getPlugins() {
+		return getString("dummy", "");
+	}
+
 	/**
 	 * Whether the profile name should be appended to the server name when
 	 * displayed on the renderer
@@ -4050,10 +4065,10 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Set whether UMS should allow only one instance by shutting down
+	 * Set whether DMS should allow only one instance by shutting down
 	 * the first one when a second one is launched.
 	 *
-	 * @param value whether to kill the old UMS instance
+	 * @param value whether to kill the old DMS instance
 	 */
 	public void setRunSingleInstance(boolean value) {
 		configuration.setProperty(KEY_SINGLE, value);
@@ -4069,10 +4084,10 @@ public class PmsConfiguration extends RendererConfiguration {
 	}
 
 	/**
-	 * Whether UMS should allow only one instance by shutting down
+	 * Whether DMS should allow only one instance by shutting down
 	 * the first one when a second one is launched.
 	 *
-	 * @return value whether to kill the old UMS instance
+	 * @return value whether to kill the old DMS instance
 	 */
 	public boolean isRunSingleInstance() {
 		return getBoolean(KEY_SINGLE, true);
@@ -4340,30 +4355,6 @@ public class PmsConfiguration extends RendererConfiguration {
 
 	public void setRootLogLevel(ch.qos.logback.classic.Level level) {
 		configuration.setProperty(KEY_ROOT_LOG_LEVEL, level.toString());
-	}
-
-	public void setWindowGeometry(String value) {
-		configuration.setProperty(KEY_WINDOW_GEOMETRY, value);
-	}
-
-	public String getWindowGeometry() {
-		return getString(KEY_WINDOW_GEOMETRY, "x=-1,y=-1,width=1000,height=750");
-	}
-
-	public void setScreenSize(String value) {
-		configuration.setProperty(KEY_SCREEN_SIZE, value);
-	}
-
-	public String getScreenSize() {
-		return getString(KEY_SCREEN_SIZE, "-1x-1");
-	}
-
-	public void setWindowExtendedState(int value) {
-		configuration.setProperty(KEY_WINDOW_EXTENDED_STATE, value);
-	}
-
-	public int getWindowExtendedState() {
-		return getInt(KEY_WINDOW_EXTENDED_STATE, Frame.NORMAL);
 	}
 
 	public boolean isShowSplashScreen() {

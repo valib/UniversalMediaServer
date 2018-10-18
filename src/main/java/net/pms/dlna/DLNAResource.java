@@ -42,10 +42,6 @@ import net.pms.dlna.virtual.TranscodeVirtualFolder;
 import net.pms.dlna.virtual.VirtualFolder;
 import net.pms.dlna.virtual.VirtualVideoAction;
 import net.pms.encoders.*;
-import net.pms.external.AdditionalResourceFolderListener;
-import net.pms.external.ExternalFactory;
-import net.pms.external.ExternalListener;
-import net.pms.external.StartStopListener;
 import net.pms.formats.Format;
 import net.pms.formats.FormatFactory;
 import net.pms.image.BufferedImageFilterChain;
@@ -523,7 +519,6 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 		this.children = new DLNAList();
 		this.updateId = 1;
 		resHash = 0;
-		masterParent = null;
 	}
 
 	public DLNAResource(int specificType) {
@@ -601,15 +596,9 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 		}
 
 		child.parent = this;
-		child.masterParent = masterParent;
 
 		if (parent != null) {
 			defaultRenderer = parent.getDefaultRenderer();
-		}
-
-		if (PMS.filter(defaultRenderer, child)) {
-			LOGGER.debug("Resource \"{}\" is filtered out for render {}", child.getName(), defaultRenderer.getRendererName());
-			return;
 		}
 
 		if (configuration.useCode() && !PMS.get().masterCodeValid()) {
@@ -750,16 +739,6 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 								defaultRenderer != null &&
 								!defaultRenderer.isNoDynPlsFolder()) {
 								addDynamicPls(child);
-							}
-
-							for (ExternalListener listener : ExternalFactory.getExternalListeners()) {
-								if (listener instanceof AdditionalResourceFolderListener) {
-									try {
-										((AdditionalResourceFolderListener) listener).addAdditionalFolder(this, child);
-									} catch (Throwable t) {
-										LOGGER.error("Failed to add additional folder for listener of type: \"{}\"", listener.getClass(), t);
-									}
-								}
 							}
 						} else if (!child.format.isCompatible(child.media, defaultRenderer) && !child.isFolder()) {
 							LOGGER.trace("Ignoring file \"{}\" because it is not compatible with renderer \"{}\"", child.getName(), defaultRenderer.getRendererName());
@@ -1186,12 +1165,6 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 		}
 
 		if (dlna == null) {
-			return null;
-		}
-
-		if (PMS.filter(renderer, dlna)) {
-			// apply filter to make sure we're not bypassing it...
-			LOGGER.debug("Resource " + dlna.getName() + " is filtered out for render " + renderer.getRendererName());
 			return null;
 		}
 
@@ -2030,7 +2003,6 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 * @param localizationValue
 	 * @return String representation of the DLNA.ORG_PN flags
 	 */
-	@SuppressWarnings("deprecation")
 	private String getDlnaOrgPnFlags(RendererConfiguration mediaRenderer, int localizationValue) {
 		// Use device-specific pms conf, if any
 		PmsConfiguration configurationSpecificToRenderer = PMS.getConfiguration(mediaRenderer);
@@ -2401,6 +2373,9 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 						if (firstAudioTrack.getSampleFrequency() != null) {
 							addAttribute(sb, "sampleFrequency", firstAudioTrack.getSampleFrequency());
 						}
+					}
+					if (media.getVideoBitDepth() > 0) {
+						addAttribute(sb, "colorDepth", media.getVideoBitDepth());
 					}
 				} else if (getFormat() != null && getFormat().isImage()) {
 					if (media != null && media.isMediaparsed()) {
@@ -2938,8 +2913,6 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 *
 	 * @param rendererId
 	 * @param incomingRenderer
-	 *
-	 * @see StartStopListener
 	 */
 	public void startPlaying(final String rendererId, final RendererConfiguration incomingRenderer) {
 		final String requestId = getRequestId(rendererId);
@@ -2980,23 +2953,6 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 						}
 
 						startTime = System.currentTimeMillis();
-						for (final ExternalListener listener : ExternalFactory.getExternalListeners()) {
-							if (listener instanceof StartStopListener) {
-								// run these asynchronously for slow handlers (e.g. logging, scrobbling)
-								Runnable fireStartStopEvent = new Runnable() {
-									@Override
-									public void run() {
-										try {
-											((StartStopListener) listener).nowPlaying(media, self);
-										} catch (Throwable t) {
-											LOGGER.error("Notification of startPlaying event failed for StartStopListener {}", listener.getClass(), t);
-										}
-									}
-								};
-
-								new Thread(fireStartStopEvent, "StartPlaying Event for " + listener.name()).start();
-							}
-						}
 					}
 				};
 
@@ -3008,8 +2964,6 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	/**
 	 * Plugin implementation. When this item is going to stop playing, it will notify all the StartStopListener
 	 * objects available.
-	 *
-	 * @see StartStopListener
 	 */
 	public void stopPlaying(final String rendererId, final RendererConfiguration incomingRenderer) {
 		final DLNAResource self = this;
@@ -3070,23 +3024,6 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 								}
 
 								internalStop();
-								for (final ExternalListener listener : ExternalFactory.getExternalListeners()) {
-									if (listener instanceof StartStopListener) {
-										// run these asynchronously for slow handlers (e.g. logging, scrobbling)
-										Runnable fireStartStopEvent = new Runnable() {
-											@Override
-											public void run() {
-												try {
-													((StartStopListener) listener).donePlaying(media, self);
-												} catch (Throwable t) {
-													LOGGER.error("Notification of donePlaying event failed for StartStopListener {}", listener.getClass(), t);
-												}
-											}
-										};
-
-										new Thread(fireStartStopEvent, "StopPlaying Event for " + listener.name()).start();
-									}
-								}
 							}
 						}
 					};
@@ -4797,19 +4734,6 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	 */
 	public String write() {
 		return null;
-	}
-
-	private ExternalListener masterParent;
-
-	public void setMasterParent(ExternalListener r) {
-		if (masterParent == null) {
-			// If master is already set ignore this
-			masterParent = r;
-		}
-	}
-
-	public ExternalListener getMasterParent() {
-		return masterParent;
 	}
 
 	// Returns the index of the given child resource id, or -1 if not found

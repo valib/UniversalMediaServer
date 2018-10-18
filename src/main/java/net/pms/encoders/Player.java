@@ -19,9 +19,6 @@
 package net.pms.encoders;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.swing.JComponent;
 import net.pms.PMS;
@@ -31,9 +28,6 @@ import net.pms.dlna.DLNAMediaInfo;
 import net.pms.dlna.DLNAMediaLang;
 import net.pms.dlna.DLNAMediaOnDemandSubtitle;
 import net.pms.dlna.DLNAResource;
-import net.pms.external.ExternalFactory;
-import net.pms.external.ExternalListener;
-import net.pms.external.FinalizeTranscoderArgsListener;
 import net.pms.formats.Format;
 import net.pms.io.OutputParams;
 import net.pms.io.ProcessWrapper;
@@ -83,15 +77,6 @@ public abstract class Player {
 	public abstract String executable();
 	protected static final PmsConfiguration _configuration = PMS.getConfiguration();
 	protected PmsConfiguration configuration = _configuration;
-	private static List<FinalizeTranscoderArgsListener> finalizeTranscoderArgsListeners = new ArrayList<>();
-
-	public static void initializeFinalizeTranscoderArgsListeners() {
-		for (ExternalListener listener : ExternalFactory.getExternalListeners()) {
-			if (listener instanceof FinalizeTranscoderArgsListener) {
-				finalizeTranscoderArgsListeners.add((FinalizeTranscoderArgsListener) listener);
-			}
-		}
-	}
 
 	public boolean avisynth() {
 		return false;
@@ -207,59 +192,6 @@ public abstract class Player {
 	@Override
 	public String toString() {
 		return name();
-	}
-
-	// no need to pass Player as a parameter: it's the invocant
-	@Deprecated
-	protected String[] finalizeTranscoderArgs(
-		Player player,
-		String filename,
-		DLNAResource dlna,
-		DLNAMediaInfo media,
-		OutputParams params,
-		String[] cmdArgs
-	) {
-		return finalizeTranscoderArgs(
-			filename,
-			dlna,
-			media,
-			params,
-			cmdArgs
-		);
-	}
-
-	protected String[] finalizeTranscoderArgs(
-		String filename,
-		DLNAResource dlna,
-		DLNAMediaInfo media,
-		OutputParams params,
-		String[] cmdArgs
-	) {
-		if (finalizeTranscoderArgsListeners.isEmpty()) {
-			return cmdArgs;
-		}
-		// make it mutable
-		List<String> cmdList = new ArrayList<>(Arrays.asList(cmdArgs));
-
-		for (FinalizeTranscoderArgsListener listener : finalizeTranscoderArgsListeners) {
-			try {
-				cmdList = listener.finalizeTranscoderArgs(
-					this,
-					filename,
-					dlna,
-					media,
-					params,
-					cmdList
-				);
-			} catch (Throwable t) {
-				LOGGER.error("Failed to call finalizeTranscoderArgs on listener of type \"{}\"", listener.getClass().getSimpleName(), t.getMessage());
-				LOGGER.trace("", t);
-			}
-		}
-
-		String[] cmdArray = new String[cmdList.size()];
-		cmdList.toArray(cmdArray);
-		return cmdArray;
 	}
 
 	/**
