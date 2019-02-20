@@ -24,6 +24,7 @@ import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ServerSocketChannel;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -54,7 +55,7 @@ public class HTTPServer implements Runnable {
 	private boolean stop;
 	private Thread runnable;
 	private InetAddress iafinal;
-	private Channel channel;
+	private ChannelFuture channel;
 	private NetworkInterface networkInterface;
 	private EventLoopGroup bossGroup;
 	private EventLoopGroup workerGroup;
@@ -140,7 +141,10 @@ public class HTTPServer implements Runnable {
 					});
 
 			try {
-				channel = bootstrap.bind().channel();
+				channel = (ChannelFuture) bootstrap.bind().sync();
+				
+				// Wait until the server socket is closed.
+//				channel.channel().closeFuture().sync();
 			} catch (Exception e) {
 				LOGGER.error("Another program is using port " + port + ", which UMS needs.");
 				LOGGER.error("You can change the port UMS uses on the General Configuration tab.");
@@ -217,7 +221,7 @@ public class HTTPServer implements Runnable {
 		}
 
 		if (channel != null) { // HTTP Engine V2
-			channel.close().syncUninterruptibly();
+			channel.channel().close().syncUninterruptibly();
 			bossGroup.shutdownGracefully();
 			workerGroup.shutdownGracefully();
 		}
