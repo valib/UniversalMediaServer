@@ -43,6 +43,7 @@ import org.apache.http.nio.IOControl;
 import org.apache.http.nio.protocol.AbstractAsyncResponseConsumer;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.Asserts;
+import net.pms.util.UriRetrieverCallback.CancelDownloadException;
 
 /**
  * {@link org.apache.http.nio.protocol.HttpAsyncResponseConsumer} implementation that
@@ -151,8 +152,9 @@ public abstract class ZeroCopyConsumerWithCallback<T> extends AbstractAsyncRespo
 	static void invokeCallback(String uri, UriRetrieverCallback callback, int totalBytes, int bytesWritten) throws IOException {
 		try {
 			callback.progressMade(uri, bytesWritten, totalBytes);
-		} catch (UriRetrieverCallback.CancelDownloadException e) {
-			throw new IOException("Download was cancelled");
+		} catch (CancelDownloadException e) {
+			Throwable e1 = callback.getErrorStateCause();
+			throw new IOException(e1);
 		}
 	}
 }

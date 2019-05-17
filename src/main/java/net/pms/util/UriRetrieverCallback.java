@@ -26,4 +26,6 @@ public interface UriRetrieverCallback {
 	public class CancelDownloadException extends Exception {
 		private static final long serialVersionUID = 1L;
 	}
+
+	Throwable getErrorStateCause();
 }
