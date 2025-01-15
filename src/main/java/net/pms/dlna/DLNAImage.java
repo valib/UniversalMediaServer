@@ -1,34 +1,27 @@
 /*
- * Universal Media Server, for streaming any media to DLNA
- * compatible renderers based on the http://www.ps3mediaserver.org.
- * Copyright (C) 2012 UMS developers.
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is a free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package net.pms.dlna;
 
+import com.drew.metadata.Metadata;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import javax.imageio.ImageIO;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import com.drew.metadata.Metadata;
 import net.pms.dlna.DLNAImageProfile.DLNAComplianceResult;
 import net.pms.image.Image;
 import net.pms.image.ImageFormat;
@@ -36,6 +29,9 @@ import net.pms.image.ImageInfo;
 import net.pms.image.ImagesUtil;
 import net.pms.image.ImagesUtil.ScaleType;
 import net.pms.util.ParseException;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is simply a byte array for holding an {@link ImageIO} supported
@@ -50,6 +46,8 @@ public class DLNAImage extends Image {
 
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOGGER = LoggerFactory.getLogger(DLNAImage.class);
+
+	/** The {@link DLNAImageProfile} for this {@link DLNAImage}*/
 	protected final DLNAImageProfile profile;
 
 	/**
@@ -69,7 +67,7 @@ public class DLNAImage extends Image {
 		boolean copy
 	) throws DLNAProfileException {
 		super(image, copy);
-		this.profile = profile != null ? profile : findMatchingProfile(this instanceof DLNAThumbnail);
+		this.profile = profile != null ? profile : findMatchingProfile(imageInfo, this instanceof DLNAThumbnail);
 		if (this.profile == null) {
 			throw new NullPointerException("DLNAImage: profile cannot be null");
 		}
@@ -95,7 +93,7 @@ public class DLNAImage extends Image {
 		boolean copy
 	) throws DLNAProfileException {
 		super(bytes, imageInfo, copy);
-		this.profile = profile != null ? profile : findMatchingProfile(this instanceof DLNAThumbnail);
+		this.profile = profile != null ? profile : findMatchingProfile(imageInfo, this instanceof DLNAThumbnail);
 		if (this.profile == null) {
 			throw new NullPointerException("DLNAImage: profile cannot be null");
 		}
@@ -130,7 +128,7 @@ public class DLNAImage extends Image {
 		boolean copy
 	) throws DLNAProfileException, ParseException {
 		super(bytes, width, height, format, colorModel, metadata, true, copy);
-		this.profile = profile != null ? profile : findMatchingProfile(this instanceof DLNAThumbnail);
+		this.profile = profile != null ? profile : findMatchingProfile(imageInfo, this instanceof DLNAThumbnail);
 		if (this.profile == null) {
 			throw new NullPointerException("DLNAImage: profile cannot be null");
 		}
@@ -140,14 +138,15 @@ public class DLNAImage extends Image {
 	/**
 	 * Creates a new {@link DLNAImage} instance.
 	 *
-	 * @param inputByteArray the source image in either GIF, JPEG or PNG format
-	 *            adhering to the DLNA restrictions for color space and
-	 *            compression.
+	 * @param bytes the source image in either GIF, JPEG or PNG format adhering
+	 *            to the DLNA restrictions for color space and compression.
 	 * @param format the {@link ImageFormat} the source image is in.
 	 * @param bufferedImage the {@link BufferedImage} to get non-
 	 *            {@link Metadata} metadata from.
 	 * @param metadata the {@link Metadata} instance describing the source
 	 *            image.
+	 * @param profile the {@link DLNAImageProfile} this {@link DLNAImage}
+	 *            adheres to.
 	 * @param copy whether this instance should be copied or shared.
 	 * @throws DLNAProfileException if the profile compliance check fails.
 	 * @throws ParseException if {@code format} is {@code null} and parsing the
@@ -162,11 +161,98 @@ public class DLNAImage extends Image {
 		boolean copy
 	) throws DLNAProfileException, ParseException {
 		super(bytes, format, bufferedImage, metadata, copy);
-		this.profile = profile != null ? profile : findMatchingProfile(this instanceof DLNAThumbnail);
+		this.profile = profile != null ? profile : findMatchingProfile(imageInfo, this instanceof DLNAThumbnail);
 		if (this.profile == null) {
 			throw new NullPointerException("DLNAImage: profile cannot be null");
 		}
 		checkCompliance();
+	}
+
+	/**
+	 * Verifies that this {@link DLNAImage} is DLNA compliant.
+	 *
+	 * @throws DLNAProfileException If non-compliance is found.
+	 */
+	private void checkCompliance() throws DLNAProfileException {
+		DLNAComplianceResult result = profile.checkCompliance(imageInfo);
+		if (result.isAllCorrect()) {
+			return;
+		}
+		StringBuilder sb = new StringBuilder(150);
+		sb.append(this.getClass().getSimpleName()).
+			append(": Compliance check failed for ").append(profile);
+
+		List<String> failures = result.getFailures();
+		if (!failures.isEmpty()) {
+			if (LOGGER.isDebugEnabled()) {
+				sb.append(" with the following failures:\n").
+				append(StringUtils.join(failures, "\n"));
+			} else {
+				sb.append(" for: ").
+				append(StringUtils.join(failures, ", "));
+			}
+		}
+		throw new DLNAProfileException(sb.toString());
+	}
+
+	/**
+	 * Attempts to find a matching {@link DLNAImageProfile} based on this
+	 * {@link DLNAImage}'s {@link ImageInfo} instance.
+	 *
+	 * @param imageInfo information about the given image
+	 * @param dlnaThumbnail if {@code true} restricts the profile search to
+	 *            valid thumbnail profiles.
+	 * @return The matching {@link DLNAImageProfile} or {@code null} if no match
+	 *         was found.
+	 */
+	private static DLNAImageProfile findMatchingProfile(ImageInfo imageInfo, boolean dlnaThumbnail) {
+		if (
+			imageInfo == null || imageInfo.getFormat() == null ||
+			imageInfo.getWidth() < 1 || imageInfo.getHeight() < 1
+		) {
+			return null;
+		}
+		DLNAComplianceResult result;
+		switch (imageInfo.getFormat()) {
+			case GIF -> {
+				if (!dlnaThumbnail && DLNAImageProfile.GIF_LRG.checkCompliance(imageInfo).isAllCorrect()) {
+					return DLNAImageProfile.GIF_LRG;
+				}
+			}
+			case JPEG -> {
+				result = DLNAImageProfile.JPEG_TN.checkCompliance(imageInfo);
+				if (result.isAllCorrect()) {
+					return DLNAImageProfile.JPEG_TN;
+				} else if (result.isColorsCorrect() && result.isFormatCorrect()) {
+					if (DLNAImageProfile.JPEG_SM.isResolutionCorrect(imageInfo)) {
+						return DLNAImageProfile.JPEG_SM;
+					}
+					if (DLNAImageProfile.JPEG_MED.isResolutionCorrect(imageInfo)) {
+						return DLNAImageProfile.JPEG_MED;
+					}
+					if (DLNAImageProfile.JPEG_LRG.isResolutionCorrect(imageInfo)) {
+						return DLNAImageProfile.JPEG_LRG;
+					}
+					return DLNAImageProfile.createJPEG_RES_H_V(imageInfo.getWidth(), imageInfo.getHeight());
+				}
+			}
+			case PNG -> {
+				result = DLNAImageProfile.PNG_TN.checkCompliance(imageInfo);
+				if (result.isAllCorrect()) {
+					return DLNAImageProfile.PNG_TN;
+				} else if (
+						result.isColorsCorrect() &&
+						result.isFormatCorrect() &&
+						DLNAImageProfile.PNG_LRG.isResolutionCorrect(imageInfo)
+						) {
+					return DLNAImageProfile.PNG_LRG;
+				}
+			}
+			default -> {
+				//do nothing
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -251,7 +337,8 @@ public class DLNAImage extends Image {
 			inputImage,
 			outputProfile,
 			false,
-			padToSize
+			padToSize,
+			null
 		);
 	}
 
@@ -289,7 +376,8 @@ public class DLNAImage extends Image {
 			inputStream,
 			outputProfile,
 			false,
-			padToSize
+			padToSize,
+			null
 		);
 	}
 
@@ -324,7 +412,8 @@ public class DLNAImage extends Image {
 			inputByteArray,
 			outputProfile,
 			false,
-			padToSize
+			padToSize,
+			null
 		);
 	}
 
@@ -367,7 +456,8 @@ public class DLNAImage extends Image {
 			outputFormat,
 			true,
 			false,
-			padToSize
+			padToSize,
+			null
 		);
 	}
 
@@ -414,7 +504,8 @@ public class DLNAImage extends Image {
 			outputFormat,
 			true,
 			false,
-			padToSize
+			padToSize,
+			null
 		);
 	}
 
@@ -453,37 +544,8 @@ public class DLNAImage extends Image {
 			outputFormat,
 			true,
 			false,
-			padToSize
-		);
-	}
-
-	/**
-	 * Converts and scales the image according to the given
-	 * {@link DLNAImageProfile}. Preserves aspect ratio. Format support is
-	 * limited to that of {@link ImageIO}.
-	 *
-	 * @param outputProfile the {@link DLNAImageProfile} to adhere to for the
-	 *                      output.
-	 * @param dlnaThumbnail whether or not the output image should be
-	 *                      restricted to DLNA thumbnail compliance. This also
-	 *                      means that the output can be safely cast to
-	 *                      {@link DLNAThumbnail}.
-	 * @param padToSize Whether padding should be used if source aspect doesn't
-	 *                  match target aspect.
-	 * @return The scaled and/or converted thumbnail, {@code null} if the
-	 *         source is {@code null}.
-	 * @exception IOException if the operation fails.
-	 */
-	public DLNAImage transcode(
-		DLNAImageProfile outputProfile,
-		boolean dlnaThumbnail,
-		boolean padToSize
-	) throws IOException {
-		return (DLNAImage) ImagesUtil.transcodeImage(
-			this,
-			outputProfile,
-			dlnaThumbnail,
-			padToSize
+			padToSize,
+			null
 		);
 	}
 
@@ -506,84 +568,11 @@ public class DLNAImage extends Image {
 		}
 	}
 
-	protected DLNAImageProfile findMatchingProfile(boolean dlnaThumbnail) {
-		if (
-			imageInfo == null || imageInfo.getFormat() == null ||
-			imageInfo.getWidth() < 1 || imageInfo.getHeight() < 1
-		) {
-			return null;
-		}
-		DLNAComplianceResult result;
-		switch (imageInfo.getFormat()) {
-			case GIF:
-				if (dlnaThumbnail) {
-					return null;
-				}
-				if (DLNAImageProfile.GIF_LRG.checkCompliance(imageInfo).isAllCorrect()) {
-					return DLNAImageProfile.GIF_LRG;
-				}
-				return null;
-			case JPEG:
-				result = DLNAImageProfile.JPEG_TN.checkCompliance(imageInfo);
-				if (result.isAllCorrect()) {
-					return DLNAImageProfile.JPEG_TN;
-				} else if (result.isColorsCorrect() && result.isFormatCorrect()) {
-					if (DLNAImageProfile.JPEG_SM.isResolutionCorrect(imageInfo)) {
-						return DLNAImageProfile.JPEG_SM;
-					}
-					if (DLNAImageProfile.JPEG_MED.isResolutionCorrect(imageInfo)) {
-						return DLNAImageProfile.JPEG_MED;
-					}
-					if (DLNAImageProfile.JPEG_LRG.isResolutionCorrect(imageInfo)) {
-						return DLNAImageProfile.JPEG_LRG;
-					}
-					return DLNAImageProfile.createJPEG_RES_H_V(imageInfo.getWidth(), imageInfo.getHeight());
-				}
-				return null;
-			case PNG:
-				result = DLNAImageProfile.PNG_TN.checkCompliance(imageInfo);
-				if (result.isAllCorrect()) {
-					return DLNAImageProfile.PNG_TN;
-				} else if (
-					result.isColorsCorrect() &&
-					result.isFormatCorrect() &&
-					DLNAImageProfile.PNG_LRG.isResolutionCorrect(imageInfo)
-				) {
-					return DLNAImageProfile.PNG_LRG;
-				}
-				return null;
-			default:
-
-		}
-		return null;
-	}
-
-	protected void checkCompliance() throws DLNAProfileException {
-		DLNAComplianceResult result = profile.checkCompliance(imageInfo);
-		if (result.isAllCorrect()) {
-			return;
-		}
-		StringBuilder sb = new StringBuilder(150);
-		sb.append(this.getClass().getSimpleName()).
-			append(": Compliance check failed for ").append(profile);
-
-		List<String> failures = result.getFailures();
-		if (!failures.isEmpty()) {
-			if (LOGGER.isDebugEnabled()) {
-				sb.append(" with the following failures:\n").
-				append(StringUtils.join(failures, "\n"));
-			} else {
-				sb.append(" for: ").
-				append(StringUtils.join(failures, ", "));
-			}
-		}
-		throw new DLNAProfileException(sb.toString());
-	}
-
 	@Override
 	protected void buildToString(StringBuilder sb) {
 		if (profile != null) {
 			sb.append(", DLNA Profile = ").append(profile);
 		}
 	}
+
 }

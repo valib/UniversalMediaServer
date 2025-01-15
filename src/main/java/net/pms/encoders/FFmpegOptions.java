@@ -1,20 +1,35 @@
+/*
+ * This file is part of Universal Media Server, based on PS3 Media Server.
+ *
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
 package net.pms.encoders;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import javax.annotation.Nonnull;
 import net.pms.util.ProcessUtil;
 
-public class FFmpegOptions extends optionsHashMap {
+public class FFmpegOptions extends OptionsHashMap {
 	// ffmpeg [global_options] {[input_file_options] -i ‘input_file’} ... {[output_file_options] ‘output_file’} ...
 
 	private static final long serialVersionUID = -1283795835781170081L;
 
 	// options that go in the 'global_options' slot
-	public static final List<String> globals = Arrays.asList(
+	public static final List<String> GLOBALS = List.of(
 		// global options:
 		"-loglevel", "-v", "-report", "-max_alloc", "-y", "-n", "-stats",
 		"-bits_per_raw_sample", "-croptop", "-cropbottom", "-cropleft", "-cropright",
@@ -28,7 +43,7 @@ public class FFmpegOptions extends optionsHashMap {
 	);
 
 	// options that go in the 'input_file_options' slot
-	public static final List<String> input_file_options = Arrays.asList(
+	public static final List<String> INPUT_FILE_OPTIONS = List.of(
 		// http options
 		"-seekable", "-chunked_post", "-headers", "-content_type", "-user-agent",
 		"-multiple_requests", "-post_data", "-timeout", "-mime_type", "-cookies",
@@ -57,7 +72,7 @@ public class FFmpegOptions extends optionsHashMap {
 	// slot, though in reality many of the remaining options can be used
 	// with input files too.
 	public void transferGlobals(List<String> list) {
-		transferAny(globals, list);
+		transferAny(GLOBALS, list);
 	}
 
 	public void transferInputFileOptions(List<String> list) {
@@ -80,10 +95,7 @@ public class FFmpegOptions extends optionsHashMap {
 			}
 		}
 
-		transferAny(input_file_options, list);
-	}
-
-	public FFmpegOptions() {
+		transferAny(INPUT_FILE_OPTIONS, list);
 	}
 
 	@Nonnull
@@ -119,11 +131,12 @@ public class FFmpegOptions extends optionsHashMap {
 
 // A HashMap of options and args (if any)
 // which preserves insertion order
-class optionsHashMap extends LinkedHashMap<String, String> {
+class OptionsHashMap extends LinkedHashMap<String, String> {
 	private static final long serialVersionUID = 7021453139296691483L;
 
 	public void addAll(List<String> args) {
-		String opt = null, optarg = null;
+		String opt = null;
+		String optarg = null;
 		args.add("-NULL");
 		for (String arg : args) {
 			if (arg.startsWith("-")) {
@@ -142,7 +155,7 @@ class optionsHashMap extends LinkedHashMap<String, String> {
 
 	public void transfer(String opt, List<String> list) {
 		if (containsKey(opt)) {
-			_transfer(opt, list);
+			transferOption(opt, list);
 		}
 	}
 
@@ -154,11 +167,11 @@ class optionsHashMap extends LinkedHashMap<String, String> {
 
 	public void transferAll(List<String> list) {
 		for (Object opt : keySet().toArray()) {
-			_transfer((String) opt, list);
+			transferOption((String) opt, list);
 		}
 	}
 
-	private void _transfer(String opt, List<String> list) {
+	private void transferOption(String opt, List<String> list) {
 		list.add(opt);
 		String optarg = remove(opt);
 		if (optarg != null) {

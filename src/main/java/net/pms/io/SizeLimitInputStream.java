@@ -1,22 +1,20 @@
-package net.pms.io;
-
 /*
- * Input stream wrapper with a byte limit.
- * Copyright (C) 2004 Stephen Ostermiller
- * http://ostermiller.org/contact.pl?regarding=Java+Utilities
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * See COPYING.TXT for details.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+package net.pms.io;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,7 +22,7 @@ import java.io.InputStream;
 /**
  * An input stream wrapper that will read only a set number of bytes from the
  * underlying stream.
- * 
+ *
  * @author Stephen Ostermiller
  *         http://ostermiller.org/contact.pl?regarding=Java+Utilities
  * @since ostermillerutils 1.04.00
@@ -34,7 +32,7 @@ public class SizeLimitInputStream extends InputStream {
 	/**
 	 * The input stream that is being protected. All methods should be forwarded
 	 * to it, after checking the size that has been read.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	protected InputStream in;
@@ -42,7 +40,7 @@ public class SizeLimitInputStream extends InputStream {
 	/**
 	 * The number of bytes to read at most from this Stream. Read methods should
 	 * check to ensure that bytesRead never exceeds maxBytesToRead.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	protected long maxBytesToRead = 0;
@@ -50,7 +48,7 @@ public class SizeLimitInputStream extends InputStream {
 	/**
 	 * The number of bytes that have been read from this stream. Read methods
 	 * should check to ensure that bytesRead never exceeds maxBytesToRead.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	protected long bytesRead = 0;
@@ -58,23 +56,23 @@ public class SizeLimitInputStream extends InputStream {
 	/**
 	 * The number of bytes that have been read from this stream since mark() was
 	 * called.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	protected long bytesReadSinceMark = 0;
 
 	/**
 	 * The number of bytes the user has request to have been marked for reset.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	protected long markReadLimitBytes = -1;
 
 	/**
 	 * Get the number of bytes actually read from this stream.
-	 * 
+	 *
 	 * @return number of bytes that have already been taken from this stream.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	public long getBytesRead() {
@@ -84,10 +82,10 @@ public class SizeLimitInputStream extends InputStream {
 	/**
 	 * Get the maximum number of bytes left to read before the limit (set in the
 	 * constructor) is reached.
-	 * 
+	 *
 	 * @return The number of bytes that (at a maximum) are left to be taken from
 	 *         this stream.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	public long getBytesLeft() {
@@ -97,9 +95,9 @@ public class SizeLimitInputStream extends InputStream {
 	/**
 	 * Tell whether the number of bytes specified in the constructor have been
 	 * read yet.
-	 * 
+	 *
 	 * @return true iff the specified number of bytes have all been read.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	public boolean allBytesRead() {
@@ -109,9 +107,9 @@ public class SizeLimitInputStream extends InputStream {
 	/**
 	 * Get the number of total bytes (including bytes already read) that can be
 	 * read from this stream (as set in the constructor).
-	 * 
+	 *
 	 * @return Maximum bytes that can be read until the size limit runs out
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	public long getMaxBytesToRead() {
@@ -121,13 +119,13 @@ public class SizeLimitInputStream extends InputStream {
 	/**
 	 * Create a new size limit input stream from another stream given a size
 	 * limit.
-	 * 
+	 *
 	 * @param in
 	 *            The input stream.
 	 * @param maxBytesToRead
 	 *            the max number of bytes to allow to be read from the
 	 *            underlying stream.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	public SizeLimitInputStream(InputStream in, long maxBytesToRead) {
@@ -211,7 +209,7 @@ public class SizeLimitInputStream extends InputStream {
 	 * <p>
 	 * Consider wrapping this stream in a NoCloseStream so that clients can call
 	 * close() with no effect.
-	 * 
+	 *
 	 * @since ostermillerutils 1.04.00
 	 */
 	@Override

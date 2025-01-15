@@ -1,41 +1,33 @@
 /*
- * Universal Media Server, for streaming any media to DLNA
- * compatible renderers based on the http://www.ps3mediaserver.org.
- * Copyright (C) 2012 UMS developers.
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is a free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-
 package net.pms.util;
 
-import com.sun.jna.Platform;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.management.ManagementFactory;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import net.pms.PMS;
-import net.pms.io.BasicSystemUtils;
-import net.pms.io.StreamGobbler;
+import net.pms.platform.PlatformUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,11 +37,11 @@ import org.slf4j.LoggerFactory;
 public class ProcessUtil {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ProcessUtil.class);
 
-	// how long to wait in milliseconds until a kill -TERM on Unix has been deemed to fail
-	private static final int TERM_TIMEOUT = 10000;
-
-	// how long to wait in milliseconds until a kill -ALRM on Unix has been deemed to fail
-	private static final int ALRM_TIMEOUT = 2000;
+	/**
+	 * This class is not meant to be instantiated.
+	 */
+	private ProcessUtil() {
+	}
 
 	// work around a Java bug
 	// see: http://www.cnblogs.com/abnercai/archive/2012/12/27/2836008.html
@@ -59,123 +51,75 @@ public class ProcessUtil {
 		try {
 			exit = p.waitFor();
 		} catch (InterruptedException e) {
-			Thread.interrupted();
+			Thread.currentThread().interrupt();
 		}
 
 		return exit;
 	}
 
-	// get the process ID on Unix (returns null otherwise)
-	public static Integer getProcessID(Process p) {
-		Integer pid = null;
-
-		if (p != null && p.getClass().getName().equals("java.lang.UNIXProcess")) {
-			try {
-				Field f = p.getClass().getDeclaredField("pid");
-				f.setAccessible(true);
-				pid = f.getInt(p);
-			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
-				LOGGER.debug("Can't determine the Unix process ID: " + e.getMessage());
-			}
-		}
-
-		return pid;
-	}
-
-	// kill -9 a Unix process
-	public static void kill(Integer pid) {
-		kill(pid, 9);
-	}
-
-	/*
-	 * FIXME: this is a hack - destroy() *should* work
+	/**
+	 * Retrieves the process ID (PID) for the specified {@link Process}.
 	 *
-	 * call chain (innermost last):
-	 *
-	 *     WaitBufferedInputStream.close
-	 *     BufferedOutputFile.detachInputStream
-	 *     ProcessWrapperImpl.stopProcess
-	 *     ProcessUtil.destroy
-	 *     ProcessUtil.kill
-	 *
-	 * my best guess is that the process's stdout/stderr streams
-	 * aren't being/haven't been fully/promptly consumed.
-	 * From the abovelinked article:
-	 *
-	 *     The Java 6 API clearly states that failure to promptly
-	 *     “read the output stream of the subprocess may cause the subprocess
-	 *     to block, and even deadlock.
-	 *
-	 * This is corroborated by the fact that destroy() works fine if the
-	 * process is allowed to run to completion:
-	 *
-	 *     https://code.google.com/p/ps3mediaserver/issues/detail?id=680#c11
+	 * @param process the {@link Process} for whose PID to retrieve.
+	 * @return The PID or zero if the PID couldn't be retrieved.
 	 */
-	// send a Unix process the specified signal
-	public static boolean kill(Integer pid, int signal) {
-		boolean killed = false;
-		LOGGER.warn("Sending kill -" + signal + " to the Unix process: " + pid);
-		try {
-			ProcessBuilder processBuilder = new ProcessBuilder("kill", "-" + signal, Integer.toString(pid));
-			processBuilder.redirectErrorStream(true);
-			Process process = processBuilder.start();
-			// consume the error and output process streams
-			StreamGobbler.consume(process.getInputStream(), true);
-			int exit = waitFor(process);
-			if (exit == 0) {
-				killed = true;
-				LOGGER.debug("Successfully sent kill -" + signal + " to the Unix process: " + pid);
-			}
-		} catch (IOException e) {
-			LOGGER.error("Error calling: kill -" + signal + " " + pid, e);
+	public static long getProcessId(@Nullable Process process) {
+		if (process == null) {
+			return 0;
 		}
+		try {
+			return process.pid();
+		} catch (UnsupportedOperationException e) {
+			return 0;
+		}
+	}
 
-		return killed;
+	/**
+	 * Checks if the process is still alive using reflection if possible.
+	 *
+	 * @param process the {@link Process} to check.
+	 * @return {@code true} if the process is still alive, {@code false}
+	 *         otherwise.
+	 */
+	public static boolean isProcessIsAlive(@Nullable Process process) {
+		if (process == null) {
+			return false;
+		}
+		return process.isAlive();
 	}
 
 	// destroy a process safely (kill -TERM on Unix)
 	public static void destroy(final Process p) {
 		if (p != null) {
-			final Integer pid = getProcessID(p);
-
-			if (pid != null) { // Unix only
-				LOGGER.trace("Killing the Unix process: " + pid);
-				Runnable r = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							Thread.sleep(TERM_TIMEOUT);
-						} catch (InterruptedException e) {
-						}
-
-						try {
-							p.exitValue();
-						} catch (IllegalThreadStateException itse) { // still running: nuke it
-							// kill -14 (ALRM) works (for MEncoder) and is less dangerous than kill -9
-							// so try that first
-							if (!kill(pid, 14)) {
-								try {
-									// This is a last resort, so let's not be too eager
-									Thread.sleep(ALRM_TIMEOUT);
-								} catch (InterruptedException ie) {
-								}
-
-								kill(pid, 9);
-							}
-						}
-					}
-				};
-
-				Thread failsafe = new Thread(r, "Process Destroyer");
-				failsafe.start();
-			}
-
-			p.destroy();
+			PlatformUtils.INSTANCE.destroyProcess(p);
 		}
 	}
 
+	/**
+	 * Converts the path of the specified {@link File} to the equivalent MS-DOS
+	 * style 8.3 path using the Windows API function {@code GetShortPathNameW()}
+	 * if the path contains Unicode characters.
+	 *
+	 * @param file the {@link File} whose path to convert.
+	 * @return The resulting non-Unicode file path.
+	 */
+	public static String getShortFileNameIfWideChars(File file) {
+		if (file == null) {
+			return null;
+		}
+		return getShortFileNameIfWideChars(file.getPath());
+	}
+
+	/**
+	 * Converts the specified file path to the equivalent MS-DOS style 8.3 path
+	 * using the Windows API function {@code GetShortPathNameW()} if the path
+	 * contains Unicode characters.
+	 *
+	 * @param name the file path to convert.
+	 * @return The resulting non-Unicode file path.
+	 */
 	public static String getShortFileNameIfWideChars(String name) {
-		return BasicSystemUtils.INSTANCE.getShortPathNameW(name);
+		return PlatformUtils.INSTANCE.getShortPathNameW(name);
 	}
 
 	// Run cmd and return combined stdout/stderr
@@ -206,76 +150,72 @@ public class ProcessUtil {
 				LOGGER.debug("Warning: command {} returned {}", Arrays.toString(cmd), p.exitValue());
 			}
 			return output.toString();
-		} catch (Exception e) {
+		} catch (IOException e) {
 			LOGGER.error("Error running command " + Arrays.toString(cmd), e);
+		} catch (InterruptedException ie) {
+			Thread.currentThread().interrupt();
 		}
 		return "";
 	}
 
 	public static String run(String... cmd) {
-		int[] zeroExpected = { 0 };
+		int[] zeroExpected = {0};
 		return run(zeroExpected, cmd);
 	}
 
 	// Whitewash any arguments not suitable to display in dbg messages
 	// and make one single printable string
 	public static String dbgWashCmds(String[] cmd) {
-		for (int i=0; i < cmd.length; i++) {
-			// Wrap arguments with spaces in double quotes to make them runnable if copy-pasted
-			if (cmd[i].contains(" ")) {
-				cmd[i] = "\"" + cmd[i] + "\"";
-			}
-			// Hide sensitive information from the log
-			if (cmd[i].contains("headers")) {
-				cmd[i+1]= cmd[i+1].replaceAll("Authorization: [^\n]+\n", "Authorization: ****\n");
-				i++;
-				continue;
+		StringBuilder sb = new StringBuilder();
+		boolean prevHeader = false;
+		for (String argument : cmd) {
+			if (StringUtils.isNotBlank(argument)) {
+				if (sb.length() > 0) {
+					sb.append(" ");
+				}
+
+				// Hide sensitive information from the log
+				String modifiedArgument;
+				if (prevHeader) {
+					modifiedArgument = argument.replaceAll("Authorization: [^\n]+\n", "Authorization: ****\n");
+					prevHeader = false;
+				} else {
+					if (argument.contains("headers")) {
+						prevHeader = true;
+					}
+					modifiedArgument = argument;
+				}
+
+				// Wrap arguments with spaces in double quotes to make them
+				// runnable if copy-pasted
+				if (modifiedArgument.contains(" ")) {
+					sb.append("\"").append(modifiedArgument).append("\"");
+				} else {
+					sb.append(modifiedArgument);
+				}
 			}
 		}
-		return StringUtils.join(cmd, " ");
+		return sb.toString();
 	}
 
 	// Rebooting
 
-	// Reboot UMS same as now
 	public static void reboot() {
-		reboot((ArrayList<String>)null, null, null);
+		reboot((ArrayList<String>) null, null, null);
 	}
 
-	// Reboot UMS same as now, adding these options
-	public static void reboot(String... UMSOptions) {
-		reboot(null, null, null, UMSOptions);
+	public static void reboot(String... umsoptions) {
+		reboot(null, null, null, umsoptions);
 	}
 
-	// Shutdown UMS and either reboot or run the given command (e.g. a script to restart UMS)
-	public static void reboot(ArrayList<String> cmd, Map<String,String> env, String startdir, String... UMSOptions) {
-		final ArrayList<String> reboot;
-		String macAppPath = null;
-		if (Platform.isMac()) {
-			String libraryPath = ManagementFactory.getRuntimeMXBean().getLibraryPath();
-			if (StringUtils.isNotBlank(libraryPath)) {
-				Pattern pattern = Pattern.compile("(.+?\\.app)/Contents/MacOS");
-				Matcher matcher = pattern.matcher(libraryPath);
-				if (matcher.find()) {
-					macAppPath = matcher.group(1);
-				}
-			}
-		}
-		if (StringUtils.isNotBlank(macAppPath)) {
-			reboot = new ArrayList<>();
-			reboot.add("open");
-			reboot.add("-n");
-			reboot.add("-a");
-			reboot.add(macAppPath);
-			if (UMSOptions.length > 0) {
-				reboot.add("--args");
-			}
-		} else {
-			reboot = getUMSCommand();
-		}
+	// Shutdown UMS and either reboot or run the given command (e.g. a script to
+	// restart UMS)
+	public static void reboot(List<String> cmd, Map<String, String> env, String startdir, String... umsOptions) {
+		final boolean hasOption = umsOptions.length > 0;
+		final List<String> reboot = PlatformUtils.INSTANCE.getRestartCommand(hasOption);
 
-		if (UMSOptions.length > 0) {
-			reboot.addAll(Arrays.asList(UMSOptions));
+		if (hasOption) {
+			reboot.addAll(Arrays.asList(umsOptions));
 		}
 		if (cmd == null) {
 			// We're doing a straight reboot
@@ -293,53 +233,37 @@ public class ProcessUtil {
 			startdir = System.getProperty("user.dir");
 		}
 
-		System.out.println("Starting: " + StringUtils.join(cmd, " "));
-
 		final ProcessBuilder pb = new ProcessBuilder(cmd);
 		if (env != null) {
 			pb.environment().putAll(env);
 		}
 		pb.directory(new File(startdir));
-		System.out.println("In folder: " + pb.directory());
 		try {
+			LOGGER.info("Starting: " + StringUtils.join(cmd, " "));
+			LOGGER.info("In folder: " + pb.directory());
+			PMS.shutdown();
 			pb.start();
 		} catch (Exception e) {
 			e.printStackTrace();
-			return;
 		}
-		System.exit(0);
+		PMS.quit();
 	}
 
-	// Reconstruct the command that started this jvm, including all options.
-	// See http://stackoverflow.com/questions/4159802/how-can-i-restart-a-java-application
-	//     http://stackoverflow.com/questions/1518213/read-java-jvm-startup-parameters-eg-xmx
-	public static ArrayList<String> getUMSCommand() {
-		ArrayList<String> reboot = new ArrayList<>();
-		File jvmPath = new File(System.getProperty("java.home"));
-		String jvmExecutableName = Platform.isWindows() && System.console() == null ? "javaw" : "java";
-		File jvmExecutable = new File(jvmPath, jvmExecutableName);
-		if (!jvmExecutable.exists() || jvmExecutable.isDirectory()) {
-			jvmPath = new File(jvmPath, "bin");
-			jvmExecutable = new File(jvmPath, jvmExecutableName);
+	/**
+	 * Shuts down the computer.
+	 * This is initiated via the Server Settings folder.
+	 */
+	public static void shutDownComputer() {
+		String[] shutdownCommand = PlatformUtils.INSTANCE.getShutdownCommand();
+
+		if (shutdownCommand != null && shutdownCommand.length > 0) {
+			try {
+				Runtime.getRuntime().exec(shutdownCommand);
+				System.exit(0);
+			} catch (IOException e) {
+				LOGGER.error("Error while shutting down computer: {}", e.getMessage(), e);
+			}
 		}
-		if (!jvmExecutable.exists() || jvmExecutable.isDirectory()) {
-			LOGGER.error(
-				"Can´t find Java executable \"{}\", falling back to pathless execution using \"{}\"",
-				jvmExecutable.getAbsolutePath(),
-				jvmExecutableName
-			);
-			reboot.add(jvmExecutableName);
-		} else {
-			reboot.add(StringUtil.quoteArg(jvmExecutable.getAbsolutePath()));
-		}
-		for (String jvmArg : ManagementFactory.getRuntimeMXBean().getInputArguments()) {
-			reboot.add(StringUtil.quoteArg(jvmArg));
-		}
-		reboot.add("-cp");
-		reboot.add(ManagementFactory.getRuntimeMXBean().getClassPath());
-		// Could also use generic main discovery instead:
-		// see http://stackoverflow.com/questions/41894/0-program-name-in-java-discover-main-class
-		reboot.add(PMS.class.getName());
-		return reboot;
 	}
+
 }

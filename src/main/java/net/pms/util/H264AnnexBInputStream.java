@@ -1,3 +1,19 @@
+/*
+ * This file is part of Universal Media Server, based on PS3 Media Server.
+ *
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
 package net.pms.util;
 
 import java.io.IOException;
@@ -7,12 +23,12 @@ import org.slf4j.LoggerFactory;
 
 public class H264AnnexBInputStream extends InputStream {
 	private static final Logger LOGGER = LoggerFactory.getLogger(H264AnnexBInputStream.class);
-	private InputStream source;
+	private final InputStream source;
+	private final byte[] header;
 	private int nextTarget;
 	private boolean firstHeader;
-	private byte header[];
 
-	public H264AnnexBInputStream(InputStream source, byte header[]) {
+	public H264AnnexBInputStream(InputStream source, byte[] header) {
 		this.source = source;
 		this.header = header;
 		firstHeader = true;
@@ -26,7 +42,7 @@ public class H264AnnexBInputStream extends InputStream {
 
 	@Override
 	public int read(byte[] b, int off, int len) throws IOException {
-		byte h[] = null;
+		byte[] h = null;
 		boolean insertHeader = false;
 
 		if (nextTarget == -1) {
@@ -53,7 +69,7 @@ public class H264AnnexBInputStream extends InputStream {
 		}
 
 		if (insertHeader) {
-			byte defHeader[] = header;
+			byte[] defHeader = header;
 			if (!firstHeader) {
 				defHeader = new byte[header.length + 1];
 				System.arraycopy(header, 0, defHeader, 0, header.length);
@@ -110,7 +126,7 @@ public class H264AnnexBInputStream extends InputStream {
 			LOGGER.trace("Negative array ?");
 			return null;
 		}
-		byte bb[] = new byte[length];
+		byte[] bb = new byte[length];
 		int n = source.read(bb);
 		if (n == -1) {
 			return null;

@@ -1,21 +1,18 @@
 /*
- * Universal Media Server, for streaming any media to DLNA
- * compatible renderers based on the http://www.ps3mediaserver.org.
- * Copyright (C) 2012 UMS developers.
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is a free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package net.pms.image;
 
@@ -111,12 +108,10 @@ public enum ExifOrientation {
 	 * the 0th column is the visual bottom. See {@link ExifOrientation} for a
 	 * visualized representation.
 	 */
-	LEFT_BOTTOM(8),
-	;
+	LEFT_BOTTOM(8);
 
 	private int value;
-	private ExifOrientation(int value)
-	{
+	private ExifOrientation(int value) {
 		this.value = value;
 	}
 
@@ -125,12 +120,9 @@ public enum ExifOrientation {
 	 * @return The {@link ExifOrientation} corresponding to the Exif orientation
 	 *         value or {@link #TOP_LEFT} if invalid.
 	 */
-	public static ExifOrientation typeOf(int value)
-	{
-		for (ExifOrientation orientation : ExifOrientation.values())
-		{
-			if (orientation.value == value)
-			{
+	public static ExifOrientation typeOf(int value) {
+		for (ExifOrientation orientation : ExifOrientation.values()) {
+			if (orientation.value == value) {
 				return orientation;
 			}
 		}
@@ -142,16 +134,13 @@ public enum ExifOrientation {
 	 * @return The {@link ExifOrientation} corresponding to the Exif orientation
 	 *         value or {@link #TOP_LEFT} if invalid or {@code null}.
 	 */
-	public static ExifOrientation typeOf(Integer value)
-	{
+	public static ExifOrientation typeOf(Integer value) {
 		if (value == null) {
 			return TOP_LEFT;
 		}
 
-		for (ExifOrientation orientation : ExifOrientation.values())
-		{
-			if (orientation.value == value.intValue())
-			{
+		for (ExifOrientation orientation : ExifOrientation.values()) {
+			if (orientation.value == value.intValue()) {
 				return orientation;
 			}
 		}
@@ -195,9 +184,8 @@ public enum ExifOrientation {
 	}
 
 	@Override
-	public String toString()
-	{
-		return "Orientation " + this.name() + " ("+ value + ")";
+	public String toString() {
+		return "Orientation " + this.name() + " (" + value + ")";
 	}
 
 	/**

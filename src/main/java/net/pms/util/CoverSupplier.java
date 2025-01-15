@@ -1,21 +1,18 @@
 /*
- * Universal Media Server, for streaming any media to DLNA
- * compatible renderers based on the http://www.ps3mediaserver.org.
- * Copyright (C) 2012 UMS developers.
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is a free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package net.pms.util;
 
@@ -45,15 +42,15 @@ public class CoverSupplier {
 	 */
 	public static final CoverSupplier COVER_ART_ARCHIVE = new CoverSupplier(COVER_ART_ARCHIVE_INT, "Cover Art Archive");
 
-	public final int CoverSupplierInt;
-	public final String CoverSupplierStr;
+	public final int coverSupplierInt;
+	public final String coverSupplierStr;
 
 	/**
 	 * Instantiate a {@link CoverSupplier} object.
 	 */
-	private CoverSupplier(int CoverSupplierInt, String CoverSupplierStr) {
-		this.CoverSupplierInt = CoverSupplierInt;
-		this.CoverSupplierStr = CoverSupplierStr;
+	private CoverSupplier(int coverSupplierInt, String coverSupplierStr) {
+		this.coverSupplierInt = coverSupplierInt;
+		this.coverSupplierStr = coverSupplierStr;
 	}
 
 	/**
@@ -61,14 +58,14 @@ public class CoverSupplier {
 	 */
 	@Override
 	public String toString() {
-		return CoverSupplierStr;
+		return coverSupplierStr;
 	}
 
 	/**
 	 * Returns the integer representation of this {@link CoverSupplier}.
 	 */
 	public int toInt() {
-		return CoverSupplierInt;
+		return coverSupplierInt;
 	}
 
 	/**
@@ -77,13 +74,14 @@ public class CoverSupplier {
 	 * @return This {@link CoverSupplier}'s {@link Integer} mapping.
 	 */
 	public Integer toInteger() {
-		switch (CoverSupplierInt) {
-			case NONE_INT:
+		switch (coverSupplierInt) {
+			case NONE_INT -> {
 				return NONE_INTEGER;
-			case COVER_ART_ARCHIVE_INT:
+			}
+			case COVER_ART_ARCHIVE_INT -> {
 				return COVER_ART_ARCHIVE_INTEGER;
-			default:
-				throw new IllegalStateException("CoverSupplier " + CoverSupplierStr + ", " + CoverSupplierInt + " is unknown.");
+			}
+			default -> throw new IllegalStateException("CoverSupplier " + coverSupplierStr + ", " + coverSupplierInt + " is unknown.");
 		}
 	}
 
@@ -108,14 +106,11 @@ public class CoverSupplier {
 	 * conversion fails, this method returns the specified default.
 	 */
 	public static CoverSupplier toCoverSupplier(int val, CoverSupplier defaultCoverSupplier) {
-		switch (val) {
-			case NONE_INT:
-				return NONE;
-			case COVER_ART_ARCHIVE_INT:
-				return COVER_ART_ARCHIVE;
-			default:
-				return defaultCoverSupplier;
-		}
+		return switch (val) {
+			case NONE_INT -> NONE;
+			case COVER_ART_ARCHIVE_INT -> COVER_ART_ARCHIVE;
+			default -> defaultCoverSupplier;
+		};
 	}
 
 	/**
@@ -128,24 +123,19 @@ public class CoverSupplier {
 		}
 
 		sArg = sArg.toLowerCase();
-		switch (sArg.toLowerCase()) {
-			case "none":
-				return CoverSupplier.NONE;
-			case "coverartarchive":
-			case "coverartarchive.org":
-			case "cover art archive":
-				return CoverSupplier.COVER_ART_ARCHIVE;
-			default:
-				return defaultCoverSupplier;
-		}
+		return switch (sArg.toLowerCase()) {
+			case "none" -> CoverSupplier.NONE;
+			case "coverartarchive", "coverartarchive.org", "cover art archive" -> CoverSupplier.COVER_ART_ARCHIVE;
+			default -> defaultCoverSupplier;
+		};
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + CoverSupplierInt;
-		result = prime * result + ((CoverSupplierStr == null) ? 0 : CoverSupplierStr.hashCode());
+		result = prime * result + coverSupplierInt;
+		result = prime * result + ((coverSupplierStr == null) ? 0 : coverSupplierStr.hashCode());
 		return result;
 	}
 
@@ -161,14 +151,14 @@ public class CoverSupplier {
 			return false;
 		}
 		CoverSupplier other = (CoverSupplier) obj;
-		if (CoverSupplierInt != other.CoverSupplierInt) {
+		if (coverSupplierInt != other.coverSupplierInt) {
 			return false;
 		}
-		if (CoverSupplierStr == null) {
-			if (other.CoverSupplierStr != null) {
+		if (coverSupplierStr == null) {
+			if (other.coverSupplierStr != null) {
 				return false;
 			}
-		} else if (!CoverSupplierStr.equals(other.CoverSupplierStr)) {
+		} else if (!coverSupplierStr.equals(other.coverSupplierStr)) {
 			return false;
 		}
 		return true;

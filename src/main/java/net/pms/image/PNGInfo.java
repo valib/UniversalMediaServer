@@ -1,21 +1,33 @@
+/*
+ * This file is part of Universal Media Server, based on PS3 Media Server.
+ *
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
 package net.pms.image;
 
-import java.awt.color.ColorSpace;
-import java.awt.image.ColorModel;
-import net.pms.util.ParseException;
 import com.drew.imaging.png.PngChunkType;
 import com.drew.imaging.png.PngColorType;
 import com.drew.metadata.Directory;
 import com.drew.metadata.Metadata;
 import com.drew.metadata.png.PngDirectory;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.awt.color.ColorSpace;
+import java.awt.image.ColorModel;
+import net.pms.util.ParseException;
 
-
-@SuppressWarnings("serial")
-@SuppressFBWarnings("SE_NO_SERIALVERSIONID")
 public class PNGInfo extends ImageInfo {
-
-	protected final PngColorType colorType;
+	private static final long serialVersionUID = 1L;
+	protected final int colorType;
 	protected final InterlaceMethod interlaceMethod;
 	protected final boolean hasTransparencyChunk;
 	protected final boolean isModifiedBitDepth;
@@ -37,7 +49,7 @@ public class PNGInfo extends ImageInfo {
 	) throws ParseException {
 		super(width, height, format, size, colorModel, metadata, applyExifOrientation, imageIOSupport);
 
-		colorType = ((PNGParseInfo) parsedInfo).colorType;
+		colorType = ((PNGParseInfo) parsedInfo).colorType.getNumericValue();
 		interlaceMethod = ((PNGParseInfo) parsedInfo).interlaceMethod;
 		hasTransparencyChunk = ((PNGParseInfo) parsedInfo).hasTransparencyChunk;
 		isModifiedBitDepth = ((PNGParseInfo) parsedInfo).isModifiedBitDepth;
@@ -75,7 +87,7 @@ public class PNGInfo extends ImageInfo {
 			imageIOSupport
 		);
 
-		colorType = ((PNGParseInfo) parsedInfo).colorType;
+		colorType = ((PNGParseInfo) parsedInfo).colorType.getNumericValue();
 		interlaceMethod = ((PNGParseInfo) parsedInfo).interlaceMethod;
 		hasTransparencyChunk = ((PNGParseInfo) parsedInfo).hasTransparencyChunk;
 		isModifiedBitDepth = ((PNGParseInfo) parsedInfo).isModifiedBitDepth;
@@ -97,7 +109,7 @@ public class PNGInfo extends ImageInfo {
 	) throws ParseException {
 		super(width, height, metadata, format, size, applyExifOrientation, throwOnParseFailure);
 
-		colorType = ((PNGParseInfo) parsedInfo).colorType;
+		colorType = ((PNGParseInfo) parsedInfo).colorType.getNumericValue();
 		interlaceMethod = ((PNGParseInfo) parsedInfo).interlaceMethod;
 		hasTransparencyChunk = ((PNGParseInfo) parsedInfo).hasTransparencyChunk;
 		isModifiedBitDepth = ((PNGParseInfo) parsedInfo).isModifiedBitDepth;
@@ -122,7 +134,7 @@ public class PNGInfo extends ImageInfo {
 		boolean isModifiedBitDepth
 	) {
 		super(width, height, format, size, bitDepth, numComponents, colorSpace, colorSpaceType, imageIOSupport);
-		this.colorType = colorType;
+		this.colorType = colorType.getNumericValue();
 		this.interlaceMethod = interlaceMethod;
 		this.hasTransparencyChunk = hasTransparencyChunk;
 		this.isModifiedBitDepth = isModifiedBitDepth;
@@ -132,7 +144,7 @@ public class PNGInfo extends ImageInfo {
 	 * @return The {@link PngColorType} or {@code null} if unknown.
 	 */
 	public PngColorType getColorType() {
-		return colorType;
+		return PngColorType.fromNumericValue(colorType);
 	}
 
 	/**
@@ -190,28 +202,31 @@ public class PNGInfo extends ImageInfo {
 					Integer i = ((PngDirectory) directory).getInteger(PngDirectory.TAG_COLOR_TYPE);
 					if (i != null) {
 						((PNGParseInfo) parsedInfo).colorType = PngColorType.fromNumericValue(i);
-						switch (((PNGParseInfo) parsedInfo).colorType) {
-							case Greyscale: // Grayscale without alpha
+						switch (((PNGParseInfo) parsedInfo).colorType.getNumericValue()) {
+							// Grayscale without alpha
+							case 0 -> {
 								parsedInfo.numComponents = 1;
 								parsedInfo.colorSpaceType = ColorSpaceType.TYPE_GRAY;
-								break;
-							case TrueColor: // RGB without alpha
+							}
+							// RGB without alpha
+							// Palette index
+							case 2, 3 -> {
 								parsedInfo.numComponents = 3;
 								parsedInfo.colorSpaceType = ColorSpaceType.TYPE_RGB;
-								break;
-							case IndexedColor: // Palette index
-								parsedInfo.numComponents = 3;
-								parsedInfo.colorSpaceType = ColorSpaceType.TYPE_RGB;
-								break;
-							case GreyscaleWithAlpha: // Grayscale with alpha
+							}
+							// Grayscale with alpha
+							case 4 -> {
 								parsedInfo.numComponents = 2;
 								parsedInfo.colorSpaceType = ColorSpaceType.TYPE_GRAY;
-								break;
-							case TrueColorWithAlpha: // RGB with alpha
+							}
+							// RGB with alpha
+							case 6 -> {
 								parsedInfo.numComponents = 4;
 								parsedInfo.colorSpaceType = ColorSpaceType.TYPE_RGB;
-								break;
-							default:
+							}
+							default -> {
+								//nothing to do
+							}
 						}
 					}
 				}
@@ -222,11 +237,11 @@ public class PNGInfo extends ImageInfo {
 					throw new ParseException("PNG parsing failed with ancillary chunk tRNS appearing before critical chunk IHDR");
 				}
 				if (
-					((PNGParseInfo) parsedInfo).colorType == PngColorType.GreyscaleWithAlpha ||
-					((PNGParseInfo) parsedInfo).colorType ==  PngColorType.TrueColorWithAlpha
+					((PNGParseInfo) parsedInfo).colorType == PngColorType.GREYSCALE_WITH_ALPHA ||
+					((PNGParseInfo) parsedInfo).colorType ==  PngColorType.TRUE_COLOR_WITH_ALPHA
 				) {
 					throw new ParseException(String.format(
-						"PNG parsing failed with illegal combination of %s color type and tRNS transparancy chunk",
+						"PNG parsing failed with illegal combination of %s color type and tRNS transparency chunk",
 						((PNGParseInfo) parsedInfo).colorType
 					));
 				}
@@ -250,7 +265,7 @@ public class PNGInfo extends ImageInfo {
 			colorSpace,
 			colorSpaceType,
 			imageIOSupport,
-			colorType,
+			PngColorType.fromNumericValue(colorType),
 			interlaceMethod,
 			hasTransparencyChunk,
 			isModifiedBitDepth
@@ -261,15 +276,11 @@ public class PNGInfo extends ImageInfo {
 		NONE, ADAM7, UNKNOWN;
 
 		public static InterlaceMethod typeOf(int value) {
-			switch (value) {
-				case 0:
-					return NONE;
-				case 1:
-					return ADAM7;
-				default:
-					return UNKNOWN;
-
-			}
+			return switch (value) {
+				case 0 -> NONE;
+				case 1 -> ADAM7;
+				default -> UNKNOWN;
+			};
 		}
 	}
 
@@ -282,13 +293,13 @@ public class PNGInfo extends ImageInfo {
 
 	@Override
 	protected void buildToString(StringBuilder sb) {
-		if (colorType != null) {
+		if (colorType >= 0) {
 			sb.append(", Color Type = ").append(colorType);
 		}
 		if (interlaceMethod != null) {
 			sb.append(", Interlace Method = ").append(interlaceMethod);
 		}
 		sb.append(", Has Transparency Chunk = ").append(hasTransparencyChunk ? "True" : "False")
-			.append("Has Modified Bit Depth = ").append(isModifiedBitDepth ? "True" : "False");
+			.append(", Has Modified Bit Depth = ").append(isModifiedBitDepth ? "True" : "False");
 	}
 }

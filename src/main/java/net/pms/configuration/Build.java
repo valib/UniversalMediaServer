@@ -1,31 +1,32 @@
 /*
- * Universal Media Server, for streaming any media to DLNA
- * compatible renderers based on the http://www.ps3mediaserver.org.
- * Copyright (C) 2012 UMS developers.
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is a free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-
 package net.pms.configuration;
 
-import com.sun.jna.Platform;
 import net.pms.PMS;
 import org.apache.commons.lang3.StringUtils;
 
-// a one-stop class for values and methods specific to custom PMS builds
+// a one-stop class for values and methods specific to custom UMS builds
 public class Build {
+
+	/**
+	 * This class should not be instantiated.
+	 */
+	private Build() {}
+
 	/**
 	 * Repository where to locate the file. Note: using "raw.github.com"
 	 * to access the raw file.
@@ -33,10 +34,15 @@ public class Build {
 	private static final String REPO = "https://raw.github.com/UniversalMediaServer/UniversalMediaServer";
 
 	/**
-	 * The URL of the properties file used by the {@link AutoUpdater} to announce PMS updates.
+	 * The URL of the properties file used by the {@link AutoUpdater} to announce UMS updates.
 	 * Can be null/empty if not used. Not used if IS_UPDATABLE is set to false.
 	 */
-	private static final String UPDATE_SERVER_URL = REPO + "/master/src/main/external-resources/update/latest_version.properties";
+	private static final String UPDATE_SERVER_URL = REPO + "/main/src/main/external-resources/update/latest_version.properties";
+
+	/**
+	 * The url of the releases page on Github
+	 */
+	private static final String RELEASES_PAGE_URL = "https://github.com/UniversalMediaServer/UniversalMediaServer/releases";
 
 	/**
 	 * If false, manual and automatic update checks are unconditionally disabled.
@@ -44,7 +50,7 @@ public class Build {
 	private static final boolean IS_UPDATABLE = true;
 
 	/**
-	 * the name of the subdirectory under which PMS config files are stored for this build.
+	 * the name of the subdirectory under which UMS config files are stored for this build.
 	 * the default value is "UMS" e.g.
 	 *
 	 *     Windows:
@@ -62,7 +68,7 @@ public class Build {
 	 * a custom build can change this to avoid interfering with the config files of other
 	 * builds e.g.:
 	 *
-	 *     PROFILE_DIRECTORY_NAME = "PMS Rendr Edition";
+	 *     PROFILE_DIRECTORY_NAME = "UMS Rendr Edition";
 	 *     PROFILE_DIRECTORY_NAME = "pms-mlx";
 	 *
 	 * Note: custom Windows builds that change this value should change the corresponding "$ALLUSERSPROFILE\UMS"
@@ -74,17 +80,14 @@ public class Build {
 	private static final String PROFILE_DIRECTORY_NAME = "UMS";
 
 	/**
-	 * Determines whether or not this PMS build can be updated to a more
-	 * recent version.
-	 * @return True if this build can be updated, false otherwise.
+	 * @return whether updating has been disabled, or there is no defined server.
 	 */
 	public static boolean isUpdatable() {
-		return IS_UPDATABLE && Platform.isWindows() && getUpdateServerURL() != null;
+		return IS_UPDATABLE && getUpdateServerURL() != null;
 	}
 
 	/**
-	 * Returns the URL where the newest version of the software can be downloaded.
-	 * @return The URL.
+	 * @return the URL where the newest version of the software can be downloaded.
 	 */
 	public static String getUpdateServerURL() {
 		return StringUtils.isNotBlank(UPDATE_SERVER_URL) ? UPDATE_SERVER_URL : null;
@@ -98,5 +101,12 @@ public class Build {
 	 */
 	public static String getProfileDirectoryName() {
 		return PMS.isRunningTests() ? "UMS-tests" : PROFILE_DIRECTORY_NAME;
+	}
+
+	/**
+	 * @return the {@link #RELEASES_PAGE_URL} where releases are located
+	 */
+	public static String getReleasesPageUrl() {
+		return RELEASES_PAGE_URL;
 	}
 }

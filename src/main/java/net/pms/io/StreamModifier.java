@@ -1,7 +1,23 @@
+/*
+ * This file is part of Universal Media Server, based on PS3 Media Server.
+ *
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
 package net.pms.io;
 
 public class StreamModifier {
-	private byte header[];
+	private byte[] header;
 	private boolean h264AnnexB;
 	private boolean pcm;
 	private int nbChannels;
@@ -17,36 +33,12 @@ public class StreamModifier {
 		this.header = header;
 	}
 
-	/**
-	 * @deprecated Use {@link #isH264AnnexB()}.
-	 */
-	@Deprecated
-	public boolean isH264_annexb() {
-		return isH264AnnexB();
-	}
-
 	public boolean isH264AnnexB() {
 		return h264AnnexB;
 	}
 
-	/**
-	 * @deprecated Use {@link #setH264AnnexB(boolean)}.
-	 */
-	@Deprecated
-	public void setH264_annexb(boolean h264AnnexB) {
-		setH264AnnexB(h264AnnexB);
-	}
-
 	public void setH264AnnexB(boolean h264AnnexB) {
 		this.h264AnnexB = h264AnnexB;
-	}
-
-	/**
-	 * @deprecated Use {@link #isDtsEmbed()}.
-	 */
-	@Deprecated
-	public boolean isDtsembed() {
-		return isDtsEmbed();
 	}
 
 	public boolean isDtsEmbed() {
@@ -63,14 +55,6 @@ public class StreamModifier {
 		this.spdifembed = spdifembed;
 	}
 
-	/**
-	 * @deprecated Use {@link #setDtsEmbed(boolean)}.
-	 */
-	@Deprecated
-	public void setDtsembed(boolean dtsEmbed) {
-		setDtsEmbed(dtsEmbed);
-	}
-
 	public void setDtsEmbed(boolean dtsEmbed) {
 		this.dtsEmbed = dtsEmbed;
 	}
@@ -83,24 +67,8 @@ public class StreamModifier {
 		this.pcm = pcm;
 	}
 
-	/**
-	 * @deprecated Use {@link #getNbChannels()}.
-	 */
-	@Deprecated
-	public int getNbchannels() {
-		return getNbChannels();
-	}
-
 	public int getNbChannels() {
 		return nbChannels;
-	}
-
-	/**
-	 * @deprecated Use {@link #setNbChannels(int)}.
-	 */
-	@Deprecated
-	public void setNbchannels(int nbChannels) {
-		setNbChannels(nbChannels);
 	}
 
 	public void setNbChannels(int nbChannels) {
@@ -115,24 +83,8 @@ public class StreamModifier {
 		this.sampleFrequency = sampleFrequency;
 	}
 
-	/**
-	 * @deprecated Use {@link #getBitsPerSample()}.
-	 */
-	@Deprecated
-	public int getBitspersample() {
-		return getBitsPerSample();
-	}
-
 	public int getBitsPerSample() {
 		return bitsPerSample;
-	}
-
-	/**
-	 * @deprecated Use {@link #setBitsPerSample(int)}.
-	 */
-	@Deprecated
-	public void setBitspersample(int bitsPerSample) {
-		setBitsPerSample(bitsPerSample);
 	}
 
 	public void setBitsPerSample(int bitsPerSample) {

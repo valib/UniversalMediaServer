@@ -1,21 +1,18 @@
 /*
- * PS3 Media Server, for streaming any medias to your PS3.
- * Copyright (C) 2008  A.Brochard
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package net.pms.formats;
 
@@ -40,6 +37,7 @@ public final class FormatFactory {
 	 * Initial list of known formats.
 	 */
 	static final Format[] FORMATS = new Format[] {
+		new AACP(),
 		new AC3(),
 		new ADPCM(),
 		new ADTS(),
@@ -99,29 +97,21 @@ public final class FormatFactory {
 		new WavPack(),
 		new WBMP(),
 		new WEB(),
+		new WEBP(),
 		new WebVTT(),
 		new WMA(),
 	};
 
-	private static final ReentrantReadWriteLock formatsLock = new ReentrantReadWriteLock();
+	private static final ReentrantReadWriteLock FORMATS_LOCK = new ReentrantReadWriteLock();
 	/**
 	 * The list of registered formats.
 	 */
-	private static final List<Format> formats = new ArrayList<>(Arrays.asList(FORMATS));
+	private static final List<Format> REGISTERED_FORMATS = new ArrayList<>(Arrays.asList(FORMATS));
 
 	/**
-	 * This class is not meant to be instantiated.
+	 * This class should not be instantiated.
 	 */
-	private FormatFactory() {
-	}
-
-	/**
-	 * @deprecated Use {@link #getAssociatedFormat(String)} instead.
-	 */
-	@Deprecated
-	public static Format getAssociatedExtension(final String filename) {
-		return getAssociatedFormat(filename);
-	}
+	private FormatFactory() {}
 
 	/**
 	 * Match a given filename to all known formats and return a fresh instance
@@ -135,9 +125,9 @@ public final class FormatFactory {
 	 * @since 1.90.0
 	 */
 	public static Format getAssociatedFormat(final String filename) {
-		formatsLock.readLock().lock();
+		FORMATS_LOCK.readLock().lock();
 		try {
-			for (Format format : formats) {
+			for (Format format : REGISTERED_FORMATS) {
 				if (format.match(filename)) {
 					LOGGER.trace("Matched format {} to \"{}\"", format, filename);
 
@@ -146,7 +136,7 @@ public final class FormatFactory {
 				}
 			}
 		} finally {
-			formatsLock.readLock().unlock();
+			FORMATS_LOCK.readLock().unlock();
 		}
 
 		LOGGER.trace("Could not match any format to \"{}\"", filename);
@@ -157,15 +147,15 @@ public final class FormatFactory {
 		if (clazz == null) {
 			return null;
 		}
-		formatsLock.readLock().lock();
+		FORMATS_LOCK.readLock().lock();
 		try {
-			for (Format format : formats) {
+			for (Format format : REGISTERED_FORMATS) {
 				if (format.getClass().equals(clazz)) {
 					return format.duplicate();
 				}
 			}
 		} finally {
-			formatsLock.readLock().unlock();
+			FORMATS_LOCK.readLock().unlock();
 		}
 		return null;
 	}
@@ -177,11 +167,11 @@ public final class FormatFactory {
 	 * @since 1.90.0
 	 */
 	public static List<Format> getSupportedFormats() {
-		formatsLock.readLock().lock();
+		FORMATS_LOCK.readLock().lock();
 		try {
-			return new ArrayList<Format>(formats);
+			return new ArrayList<>(REGISTERED_FORMATS);
 		} finally {
-			formatsLock.readLock().unlock();
+			FORMATS_LOCK.readLock().unlock();
 		}
 	}
 
@@ -194,11 +184,11 @@ public final class FormatFactory {
 		if (format == null) {
 			throw new NullPointerException("format cannot be null");
 		}
-		formatsLock.writeLock().lock();
+		FORMATS_LOCK.writeLock().lock();
 		try {
-			return formats.add(format);
+			return REGISTERED_FORMATS.add(format);
 		} finally {
-			formatsLock.writeLock().unlock();
+			FORMATS_LOCK.writeLock().unlock();
 		}
 	}
 
@@ -211,11 +201,11 @@ public final class FormatFactory {
 		if (format == null) {
 			throw new NullPointerException("format cannot be null");
 		}
-		formatsLock.writeLock().lock();
+		FORMATS_LOCK.writeLock().lock();
 		try {
-			return formats.remove(format);
+			return REGISTERED_FORMATS.remove(format);
 		} finally {
-			formatsLock.writeLock().unlock();
+			FORMATS_LOCK.writeLock().unlock();
 		}
 	}
 }

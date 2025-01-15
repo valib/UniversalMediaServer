@@ -1,21 +1,18 @@
 /*
- * Universal Media Server, for streaming any media to DLNA
- * compatible renderers based on the http://www.ps3mediaserver.org.
- * Copyright (C) 2012 UMS developers.
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is a free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package net.pms.util;
 
@@ -78,8 +75,7 @@ import org.apache.commons.lang3.StringUtils;
  * @author Nadahar
  */
 public class Rational extends Number implements Comparable<Rational> {
-
-	private static final long serialVersionUID = 2L;
+	private static final long serialVersionUID = 3L;
 
 	/**
 	 * The locale-insensitive {@link DecimalFormat} used for
@@ -1495,79 +1491,6 @@ public class Rational extends Number implements Comparable<Rational> {
 		return generateRationalHexString(numerator, denominator);
 	}
 
-	/**
-	 * Returns a string representation of this {@link Rational} in the form
-	 * {@code numerator:denominator} while respecting convention and adjusting
-	 * for small inaccuracies.
-	 *
-	 * @return The aspect ratio {@link String} representation.
-	 */
-	@Nonnull
-	public String toAspectRatio() {
-		if (numerator.signum() == 0 || denominator.signum() == 0) {
-			// Return 1:1 for undefined values and 0
-			return "1:1";
-		}
-		double value = doubleValue();
-		if (value >= 11.9 && value <= 12.1) {
-			return "12.00:1";
-		} else if (value >= 3.9 && value <= 4.1) {
-			return "4.00:1";
-		} else if (value >= 2.75 && value <= 2.77) {
-			return "2.76:1";
-		} else if (value >= 2.65 && value <= 2.67) {
-			return "24:9";
-		} else if (value >= 2.58 && value <= 2.6) {
-			return "2.59:1";
-		} else if (value >= 2.54  && value <= 2.56) {
-			return "2.55:1";
-		} else if (value >= 2.38 && value <= 2.41) {
-			return "2.39:1";
-		} else if (value > 2.36 && value < 2.38) {
-			return "2.37:1";
-		} else if (value >= 2.34 && value <= 2.36) {
-			return "2.35:1";
-		} else if (value >= 2.33 && value < 2.34) {
-			return "21:9";
-		} else if (value > 2.1  && value < 2.3) {
-			return "11:5";
-		} else if (value > 1.9 && value < 2.1) {
-			return "2.00:1";
-		} else if (value > 1.87  && value <= 1.9) {
-			return "1.896:1";
-		} else if (value >= 1.83 && value <= 1.87) {
-			return "1.85:1";
-		} else if (value >= 1.76 && value <= 1.8) {
-			return "16:9";
-		} else if (value > 1.74 && value < 1.76) {
-			return "7:4";
-		} else if (value >= 1.65 && value <= 1.67) {
-			return "15:9";
-		} else if (value >= 1.59 && value <= 1.61) {
-			return "16:10";
-		} else if (value >= 1.54 && value <= 1.56) {
-			return "14:9";
-		} else if (value >= 1.49 && value <= 1.51) {
-			return "3:2";
-		} else if (value > 1.42 && value < 1.44) {
-			return "1.43:1";
-		} else if (value > 1.372 && value < 1.4) {
-			return "11:8";
-		} else if (value > 1.35 && value <= 1.372) {
-			return "1.37:1";
-		} else if (value >= 1.3 && value <= 1.35) {
-			return "4:3";
-		} else if (value > 1.2 && value < 1.3) {
-			return "5:4";
-		} else if (value >= 1.18 && value <= 1.195) {
-			return "19:16";
-		} else if (value > 0.99 && value < 1.1) {
-			return "1:1";
-		} else {
-			return reducedNumerator + ":" + reducedDenominator;
-		}
-	}
-
 
 	// Conversion to other Number formats
 
@@ -2305,7 +2228,7 @@ public class Rational extends Number implements Comparable<Rational> {
 	 *         value, {@code false} otherwise.
 	 */
 	public static boolean isInteger(@Nullable Rational rational) {
-		return rational == null ? false : rational.isInteger();
+		return rational != null && rational.isInteger();
 	}
 
 	/**
@@ -2317,7 +2240,7 @@ public class Rational extends Number implements Comparable<Rational> {
 	 *         otherwise.
 	 */
 	public static boolean isNaN(@Nullable Rational rational) {
-		return rational == null ? false : rational.isNaN();
+		return rational != null && rational.isNaN();
 	}
 
 	/**
@@ -2329,7 +2252,7 @@ public class Rational extends Number implements Comparable<Rational> {
 	 *         negative infinity, {@code false} otherwise.
 	 */
 	public static boolean isInfinite(@Nullable Rational rational) {
-		return rational == null ? false : rational.isInfinite();
+		return rational != null && rational.isInfinite();
 	}
 
 	/**
@@ -2341,7 +2264,7 @@ public class Rational extends Number implements Comparable<Rational> {
 	 *         {@code false} otherwise.
 	 */
 	public static boolean isInfinitePositive(@Nullable Rational rational) {
-		return rational == null ? false : rational.isInfinitePositive();
+		return rational != null && rational.isInfinitePositive();
 	}
 
 	/**
@@ -2353,7 +2276,7 @@ public class Rational extends Number implements Comparable<Rational> {
 	 *         otherwise.
 	 */
 	public static boolean isInfiniteNegative(@Nullable Rational rational) {
-		return rational == null ? false : rational.isInfiniteNegative();
+		return rational != null && rational.isInfiniteNegative();
 	}
 
 	/**

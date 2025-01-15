@@ -1,49 +1,50 @@
 /*
- * PS3 Media Server, for streaming any medias to your PS3.
- * Copyright (C) 2008  A.Brochard
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package net.pms.network;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.Authenticator;
+import java.net.CookieHandler;
+import java.net.CookieManager;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import net.pms.PMS;
-import net.pms.configuration.RendererConfiguration;
-import net.pms.dlna.DLNAMediaInfo;
-import net.pms.dlna.DLNAResource;
 import net.pms.formats.Format;
 import net.pms.util.PropertiesUtil;
-import static net.pms.util.StringUtil.convertURLToFileName;
+import net.pms.util.StringUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Implements any item that can be transfered through the HTTP pipes.
- * In the PMS case, this item represents media files.
- * @see DLNAResource
- */
-public class HTTPResource {
+public abstract class HTTPResource {
 	private static final Logger LOGGER = LoggerFactory.getLogger(HTTPResource.class);
 	public static final String UNKNOWN_VIDEO_TYPEMIME = "video/mpeg";
 	public static final String UNKNOWN_IMAGE_TYPEMIME = "image/jpeg";
 	public static final String UNKNOWN_AUDIO_TYPEMIME = "audio/mpeg";
 	public static final String AUDIO_TRANSCODE = "audio/transcode";
 	public static final String VIDEO_TRANSCODE = "video/transcode";
+	public static final String AUDIO_AAC_TYPEMIME = "audio/aac";
 	public static final String AUDIO_AC3_TYPEMIME = "audio/vnd.dolby.dd-raw";
 	public static final String AUDIO_ADPCM_TYPEMIME = "audio/x-adpcm";
 	public static final String AUDIO_ADTS_TYPEMIME = "audio/vnd.dlna.adts";
@@ -83,11 +84,17 @@ public class HTTPResource {
 	public static final String DIVX_TYPEMIME = "video/x-divx";
 	public static final String FLV_TYPEMIME = "video/x-flv";
 	public static final String GIF_TYPEMIME = "image/gif";
+	public static final String HLS_TYPEMIME = "application/x-mpegURL";
+	public static final String HLS_APPLE_TYPEMIME = "application/vnd.apple.mpegURL";
 	public static final String JPEG_TYPEMIME = "image/jpeg";
+	public static final String JSON_TYPEMIME = "application/json";
+	public static final String M4V_TYPEMIME = "video/x-m4v";
 	public static final String MATROSKA_TYPEMIME = "video/x-matroska";
 	public static final String MOV_TYPEMIME = "video/quicktime";
 	public static final String MP4_TYPEMIME = "video/mp4";
 	public static final String MPEG_TYPEMIME = "video/mpeg";
+	public static final String MPEGTS_TYPEMIME = "video/vnd.dlna.mpeg-tts";
+	public static final String MPEGTS_BYTESTREAM_TYPEMIME = "video/MP2T";
 	public static final String PNG_TYPEMIME = "image/png";
 	public static final String RM_TYPEMIME = "application/vnd.rn-realmedia";
 	public static final String THREEGPP_TYPEMIME = "video/3gpp";
@@ -96,26 +103,13 @@ public class HTTPResource {
 	public static final String WMV_TYPEMIME = "video/x-ms-wmv";
 	public static final String OGG_TYPEMIME = "video/ogg";
 	public static final String WEBM_TYPEMIME = "video/webm";
-	public HTTPResource() { }
+	public static final String WEBP_TYPEMIME = "image/webp";
+	public static final String WEBVTT_TYPEMIME = "text/vtt";
 
 	/**
-	 * Returns for a given item type the default MIME type associated. This is used in the HTTP transfers
-	 * as in the client might do different things for different MIME types.
-	 * @param type Type for which the default MIME type is needed.
-	 * @return Default MIME associated with the file type.
+	 * This class is not meant to be instantiated.
 	 */
-	public static String getDefaultMimeType(int type) {
-		String mimeType = HTTPResource.UNKNOWN_VIDEO_TYPEMIME;
-
-		if (type == Format.VIDEO) {
-			mimeType = HTTPResource.UNKNOWN_VIDEO_TYPEMIME;
-		} else if (type == Format.IMAGE) {
-			mimeType = HTTPResource.UNKNOWN_IMAGE_TYPEMIME;
-		} else if (type == Format.AUDIO) {
-			mimeType = HTTPResource.UNKNOWN_AUDIO_TYPEMIME;
-		}
-
-		return mimeType;
+	protected HTTPResource() {
 	}
 
 	/**
@@ -123,10 +117,10 @@ public class HTTPResource {
 	 * @param fileName TODO Absolute or relative file path.
 	 * @return If found, an InputStream associated with the fileName. null otherwise.
 	 */
-	protected InputStream getResourceInputStream(String fileName) {
+	public static InputStream getResourceInputStream(String fileName) {
 		fileName = "/resources/" + fileName;
-		fileName = fileName.replaceAll("//", "/");
-		ClassLoader cll = this.getClass().getClassLoader();
+		fileName = fileName.replace("//", "/");
+		ClassLoader cll = HTTPResource.class.getClassLoader();
 		InputStream is = cll.getResourceAsStream(fileName.substring(1));
 
 		while (is == null && cll.getParent() != null) {
@@ -138,6 +132,21 @@ public class HTTPResource {
 	}
 
 	/**
+	 * Returns for a given item type the default MIME type associated. This is used in the HTTP transfers
+	 * as in the client might do different things for different MIME types.
+	 * @param type Type for which the default MIME type is needed.
+	 * @return Default MIME associated with the file type.
+	 */
+	public static String getDefaultMimeType(int type) {
+		return switch (type) {
+			case Format.VIDEO -> HTTPResource.UNKNOWN_VIDEO_TYPEMIME;
+			case Format.IMAGE -> HTTPResource.UNKNOWN_IMAGE_TYPEMIME;
+			case Format.AUDIO -> HTTPResource.UNKNOWN_AUDIO_TYPEMIME;
+			default -> HTTPResource.UNKNOWN_VIDEO_TYPEMIME;
+		};
+	}
+
+	/**
 	 * Creates an InputStream based on a URL. This is used while accessing external resources
 	 * like online radio stations.
 	 * @param u URL.
@@ -146,21 +155,22 @@ public class HTTPResource {
 	 * @throws IOException
 	 * @see #downloadAndSendBinary(String)
 	 */
-	protected static InputStream downloadAndSend(String u, boolean saveOnDisk) throws IOException {
-		URL url = new URL(u);
+	public static InputStream downloadAndSend(String u, boolean saveOnDisk) throws IOException {
+		if (u == null) {
+			return null;
+		}
+		URL url = URI.create(u).toURL();
 		File f = null;
 
 		if (saveOnDisk) {
 			String host = url.getHost();
-			String hostName = convertURLToFileName(host);
+			String hostName = StringUtil.convertURLToFileName(host);
 			String fileName = url.getFile();
-			fileName = convertURLToFileName(fileName);
+			fileName = StringUtil.convertURLToFileName(fileName);
 			File hostDir = new File(PMS.getConfiguration().getTempFolder(), hostName);
 
-			if (!hostDir.isDirectory()) {
-				if (!hostDir.mkdir()) {
-					LOGGER.debug("Cannot create directory: {}", hostDir.getAbsolutePath());
-				}
+			if (!hostDir.isDirectory() && !hostDir.mkdir()) {
+				LOGGER.debug("Cannot create directory: {}", hostDir.getAbsolutePath());
 			}
 
 			f = new File(hostDir, fileName);
@@ -180,7 +190,7 @@ public class HTTPResource {
 	 * @return byte array.
 	 * @throws IOException
 	 */
-	protected static byte[] downloadAndSendBinary(String u) throws IOException {
+	public static byte[] downloadAndSendBinary(String u) throws IOException {
 		return downloadAndSendBinary(u, false, null);
 	}
 
@@ -194,7 +204,10 @@ public class HTTPResource {
 	 * @throws IOException
 	 */
 	protected static byte[] downloadAndSendBinary(String u, boolean saveOnDisk, File f) throws IOException {
-		URL url = new URL(u);
+		if (u == null) {
+			return new byte[0];
+		}
+		URL url = URI.create(u).toURL();
 
 		// The URL may contain user authentication information
 		Authenticator.setDefault(new HTTPResourceAuthenticator());
@@ -206,90 +219,37 @@ public class HTTPResource {
 
 		// GameTrailers blocks user-agents that identify themselves as "Java"
 		conn.setRequestProperty("User-agent", PropertiesUtil.getProjectProperties().get("project.name") + " " + PMS.getVersion());
-		FileOutputStream fOUT;
-		try (InputStream in = conn.getInputStream()) {
-			fOUT = null;
-			if (saveOnDisk && f != null) {
-				// fileName = convertURLToFileName(fileName);
-				fOUT = new FileOutputStream(f);
-			}
-			byte[] buf = new byte[4096];
-			int n;
-			while ((n = in.read(buf)) > -1) {
-				bytes.write(buf, 0, n);
 
-				if (fOUT != null) {
-					fOUT.write(buf, 0, n);
-				}
-			}
+		CookieManager cookieManager = (CookieManager) CookieHandler.getDefault();
+		if (
+			cookieManager != null &&
+			cookieManager.getCookieStore() != null &&
+			cookieManager.getCookieStore().getCookies() != null &&
+			!cookieManager.getCookieStore().getCookies().isEmpty()
+		) {
+			// While joining the Cookies, use ',' or ';' as needed. Most of the servers are using ';'
+			conn.setRequestProperty("Cookie", StringUtils.join(cookieManager.getCookieStore().getCookies(), ";"));
 		}
 
-		if (fOUT != null) {
-			fOUT.close();
+		try (InputStream in = conn.getInputStream()) {
+			byte[] buf = new byte[4096];
+			int n;
+			if (saveOnDisk && f != null) {
+				try (FileOutputStream fOUT = new FileOutputStream(f)) {
+					while ((n = in.read(buf)) > -1) {
+						bytes.write(buf, 0, n);
+						fOUT.write(buf, 0, n);
+					}
+				}
+			} else {
+
+				while ((n = in.read(buf)) > -1) {
+					bytes.write(buf, 0, n);
+				}
+			}
 		}
 
 		return bytes.toByteArray();
 	}
 
-	/**
-	 * Returns the supplied MIME type customized for the supplied media renderer according to the renderer's aliasing rules.
-	 * @param mimetype MIME type to customize.
-	 * @param renderer media renderer to customize the MIME type for.
-	 * @return The MIME type
-	 */
-	public String getRendererMimeType(String mimetype, RendererConfiguration renderer, DLNAMediaInfo media) {
-		return renderer.getMimeType(mimetype, media);
-	}
-
-	public int getDLNALocalesCount() {
-		return 3;
-	}
-
-	public final String getMPEG_PS_PALLocalizedValue(int index) {
-		if (index == 1 || index == 2) {
-			return "MPEG_PS_NTSC";
-		}
-
-		return "MPEG_PS_PAL";
-	}
-
-	public final String getMPEG_TS_SD_EU_ISOLocalizedValue(int index) {
-		if (index == 1) {
-			return "MPEG_TS_SD_NA_ISO";
-		}
-
-		if (index == 2) {
-			return "MPEG_TS_SD_JP_ISO";
-		}
-
-		return "MPEG_TS_SD_EU_ISO";
-	}
-
-	public final String getMPEG_TS_SD_EULocalizedValue(int index) {
-		if (index == 1) {
-			return "MPEG_TS_SD_NA";
-		}
-
-		if (index == 2) {
-			return "MPEG_TS_SD_JP";
-		}
-
-		return "MPEG_TS_SD_EU";
-	}
-
-	public final String getMPEG_TS_EULocalizedValue(int index, boolean isHD) {
-		String definition = "SD";
-		if (isHD) {
-			definition = "HD";
-		}
-
-		if (index == 1) {
-			return "MPEG_TS_" + definition + "_NA";
-		}
-		if (index == 2) {
-			return "MPEG_TS_" + definition + "_JP";
-		}
-
-		return "MPEG_TS_" + definition + "_EU";
-	}
 }

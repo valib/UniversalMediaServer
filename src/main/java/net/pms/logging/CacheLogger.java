@@ -1,21 +1,18 @@
 /*
- * Universal Media Server, for streaming any media to DLNA
- * compatible renderers based on the http://www.ps3mediaserver.org.
- * Copyright (C) 2012 UMS developers.
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is a free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package net.pms.logging;
 
@@ -34,33 +31,38 @@ import org.slf4j.LoggerFactory;
  * @author Nadahar
  */
 public class CacheLogger {
-
-	private static Logger LOGGER = LoggerFactory.getLogger(CacheLogger.class);
-	private static LinkedList<Appender<ILoggingEvent>> appenderList = new LinkedList<>();
+	private static final Logger LOGGER = LoggerFactory.getLogger(CacheLogger.class);
+	private static final LinkedList<Appender<ILoggingEvent>> APPENDER_LIST = new LinkedList<>();
 	private static volatile CacheAppender<ILoggingEvent> cacheAppender = null;
 	private static LoggerContext loggerContext = null;
 	private static ch.qos.logback.classic.Logger rootLogger;
+
+	/**
+	 * This class is not meant to be instantiated.
+	 */
+	private CacheLogger() {
+	}
 
 	private static void detachRootAppenders() {
 		Iterator<Appender<ILoggingEvent>> it = rootLogger.iteratorForAppenders();
 		while (it.hasNext()) {
 			Appender<ILoggingEvent> appender = it.next();
 			if (appender != cacheAppender) {
-				appenderList.add(appender);
+				APPENDER_LIST.add(appender);
 				rootLogger.detachAppender(appender);
 			}
 		}
 	}
 
 	private static void attachRootAppenders() {
-		while (!appenderList.isEmpty()) {
-			Appender<ILoggingEvent> appender = appenderList.poll();
+		while (!APPENDER_LIST.isEmpty()) {
+			Appender<ILoggingEvent> appender = APPENDER_LIST.poll();
 			rootLogger.addAppender(appender);
 		}
 	}
 
 	private static void disposeOfAppenders() {
-		appenderList.clear();
+		APPENDER_LIST.clear();
 	}
 
 	/**
@@ -124,14 +126,14 @@ public class CacheLogger {
 	}
 
 	public static synchronized Iterator<Appender<ILoggingEvent>> iteratorForAppenders() {
-		return appenderList.iterator();
+		return APPENDER_LIST.iterator();
 	}
 
 	public static synchronized void addAppender(Appender<ILoggingEvent> newAppender) {
-		appenderList.add(newAppender);
+		APPENDER_LIST.add(newAppender);
 	}
 
 	public static synchronized boolean removeAppender(Appender<ILoggingEvent> appender) {
-		return appenderList.remove(appender);
+		return APPENDER_LIST.remove(appender);
 	}
 }

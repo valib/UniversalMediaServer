@@ -1,99 +1,58 @@
 /*
- * PS3 Media Server, for streaming any medias to your PS3.
- * Copyright (C) 2008  A.Brochard
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package net.pms.encoders;
 
-import com.jgoodies.forms.builder.PanelBuilder;
-import com.jgoodies.forms.factories.Borders;
-import com.jgoodies.forms.layout.CellConstraints;
-import com.jgoodies.forms.layout.FormLayout;
-import java.awt.Font;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.*;
-import net.pms.Messages;
-import net.pms.configuration.DeviceConfiguration;
-import net.pms.configuration.PmsConfiguration;
-import net.pms.dlna.DLNAMediaInfo;
-import net.pms.dlna.DLNAResource;
+import net.pms.configuration.UmsConfiguration;
 import net.pms.formats.Format;
 import net.pms.io.OutputParams;
 import net.pms.io.ProcessWrapper;
 import net.pms.io.ProcessWrapperImpl;
+import net.pms.media.MediaInfo;
 import net.pms.network.HTTPResource;
-import net.pms.newgui.GuiUtil;
+import net.pms.renderers.Renderer;
+import net.pms.store.StoreItem;
 import net.pms.util.PlayerUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FFmpegAudio extends FFMpegVideo {
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(FFmpegAudio.class);
-	public static final PlayerId ID = StandardPlayerId.FFMPEG_AUDIO;
+	public static final EngineId ID = StandardEngineId.FFMPEG_AUDIO;
 
 	/** The {@link Configuration} key for the FFmpeg Audio executable type. */
 	public static final String KEY_FFMPEG_AUDIO_EXECUTABLE_TYPE = "ffmpeg_audio_executable_type";
 	public static final String NAME = "FFmpeg Audio";
-
-	private JCheckBox noresample;
 
 	// Not to be instantiated by anything but PlayerFactory
 	FFmpegAudio() {
 	}
 
 	@Override
-	public JComponent config() {
-		FormLayout layout = new FormLayout(
-			"left:pref, 0:grow",
-			"p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, p, 3dlu, 0:grow"
-		);
-		PanelBuilder builder = new PanelBuilder(layout);
-		builder.border(Borders.EMPTY);
-		builder.opaque(false);
-
-		CellConstraints cc = new CellConstraints();
-
-		JComponent cmp = builder.addSeparator(Messages.getString("NetworkTab.5"), cc.xyw(2, 1, 1));
-		cmp = (JComponent) cmp.getComponent(0);
-		cmp.setFont(cmp.getFont().deriveFont(Font.BOLD));
-
-		noresample = new JCheckBox(Messages.getString("TrTab2.22"), configuration.isAudioResample());
-		noresample.setContentAreaFilled(false);
-		noresample.addItemListener(new ItemListener() {
-			@Override
-			public void itemStateChanged(ItemEvent e) {
-				configuration.setAudioResample(e.getStateChange() == ItemEvent.SELECTED);
-			}
-		});
-		builder.add(GuiUtil.getPreferredSizeComponent(noresample), cc.xy(2, 3));
-
-		return builder.getPanel();
-	}
-
-	@Override
 	public int purpose() {
-		return AUDIO_SIMPLEFILE_PLAYER;
+		return AUDIO_SIMPLEFILE_ENGINE;
 	}
 
 	@Override
-	public PlayerId id() {
+	public EngineId getEngineId() {
 		return ID;
 	}
 
@@ -108,12 +67,12 @@ public class FFmpegAudio extends FFMpegVideo {
 	}
 
 	@Override
-	public boolean avisynth() {
+	public boolean isAviSynthEngine() {
 		return false;
 	}
 
 	@Override
-	public String name() {
+	public String getName() {
 		return NAME;
 	}
 
@@ -123,29 +82,22 @@ public class FFmpegAudio extends FFMpegVideo {
 	}
 
 	@Override
-	@Deprecated
-	public String[] args() {
-		// unused: kept for backwards compatibility
-		return new String[] {"-f", "s16be", "-ar", "48000"};
-	}
-
-	@Override
-	public String mimeType() {
+	public String getMimeType() {
 		return HTTPResource.AUDIO_TRANSCODE;
 	}
 
 	@Override
 	public synchronized ProcessWrapper launchTranscode(
-		DLNAResource dlna,
-		DLNAMediaInfo media,
+		StoreItem item,
+		MediaInfo media,
 		OutputParams params
 	) throws IOException {
-		PmsConfiguration prev = configuration;
-		// Use device-specific pms conf
-		configuration = (DeviceConfiguration)params.mediaRenderer;
-		final String filename = dlna.getFileName();
-		params.maxBufferSize = configuration.getMaxAudioBuffer();
-		params.waitbeforestart = 2000;
+		Renderer renderer = params.getMediaRenderer();
+		UmsConfiguration configuration = renderer.getUmsConfiguration();
+		final String filename = item.getFileName();
+		final EncodingFormat encodingFormat = item.getTranscodingSettings().getEncodingFormat();
+		params.setMaxBufferSize(configuration.getMaxAudioBuffer());
+		params.setWaitBeforeStart(1);
 		params.manageFastStart();
 
 		/*
@@ -168,16 +120,25 @@ public class FFmpegAudio extends FFMpegVideo {
 		cmdList.add(getExecutable());
 
 		cmdList.add("-loglevel");
-
-		if (LOGGER.isTraceEnabled()) { // Set -loglevel in accordance with LOGGER setting
-			cmdList.add("info"); // Could be changed to "verbose" or "debug" if "info" level is not enough
+		FFmpegLogLevels askedLogLevel = FFmpegLogLevels.valueOfLabel(configuration.getFFmpegLoggingLevel());
+		if (LOGGER.isTraceEnabled()) {
+			// Set -loglevel in accordance with LOGGER setting
+			if (FFmpegLogLevels.INFO.isMoreVerboseThan(askedLogLevel)) {
+				cmdList.add("info");
+			} else {
+				cmdList.add(askedLogLevel.label);
+			}
 		} else {
-			cmdList.add("warning");
+			if (FFmpegLogLevels.WARNING.isMoreVerboseThan(askedLogLevel)) {
+				cmdList.add("warning");
+			} else {
+				cmdList.add(askedLogLevel.label);
+			}
 		}
 
-		if (params.timeseek > 0) {
+		if (params.getTimeSeek() > 0) {
 			cmdList.add("-ss");
-			cmdList.add("" + params.timeseek);
+			cmdList.add("" + params.getTimeSeek());
 		}
 
 		// Decoder threads
@@ -198,35 +159,58 @@ public class FFmpegAudio extends FFMpegVideo {
 			cmdList.add("" + nThreads);
 		}
 
-		if (params.timeend > 0) {
+		if (params.getTimeEnd() > 0) {
 			cmdList.add("-t");
-			cmdList.add("" + params.timeend);
+			cmdList.add("" + params.getTimeEnd());
 		}
 
-		if (params.mediaRenderer.isTranscodeToMP3()) {
-			cmdList.add("-f");
-			cmdList.add("mp3");
-			cmdList.add("-ab");
-			cmdList.add("320000");
-		} else if (params.mediaRenderer.isTranscodeToWAV()) {
-			cmdList.add("-f");
-			cmdList.add("wav");
+		String customFFmpegAudioOptions = renderer.getCustomFFmpegAudioOptions();
+
+		// Add audio options (-af, -filter_complex, -ab, -ar, -ac, -c:a, -f, -apre, -fpre, -pre, etc.)
+		if (StringUtils.isNotBlank(customFFmpegAudioOptions)) {
+			parseOptions(customFFmpegAudioOptions, cmdList);
+		}
+
+		if (encodingFormat.isTranscodeToMP3()) {
+			if (!customFFmpegAudioOptions.contains("-ab ")) {
+				cmdList.add("-ab");
+				cmdList.add("320000");
+			}
+			if (!customFFmpegAudioOptions.contains("-f ")) {
+				cmdList.add("-f");
+				cmdList.add("mp3");
+			}
+		} else if (encodingFormat.isTranscodeToWAV()) {
+			if (!customFFmpegAudioOptions.contains("-f ")) {
+				cmdList.add("-f");
+				cmdList.add("wav");
+			}
 		} else { // default: LPCM
-			cmdList.add("-f");
-			cmdList.add("s16be");
+			if (!customFFmpegAudioOptions.contains("-f ")) {
+				cmdList.add("-f");
+				cmdList.add("s16be");
+			}
 		}
 
 		if (configuration.isAudioResample()) {
-			if (params.mediaRenderer.isTranscodeAudioTo441()) {
-				cmdList.add("-ar");
-				cmdList.add("44100");
-				cmdList.add("-ac");
-				cmdList.add("2");
+			if (renderer.isTranscodeAudioTo441()) {
+				if (!customFFmpegAudioOptions.contains("-ar ")) {
+					cmdList.add("-ar");
+					cmdList.add("44100");
+				}
+				if (!customFFmpegAudioOptions.contains("-ac ")) {
+					cmdList.add("-ac");
+					cmdList.add("2");
+				}
 			} else {
-				cmdList.add("-ar");
-				cmdList.add("48000");
-				cmdList.add("-ac");
-				cmdList.add("2");
+				if (!customFFmpegAudioOptions.contains("-ar ")) {
+					cmdList.add("-ar");
+					cmdList.add("48000");
+				}
+				if (!customFFmpegAudioOptions.contains("-ac ")) {
+					cmdList.add("-ac");
+					cmdList.add("2");
+				}
 			}
 		}
 
@@ -238,14 +222,13 @@ public class FFmpegAudio extends FFMpegVideo {
 		ProcessWrapperImpl pw = new ProcessWrapperImpl(cmdArray, params);
 		pw.runInNewThread();
 
-		configuration = prev;
 		return pw;
 	}
 
 	@Override
-	public boolean isCompatible(DLNAResource resource) {
+	public boolean isCompatible(StoreItem resource) {
 		// XXX Matching on file format isn't really enough, codec should also be evaluated
-		if (
+		return (
 			PlayerUtil.isAudio(resource, Format.Identifier.AC3) ||
 			PlayerUtil.isAudio(resource, Format.Identifier.ADPCM) ||
 			PlayerUtil.isAudio(resource, Format.Identifier.ADTS) ||
@@ -275,10 +258,12 @@ public class FFmpegAudio extends FFMpegVideo {
 			PlayerUtil.isAudio(resource, Format.Identifier.WMA) ||
 			PlayerUtil.isAudio(resource, Format.Identifier.WV) ||
 			PlayerUtil.isWebAudio(resource)
-		) {
-			return true;
-		}
-
-		return false;
+		);
 	}
+
+	@Override
+	public boolean isCompatible(EncodingFormat encodingFormat) {
+		return encodingFormat.isAudioFormat();
+	}
+
 }

@@ -1,21 +1,18 @@
 /*
- * Universal Media Server, for streaming any media to DLNA
- * compatible renderers based on the http://www.ps3mediaserver.org.
- * Copyright (C) 2012 UMS developers.
+ * This file is part of Universal Media Server, based on PS3 Media Server.
  *
- * This program is a free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License only.
+ * This program is a free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; version 2 of the License only.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 package net.pms.util;
 
@@ -34,13 +31,16 @@ public enum FullyPlayedAction {
 	MARK(1),
 
 	/** Hide the media if video when fully played. */
-	HIDE_VIDEO(2),
+	HIDE_MEDIA(2),
 
 	/** Move the file to a different folder when fully played. */
 	MOVE_FOLDER(3),
 
 	/** Move the file to the recycle/trash bin if possible when fully played. */
-	MOVE_TRASH(4);
+	MOVE_TRASH(4),
+
+	/** Move the file to a different folder when fully played, and mark media like option 1. */
+	MOVE_FOLDER_AND_MARK(5);
 
 	private final int value;
 
@@ -54,18 +54,25 @@ public enum FullyPlayedAction {
 	@Override
 	public String toString() {
 		switch (this) {
-			case HIDE_VIDEO:
-				return "Hide video";
-			case MARK:
+			case HIDE_MEDIA -> {
+				return "Hide media";
+			}
+			case MARK -> {
 				return "Mark";
-			case MOVE_FOLDER:
+			}
+			case MOVE_FOLDER -> {
 				return "Move to folder";
-			case MOVE_TRASH:
+			}
+			case MOVE_FOLDER_AND_MARK -> {
+				return "Move to folder and mark";
+			}
+			case MOVE_TRASH -> {
 				return "Move to trash";
-			case NO_ACTION:
+			}
+			case NO_ACTION -> {
 				return "No action";
-			default:
-				throw new IllegalStateException("Unimplemented value " + super.toString() + " in FullyPlayedAction");
+			}
+			default -> throw new IllegalStateException("Unimplemented value " + super.toString() + " in FullyPlayedAction");
 		}
 	}
 
@@ -134,6 +141,9 @@ public enum FullyPlayedAction {
 			return defaultFullyPlayedAction;
 		}
 		sArg = sArg.toLowerCase(Locale.ROOT);
+		if (sArg.contains("folder") && sArg.contains("mark")) {
+			return FullyPlayedAction.MOVE_FOLDER_AND_MARK;
+		}
 		if (sArg.contains("action")) {
 			return FullyPlayedAction.NO_ACTION;
 		}
@@ -141,7 +151,7 @@ public enum FullyPlayedAction {
 			return FullyPlayedAction.MARK;
 		}
 		if (sArg.contains("hide")) {
-			return FullyPlayedAction.HIDE_VIDEO;
+			return FullyPlayedAction.HIDE_MEDIA;
 		}
 		if (sArg.contains("folder")) {
 			return FullyPlayedAction.MOVE_FOLDER;
