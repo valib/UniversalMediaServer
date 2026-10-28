@@ -39,8 +39,14 @@ public class TempFileMgr {
 	private static final int DEFAULT_CLEAN_TIME = 14 * 24 * 3600 * 1000;
 	private static final int INTERVAL = 24 * 3600 * 1000;
 	private final HashMap<File, Integer> files;
+	private final File registryFile;
 
 	public TempFileMgr() {
+		this(cleanFile());
+	}
+
+	TempFileMgr(File registryFile) {
+		this.registryFile = registryFile;
 		files = new HashMap<>();
 		parseCleanFile();
 	}
@@ -57,7 +63,7 @@ public class TempFileMgr {
 		}
 	}
 
-	public void add(File f, int cleanTime) {
+	public synchronized void add(File f, int cleanTime) {
 		files.put(f, cleanTime);
 		try {
 			dumpFile();
@@ -71,7 +77,7 @@ public class TempFileMgr {
 		}
 	}
 
-	private void scan() {
+	private synchronized void scan() {
 		long now = System.currentTimeMillis();
 		for (Iterator<Entry<File, Integer>> it = files.entrySet().iterator(); it.hasNext();) {
 			Entry<File, Integer> entry = it.next();
@@ -98,14 +104,21 @@ public class TempFileMgr {
 	}
 
 	public void schedule() {
-		TimerTask task = new TimerTask() {
+		Timer t = new Timer();
+		t.scheduleAtFixedRate(createCleanupTask(), 0, INTERVAL);
+	}
+
+	TimerTask createCleanupTask() {
+		return new TimerTask() {
 			@Override
 			public void run() {
-				scan();
+				try {
+					scan();
+				} catch (RuntimeException e) {
+					LOGGER.error("Temporary file cleanup failed; the next scheduled run will retry", e);
+				}
 			}
 		};
-		Timer t = new Timer();
-		t.scheduleAtFixedRate(task, 0, INTERVAL);
 	}
 
 	private static File cleanFile() {
@@ -113,7 +126,7 @@ public class TempFileMgr {
 	}
 
 	private void parseCleanFile() {
-		File f = cleanFile();
+		File f = registryFile;
 		if (!f.exists()) {
 			return;
 		}
@@ -125,12 +138,18 @@ public class TempFileMgr {
 					if (StringUtils.isEmpty(str) || str.startsWith("#")) {
 						continue;
 					}
-					String[] tmp = str.split(",");
-					if (tmp.length > 1) {
-						add(new File(tmp[0]), tmp[1]);
-					} else {
-						add(new File(tmp[0]));
+					int separator = str.lastIndexOf(',');
+					String filename = str;
+					int cleanTime = DEFAULT_CLEAN_TIME;
+					if (separator >= 0) {
+						filename = str.substring(0, separator);
+						try {
+							cleanTime = Integer.parseInt(str.substring(separator + 1));
+						} catch (NumberFormatException e) {
+							LOGGER.warn("Invalid cleanup time for temporary file \"{}\"; using default", filename);
+						}
 					}
+					files.put(new File(filename), cleanTime);
 				}
 			}
 		} catch (IOException e) {
@@ -143,8 +162,8 @@ public class TempFileMgr {
 		}
 	}
 
-	private void dumpFile() throws IOException {
-		try (FileOutputStream out = new FileOutputStream(cleanFile())) {
+	private synchronized void dumpFile() throws IOException {
+		try (FileOutputStream out = new FileOutputStream(registryFile)) {
 			Date now = new Date();
 			String n = "## " + now.toString() + "\n";
 			out.write("#########\n".getBytes(StandardCharsets.UTF_8));
@@ -157,3 +176,4 @@ public class TempFileMgr {
 		}
 	}
 }
+
