@@ -28,14 +28,24 @@ fi
 start_driver() {
   /usr/bin/safaridriver -p 4444 >>"$SAFARI_RESULTS/driver.log" 2>&1 &
   driver=$!
-  curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 http://127.0.0.1:4444/status > /dev/null
+  for ((i=0; i<120; i++)); do
+    if curl --fail --silent --max-time 2 http://127.0.0.1:4444/status > /dev/null; then return 0; fi
+    if ! kill -0 "$driver" 2>/dev/null; then cat "$SAFARI_RESULTS/driver.log"; return 1; fi
+    sleep 1
+  done
+  echo 'SafariDriver did not become ready' >&2
+  return 1
 }
-start_driver
 node node_modules/vite/bin/vite.js --config compat/videojs10/vite.config.ts --host 127.0.0.1 --port 5287 --strictPort >"$SAFARI_RESULTS/vite.log" 2>&1 &
 vite=$!
-trap 'kill "$driver" "$vite" 2>/dev/null || true' EXIT
+trap 'kill "$vite" 2>/dev/null || true; if [[ -n ${driver:-} ]]; then kill "$driver" 2>/dev/null || true; fi' EXIT
 curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 http://127.0.0.1:5287/ > /dev/null
-if node compat/videojs10/safari/check.mjs "$platform" "$mode"; then exit 0; else status=$?; fi
+smoke=0
+if [[ "$platform" == ios && "$mode" == native ]]; then
+  node compat/videojs10/safari/simulator.mjs || smoke=$?
+fi
+start_driver
+if node compat/videojs10/safari/check.mjs "$platform" "$mode"; then exit "$smoke"; else status=$?; fi
 if [[ "$platform" != ios || "$status" != 75 ]]; then exit "$status"; fi
 # Retry only a failed simulator session handshake, before any playback check ran.
 mv "$SAFARI_RESULTS/$mode/result.json" "$SAFARI_RESULTS/$mode/first-session.json"
@@ -45,3 +55,4 @@ xcrun simctl terminate "$IOS_SIMULATOR_UDID" com.apple.mobilesafari 2>/dev/null 
 xcrun simctl launch "$IOS_SIMULATOR_UDID" com.apple.mobilesafari
 start_driver
 node compat/videojs10/safari/check.mjs "$platform" "$mode"
+exit "$smoke"
