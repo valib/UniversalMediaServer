@@ -1,11 +1,12 @@
 /* global console, process, setTimeout, clearTimeout, Buffer */
 import { execFile } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { tapMarker } from './simulator-tap.mjs'
+import { systemCuePixels } from './cue-frame.mjs'
 
 const origin = 'http://127.0.0.1:5287'
 const token = randomBytes(16).toString('hex')
@@ -55,7 +56,11 @@ const server = createServer(async (req, res) => {
         await tapMarker(udid, directory, result.width)
       }
       else if (result.action === 'capture') {
-        await run('xcrun', ['simctl', 'io', udid, 'screenshot', join(directory, 'system-fullscreen.png')], { timeout: 20000 })
+        if (!['default', 'green'].includes(result.appearance)) throw Error('Unknown cue appearance')
+        const file = join(directory, result.appearance === 'default' ? 'system-fullscreen.png' : 'system-fullscreen-green.png')
+        await run('xcrun', ['simctl', 'io', udid, 'screenshot', file], { timeout: 20000 })
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(systemCuePixels(await readFile(file))))
+        return
       }
       else {
         res.writeHead(400).end()

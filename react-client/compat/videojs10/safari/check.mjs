@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
+import { greenPixels, macCueCapture, markVideo } from './cue-frame.mjs'
 
 const platform = process.argv[2]
 assert.ok(['macos', 'ios'].includes(platform), 'Choose macos or ios')
@@ -172,18 +173,13 @@ try {
   }, true)
   await click(button('Pause'))
   await check('Rendered inline cue uses the chosen color and restores server defaults', async () => {
-    const greenPixels = async () => {
-      const png = await command('GET', '/session/' + session + '/screenshot')
-      const pixels = execFileSync('ffmpeg', [
-        '-loglevel', 'error', '-i', 'pipe:0', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1',
-      ], { input: Buffer.from(png, 'base64'), maxBuffer: 48 * 1024 * 1024 })
-      let green = 0
-      for (let i = 0; i < pixels.length; i += 3) {
-        if (pixels[i + 1] > 50 && pixels[i] < pixels[i + 1] / 2 && pixels[i + 2] < pixels[i + 1] / 2) green++
-      }
-      return green
-    }
-    const baseline = await greenPixels()
+    const webdriverScreenshot = async () => Buffer.from(await command('GET', '/session/' + session + '/screenshot'), 'base64')
+    const capture = platform === 'macos'
+      ? macCueCapture(await evaluate(markVideo), webdriverScreenshot)
+      : async () => ({ source: 'webdriver', png: await webdriverScreenshot() })
+    const initial = await capture()
+    report.cueCapture = initial.source
+    const baseline = greenPixels(initial.png)
     report.defaultGreenPixels = baseline
     await click(button('Subtitle appearance'))
     await evaluate(() => {
@@ -195,17 +191,21 @@ try {
     })
     await click(button('Close'))
     await until('visible green glyphs', async () => {
-      report.styledGreenPixels = await greenPixels()
+      const styled = await capture()
+      report.styledGreenPixels = greenPixels(styled.png)
+      if (report.styledGreenPixels > baseline + 30) await writeFile(join(directory, 'inline-green.png'), styled.png)
       return report.styledGreenPixels > baseline + 30
     })
-    await screenshot('inline-green')
     await click(button('Subtitle appearance'))
     await click(button('Use server defaults'))
     await click(button('Close'))
-    await until('default cue color', async () => await greenPixels() <= baseline + 5)
+    await until('default cue color', async () => greenPixels((await capture()).png) <= baseline + 5)
   }, true)
   // Restore controls if the appearance test failed inside its modal.
-  await evaluate(() => document.querySelector('dialog[open]')?.close())
+  await evaluate(() => {
+    document.querySelector('dialog[open]')?.close()
+    document.querySelector('#capture-origin')?.remove()
+  })
   await screenshot('inline')
   await check('Fullscreen enters and exits with an active cue', async () => {
     if (platform === 'ios') {
@@ -217,6 +217,8 @@ try {
       assert.ok(ordinary.fullscreen?.trustedTap && ordinary.fullscreen.system && ordinary.fullscreen.exited)
       assert.match(ordinary.fullscreen.cue, /^(První|Druhá) česká stopa$/)
       report.fullscreen = 'system'
+      report.systemCueAppearance = ordinary.fullscreen.appearance
+      assert.equal(typeof report.systemCueAppearance?.appliesSelectedColor, 'boolean')
       return
     }
     await click(button('Fullscreen'))

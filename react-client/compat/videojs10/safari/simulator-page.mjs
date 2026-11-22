@@ -1,4 +1,4 @@
-/* global requestAnimationFrame, screen, document, Event, fetch, location, navigator, setTimeout, URL, URLSearchParams */
+/* global requestAnimationFrame, screen, document, Event, fetch, getComputedStyle, location, navigator, setTimeout, URL, URLSearchParams */
 const params = new URLSearchParams(location.hash.slice(1))
 const token = params.get('token')
 if (!/^[a-f0-9]{32}$/.test(token)) throw Error('Missing simulator test session')
@@ -85,18 +85,40 @@ try {
   const toggle = button('Fullscreen')
   const fullscreen = () => video.webkitDisplayingFullscreen || video.webkitPresentationMode === 'fullscreen'
   result.fullscreen = { system: false, exited: false, trustedTap: false }
-  await tapControl(toggle)
+  async function captureCue(appearance) {
+    await tapControl(toggle)
+    await waitFor('system video fullscreen', fullscreen)
+    const actualCue = cue()
+    if (!/^(První|Druhá) česká stopa$/.test(actualCue)) throw Error('Missing Czech fullscreen cue')
+    let pixels
+    for (let i = 0; i < 4; i++) {
+      const response = await send({ action: 'capture', appearance })
+      if (!response.ok) throw Error(await response.text())
+      pixels = await response.json()
+      if (pixels.light > 30 || pixels.green > 30) break
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+    if (pixels.light <= 30 && pixels.green <= 30) throw Error('Missing visible fullscreen subtitle in ' + appearance + ' frame')
+    video.webkitExitFullscreen()
+    await waitFor('inline video after fullscreen', () => !fullscreen())
+    return { cue: actualCue, time: video.currentTime, ...pixels }
+  }
+  const baseline = await captureCue('default')
+  result.fullscreen.cue = baseline.cue
   result.fullscreen.trustedTap = true
-  await waitFor('system video fullscreen', fullscreen)
   result.fullscreen.system = true
-  result.fullscreen.cue = cue()
-  if (!result.fullscreen.trustedTap || !/^(První|Druhá) česká stopa$/.test(result.fullscreen.cue)) throw Error('Missing trusted tap or active fullscreen cue')
-  const captured = await send({ action: 'capture' })
-  if (!captured.ok) throw Error(await captured.text())
-  video.webkitExitFullscreen()
-  await waitFor('inline video after fullscreen', () => !fullscreen())
   result.fullscreen.exited = true
   result.checks.push('System fullscreen enters and exits with an active cue')
+  button('Subtitle appearance').click()
+  const input = document.querySelector('dialog input[type=color]')
+  Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value').set.call(input, '#00ff00')
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  document.querySelector('dialog button:last-child').click()
+  await waitFor('selected subtitle color', () => getComputedStyle(video).getPropertyValue('--ums-cue-color').trim().startsWith('#00ff00'))
+  const styled = await captureCue('green')
+  if (styled.cue !== baseline.cue || Math.abs(styled.time - baseline.time) > 0.25) throw Error('Fullscreen comparison changed cue or playback time')
+  result.fullscreen.appearance = { baseline, styled, appliesSelectedColor: styled.green > baseline.green + 30 }
   result.status = 'passed'
 }
 catch (error) {

@@ -25,6 +25,9 @@ jobs:
         include:
           - os: macos-26
             platform: macos
+            engine: native
+          - os: macos-26
+            platform: macos
             engine: mse
     steps:
       - uses: actions/checkout@v4
