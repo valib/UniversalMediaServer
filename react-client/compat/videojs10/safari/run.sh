@@ -42,8 +42,8 @@ vite=$!
 trap 'kill "$vite" 2>/dev/null || true; if [[ -n ${driver:-} ]]; then kill "$driver" 2>/dev/null || true; fi' EXIT
 curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 http://127.0.0.1:5287/ > /dev/null
 smoke=0
-if [[ "$platform" == ios && "$mode" == native ]]; then
-  node compat/videojs10/safari/simulator.mjs || smoke=$?
+if [[ "$platform" == ios ]]; then
+  node compat/videojs10/safari/simulator.mjs "$mode" || smoke=$?
 fi
 start_driver
 if node compat/videojs10/safari/check.mjs "$platform" "$mode"; then exit "$smoke"; else status=$?; fi

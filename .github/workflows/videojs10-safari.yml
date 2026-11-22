@@ -33,6 +33,9 @@ jobs:
           node-version: '22'
       - name: Prepare native media dependencies
         run: brew install ffmpeg libmediainfo
+      - name: Install simulator touch input
+        if: matrix.platform == 'ios'
+        run: brew install cameroncooke/axe/axe
       - name: Build server and resolve the Java runtime classpath
         run: mvn -B -P testing-macos -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/safari-classpath
       - name: Build web client for the UMS web server

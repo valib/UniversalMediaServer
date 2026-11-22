@@ -1,10 +1,11 @@
-import { Container, FullscreenButton, MuteButton, PlayButton, useAudioTrackOptions, useCaptionsOptions, useQualityOptions } from '@videojs/react'
+import { Container, MuteButton, PlayButton, useAudioTrackOptions, useCaptionsOptions, useQualityOptions } from '@videojs/react'
 import type { HlsJsAdapter } from '@videojs/hlsjs-video'
 import { HlsJsVideo } from '@videojs/react/media/hlsjs-video'
 import { VideoPlayer, usePlayer } from '@videojs/react/video'
 import { useEffect, useRef, useState } from 'react'
 import CueAppearance from './CueAppearance'
 import NativeAudioSelect from './NativeAudioSelect'
+import PlayerFullscreenButton from './PlayerFullscreenButton'
 import type { VideoMedia } from '../../src/services/player-service'
 
 interface Props {
@@ -12,6 +13,9 @@ interface Props {
   media: VideoMedia
   native: boolean
 }
+
+// Prefer the managed implementation on browsers that provide both MSE APIs.
+const streamingEngine = { hlsJs: { preferManagedMediaSource: true } }
 
 type Choice = NonNullable<ReturnType<typeof useQualityOptions>>
 
@@ -76,7 +80,7 @@ function HlsSession({ uuid, media, native }: Props) {
           if (adapter.current?.engine) setEngine('hls.js (MSE)')
           else if (video.current?.currentSrc === new URL(playlist, document.baseURI).href) setEngine('Browser HLS')
         }}
-        source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
+        source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse', engine: streamingEngine }}
         playsInline
         poster={'/v1/api/player/thumbnail/' + uuid + '/' + media.id}
       >
@@ -94,7 +98,7 @@ function HlsSession({ uuid, media, native }: Props) {
             <input type="range" min={0} max={duration} step={0.1} value={position} onChange={event => seek(Number(event.target.value))} />
           </label>
         )}
-        <FullscreenButton>Fullscreen</FullscreenButton>
+        <PlayerFullscreenButton video={video} />
         {media.subtitleStyle && <CueAppearance defaults={media.subtitleStyle} video={video} />}
         {quality && <TrackSelect choice={quality} />}
         {audio && <TrackSelect choice={audio} />}

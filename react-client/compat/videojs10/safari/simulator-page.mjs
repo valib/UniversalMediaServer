@@ -3,7 +3,8 @@ const params = new URLSearchParams(location.hash.slice(1))
 const token = params.get('token')
 if (!/^[a-f0-9]{32}$/.test(token)) throw Error('Missing simulator test session')
 
-const result = { status: 'failed', userAgent: navigator.userAgent, checks: [] }
+const mode = params.get('mode') || 'native'
+const result = { mode, status: 'failed', userAgent: navigator.userAgent, checks: [] }
 const button = text => Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim().startsWith(text))
 const send = result => fetch('/__simulator-report/' + token, { method: 'POST', body: JSON.stringify(result) })
 async function waitFor(label, read) {
@@ -19,7 +20,7 @@ async function waitFor(label, read) {
 let video
 try {
   const checkbox = await waitFor('native preference', () => document.querySelector('input[type=checkbox]'))
-  if (!checkbox.checked) checkbox.click()
+  if (checkbox.checked !== (mode === 'native')) checkbox.click()
   const folder = await waitFor('UMS shared folder', () => Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Media'))
   folder.click()
   const sample = await waitFor('sample', () => button('UMS HLS sample'))
@@ -33,8 +34,9 @@ try {
   const ready = waitFor('two seconds of decoded video', () => video.currentTime > 2 && video.videoWidth > 0)
   await Promise.all([playback, ready])
   const engine = document.querySelector('[aria-label="Playback engine"]')?.textContent
-  if (engine !== 'Browser HLS' || !/^\/v1\/api\/player\/media\/[^/]+\/[^/]+\/master\.m3u8$/.test(new URL(video.currentSrc).pathname)) throw Error('Expected the native UMS playlist')
-  result.checks.push('Native UMS HLS decodes in Mobile Safari')
+  if (mode === 'native' && (engine !== 'Browser HLS' || !/^\/v1\/api\/player\/media\/[^/]+\/[^/]+\/master\.m3u8$/.test(new URL(video.currentSrc).pathname))) throw Error('Expected the native UMS playlist')
+  if (mode === 'mse' && (engine !== 'hls.js (MSE)' || !video.currentSrc.startsWith('blob:'))) throw Error('Expected hls.js playback')
+  result.checks.push(engine + ' decodes in Mobile Safari')
   const cue = () => Array.from(video.textTracks).filter(t => t.kind === 'subtitles' && t.mode === 'showing')
     .flatMap(t => Array.from(t.activeCues || [], c => c.text))[0]
   const first = await waitFor('Czech cue', () => cue()?.match(/^(První|Druhá) česká stopa$/)?.[0])
@@ -50,6 +52,26 @@ try {
   chapters.dispatchEvent(new Event('change', { bubbles: true }))
   await waitFor('chapter seek', () => video.currentTime >= 12 && video.currentTime < 15 && !video.seeking)
   result.checks.push('Seek to the second chapter')
+  video.pause()
+  const toggle = button('Fullscreen')
+  toggle.scrollIntoView({ block: 'center' })
+  const fullscreen = () => video.webkitDisplayingFullscreen || video.webkitPresentationMode === 'fullscreen'
+  result.fullscreen = { system: false, exited: false, trustedTap: false }
+  toggle.addEventListener('click', (event) => {
+    result.fullscreen.trustedTap = event.isTrusted
+  }, { capture: true, once: true })
+  const tap = await send({ action: 'tap', label: toggle.getAttribute('aria-label') || toggle.textContent.trim() })
+  if (!tap.ok) throw Error(await tap.text())
+  await waitFor('system video fullscreen', fullscreen)
+  result.fullscreen.system = true
+  result.fullscreen.cue = cue()
+  if (!result.fullscreen.trustedTap || !/^(První|Druhá) česká stopa$/.test(result.fullscreen.cue)) throw Error('Missing trusted tap or active fullscreen cue')
+  const captured = await send({ action: 'capture' })
+  if (!captured.ok) throw Error(await captured.text())
+  video.webkitExitFullscreen()
+  await waitFor('inline video after fullscreen', () => !fullscreen())
+  result.fullscreen.exited = true
+  result.checks.push('System fullscreen enters and exits with an active cue')
   result.status = 'passed'
 }
 catch (error) {

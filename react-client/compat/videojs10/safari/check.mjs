@@ -1,7 +1,7 @@
 /* global performance, AbortSignal, Buffer, console, document, Event, fetch, process, URL */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -36,7 +36,7 @@ async function until(description, read, timeout = platform === 'ios' ? 75000 : 2
   } while (Date.now() < end)
   throw Error('Timed out waiting for ' + description)
 }
-async function click(xpath, needsActivation = false) {
+async function click(xpath) {
   const [element] = await until(xpath, async () => {
     const elements = await post('/elements', { using: 'xpath', value: xpath })
     return elements.length && elements
@@ -45,19 +45,7 @@ async function click(xpath, needsActivation = false) {
     await post('/element/' + element['element-6066-11e4-a52e-4f735466cecf'] + '/click', {})
     return
   }
-  if (!needsActivation) {
-    await evaluate(el => el.click(), element)
-    return
-  }
-  // Use a touch gesture when Safari requires transient user activation.
-  await evaluate(el => el.scrollIntoView({ block: 'center' }), element)
-  await post('/actions', { actions: [{
-    type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' },
-    actions: [
-      { type: 'pointerMove', duration: 0, origin: element, x: 0, y: 0 },
-      { type: 'pointerDown', button: 0 }, { type: 'pause', duration: 100 }, { type: 'pointerUp', button: 0 },
-    ],
-  }] })
+  await evaluate(el => el.click(), element)
 }
 async function screenshot(name) {
   const data = await command('GET', '/session/' + session + '/screenshot')
@@ -79,7 +67,7 @@ async function check(name, run, continueOnFailure = false) {
   report.checks.push(name)
   console.log('PASS', name)
 }
-function mediaState() {
+function mediaState(readNativeAudio) {
   const v = document.querySelector('video')
   if (!v) return null
   return {
@@ -90,7 +78,7 @@ function mediaState() {
     engine: document.querySelector('[aria-label="Playback engine"]')?.textContent,
     cues: Array.from(v.textTracks).filter(t => t.kind === 'subtitles' && t.mode === 'showing')
       .flatMap(t => Array.from(t.activeCues || [], c => c.text)),
-    audio: Array.from(v.audioTracks || [], t => ({ enabled: t.enabled, language: t.language, label: t.label })),
+    audio: Array.from((readNativeAudio && v.audioTracks) || [], t => ({ enabled: t.enabled, language: t.language, label: t.label })),
     fullscreen: v.webkitDisplayingFullscreen || v.webkitPresentationMode === 'fullscreen'
       ? 'system'
       : (document.fullscreenElement || document.webkitFullscreenElement ? 'document' : 'inline'),
@@ -116,7 +104,7 @@ function chooseOption(kind) {
   }
   return false
 }
-const state = () => evaluate(mediaState)
+const state = () => evaluate(mediaState, mode === 'native')
 const button = name => '//button[normalize-space(.)="' + name + '"]'
 try {
   const capabilities = { browserName: 'Safari', pageLoadStrategy: 'eager', platformName: platform === 'ios' ? 'iOS' : 'macOS' }
@@ -139,7 +127,7 @@ try {
   await click('//button[starts-with(normalize-space(.), "UMS HLS sample")]')
   report.stage = 'start playback'
   // The test covers decoding, track selection and presentation, independently of autoplay policy.
-  await click(button('Play'), platform !== 'ios')
+  await click(button('Play'))
   await check(mode + ' UMS HLS decodes and playback advances', async () => {
     const v = await until('two seconds of ' + mode + ' playback', async () => {
       const v = await state()
@@ -177,7 +165,7 @@ try {
       return evaluate(() => performance.getEntriesByType('resource').some(entry => /\/hls\/NONE_[^/]+_1\/\d+\.ts$/.test(entry.name)))
     })
   }, true)
-  await click(button('Pause'), platform !== 'ios')
+  await click(button('Pause'))
   await check('Rendered inline cue uses the chosen color and restores server defaults', async () => {
     const greenPixels = async () => {
       const png = await command('GET', '/session/' + session + '/screenshot')
@@ -215,16 +203,24 @@ try {
   await evaluate(() => document.querySelector('dialog[open]')?.close())
   await screenshot('inline')
   await check('Fullscreen enters and exits with an active cue', async () => {
-    await click(button('Fullscreen'), true)
-    if (platform === 'ios' && (await state()).fullscreen === 'inline') {
-      await click(button('Fullscreen'))
+    if (platform === 'ios') {
+      // SafariDriver shields its window from system input. The other Safari session
+      // on this simulator receives an actual HID tap on this player's control.
+      const ordinary = JSON.parse(await readFile(join(directory, '..', 'simulator-playback.json'), 'utf8'))
+      assert.equal(ordinary.mode, mode)
+      assert.equal(ordinary.status, 'passed', ordinary.error)
+      assert.ok(ordinary.fullscreen?.trustedTap && ordinary.fullscreen.system && ordinary.fullscreen.exited)
+      assert.match(ordinary.fullscreen.cue, /^(První|Druhá) česká stopa$/)
+      report.fullscreen = 'system'
+      return
     }
+    await click(button('Fullscreen'))
     report.fullscreen = await until('fullscreen', async () => {
       const v = await state()
       return v.fullscreen !== 'inline' && v.cues.length && v.fullscreen
     })
     await screenshot('fullscreen')
-    if (report.fullscreen === 'document') await click(button('Fullscreen'), true)
+    if (report.fullscreen === 'document') await click(button('Fullscreen'))
     else await evaluate(() => document.querySelector('video').webkitSetPresentationMode('inline'))
     await until('inline presentation', async () => (await state()).fullscreen === 'inline')
     report.focusAfterExit = (await state()).focus
@@ -234,6 +230,18 @@ try {
 }
 catch (error) {
   report.error = String(error)
+  if (platform === 'macos' && mode === 'mse' && error.name === 'TimeoutError') {
+    // Sample the WebContent process before queuing further WebDriver commands.
+    try {
+      const rows = execFileSync('ps', ['-axo', 'pid=,pcpu=,comm='], { encoding: 'utf8' }).split('\n')
+      const web = rows.map(row => row.match(/^\s*(\d+)\s+([\d.]+)\s+(.+WebKit.WebContent.*)$/))
+        .filter(Boolean).sort((a, b) => Number(b[2]) - Number(a[2]))[0]
+      if (web) execFileSync('/usr/bin/sample', [web[1], '2', '5', '-file', join(directory, 'webcontent-sample.txt')], { timeout: 12000 })
+    }
+    catch (sampleError) {
+      console.log('WebContent sample', String(sampleError))
+    }
+  }
   if (session) {
     report.page = await evaluate(() => document.body.innerText.slice(0, 600)).catch(() => null)
     report.media = await state().catch(() => null)
