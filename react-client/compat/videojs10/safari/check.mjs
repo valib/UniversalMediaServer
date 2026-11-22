@@ -17,7 +17,7 @@ async function command(method, route, body) {
   const response = await fetch('http://127.0.0.1:4444' + route, {
     method, headers: { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(100000),
+    signal: AbortSignal.timeout(route === '/session' ? 100000 : 40000),
   })
   const { value } = await response.json()
   if (!response.ok) throw Error(method + ' ' + route + ' ' + (value?.message || response.status))
@@ -35,18 +35,35 @@ async function until(description, read, timeout = 25000) {
   } while (Date.now() < end)
   throw Error('Timed out waiting for ' + description)
 }
-async function click(xpath) {
+async function click(xpath, needsActivation = false) {
   const [element] = await until(xpath, async () => {
     const elements = await post('/elements', { using: 'xpath', value: xpath })
     return elements.length && elements
   })
-  await post('/element/' + element['element-6066-11e4-a52e-4f735466cecf'] + '/click', {})
+  if (platform !== 'ios') {
+    await post('/element/' + element['element-6066-11e4-a52e-4f735466cecf'] + '/click', {})
+    return
+  }
+  if (!needsActivation) {
+    await evaluate(el => el.click(), element)
+    return
+  }
+  // Use a touch gesture when Safari requires transient user activation.
+  await evaluate(el => el.scrollIntoView({ block: 'center' }), element)
+  await post('/actions', { actions: [{
+    type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' },
+    actions: [
+      { type: 'pointerMove', duration: 0, origin: element, x: 0, y: 0 },
+      { type: 'pointerDown', button: 0 }, { type: 'pause', duration: 100 }, { type: 'pointerUp', button: 0 },
+    ],
+  }] })
 }
 async function screenshot(name) {
   const data = await command('GET', '/session/' + session + '/screenshot')
   await writeFile(join(directory, name + '.png'), Buffer.from(data, 'base64'))
 }
 async function check(name, run) {
+  console.log('CHECK', mode, name)
   await run()
   report.checks.push(name)
   console.log('PASS', name)
@@ -55,7 +72,7 @@ function mediaState() {
   const v = document.querySelector('video')
   if (!v) return null
   return {
-    time: v.currentTime, duration: Number.isFinite(v.duration) ? v.duration : null,
+    paused: v.paused, time: v.currentTime, duration: Number.isFinite(v.duration) ? v.duration : null,
     width: v.videoWidth, src: v.currentSrc, readyState: v.readyState, networkState: v.networkState,
     error: v.error && { code: v.error.code, message: v.error.message },
     native: v.canPlayType('application/vnd.apple.mpegurl') || v.canPlayType('application/x-mpegurl'),
@@ -98,6 +115,7 @@ try {
   }
   const created = await command('POST', '/session', { capabilities: { alwaysMatch: capabilities } })
   session = created.sessionId
+  await post('/timeouts', { implicit: 0, pageLoad: 30000, script: 15000 })
   report.capabilities = created.capabilities
   assert.equal(created.capabilities.browserName.toLowerCase(), 'safari')
   assert.equal(created.capabilities.platformName.toLowerCase(), capabilities.platformName.toLowerCase())
@@ -105,7 +123,7 @@ try {
   if (mode === 'native') await click('//label[contains(., "Prefer native HLS")]/input')
   await click(button('Media'))
   await click('//button[starts-with(normalize-space(.), "UMS HLS sample")]')
-  await click(button('Play'))
+  await click(button('Play'), true)
   await check(mode + ' UMS HLS decodes and playback advances', async () => {
     const v = await until('two seconds of ' + mode + ' playback', async () => {
       const v = await state()
@@ -143,7 +161,7 @@ try {
       return evaluate(() => performance.getEntriesByType('resource').some(entry => /\/hls\/NONE_[^/]+_1\/\d+\.ts$/.test(entry.name)))
     })
   })
-  await click(button('Pause'))
+  await click(button('Pause'), true)
   await check('Rendered inline cue uses the chosen color and restores server defaults', async () => {
     const greenPixels = async () => {
       const png = await command('GET', '/session/' + session + '/screenshot')
@@ -183,13 +201,13 @@ try {
   })
   await screenshot('inline')
   await check('Fullscreen enters and exits with an active cue', async () => {
-    await click(button('Fullscreen'))
+    await click(button('Fullscreen'), true)
     report.fullscreen = await until('fullscreen', async () => {
       const v = await state()
       return v.fullscreen !== 'inline' && v.cues.length && v.fullscreen
     })
     await screenshot('fullscreen')
-    if (report.fullscreen === 'document') await click(button('Fullscreen'))
+    if (report.fullscreen === 'document') await click(button('Fullscreen'), true)
     else await evaluate(() => document.querySelector('video').webkitSetPresentationMode('inline'))
     await until('inline presentation', async () => (await state()).fullscreen === 'inline')
     report.focusAfterExit = (await state()).focus
@@ -199,10 +217,11 @@ try {
 catch (error) {
   report.error = String(error)
   if (session) {
+    report.page = await evaluate(() => document.body.innerText.slice(0, 600)).catch(() => null)
     report.media = await state().catch(() => null)
     if (report.media?.src?.startsWith('http://127.0.0.1:5287/')) {
       report.playlist = await evaluate(async (src) => {
-        const response = await fetch(src)
+        const response = await fetch(src, { signal: AbortSignal.timeout(5000) })
         return { status: response.status, type: response.headers.get('content-type'), text: (await response.text()).slice(0, 4000) }
       }, report.media.src).catch(() => null)
     }
