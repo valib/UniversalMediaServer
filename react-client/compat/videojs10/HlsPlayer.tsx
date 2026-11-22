@@ -37,6 +37,7 @@ function HlsSession({ uuid, media, native }: Props) {
     const element = document.createElement('video')
     return Boolean(element.canPlayType('application/vnd.apple.mpegurl') || element.canPlayType('application/x-mpegurl'))
   })
+  const playlist = nativeHls ? src + '/master.m3u8' : src
   const quality = useQualityOptions({
     formatRendition: rendition => [
       rendition.width && rendition.height && Math.min(rendition.width, rendition.height) + 'p',
@@ -73,9 +74,9 @@ function HlsSession({ uuid, media, native }: Props) {
         mediaRef={adapter}
         onLoadedMetadata={() => {
           if (adapter.current?.engine) setEngine('hls.js (MSE)')
-          else if (video.current?.currentSrc === new URL(src, document.baseURI).href) setEngine('Browser HLS')
+          else if (video.current?.currentSrc === new URL(playlist, document.baseURI).href) setEngine('Browser HLS')
         }}
-        source={{ src, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
+        source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
         playsInline
         poster={'/v1/api/player/thumbnail/' + uuid + '/' + media.id}
       >

@@ -30,4 +30,8 @@ vite=$!
 trap 'kill "$driver" "$vite" 2>/dev/null || true' EXIT
 curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 http://127.0.0.1:4444/status > /dev/null
 curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 http://127.0.0.1:5287/ > /dev/null
-node compat/videojs10/safari/check.mjs "$platform"
+result=0
+for mode in native mse; do
+  node compat/videojs10/safari/check.mjs "$platform" "$mode" || result=1
+done
+exit "$result"

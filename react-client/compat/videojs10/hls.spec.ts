@@ -176,7 +176,7 @@ test('preferred HLS plays through the available engine', async ({ page, browserN
   await expect.poll(() => video.evaluate(v => v.videoWidth)).toBeGreaterThan(0)
   await expect.poll(() => video.evaluate(v => v.currentTime), { timeout: 20000 }).toBeGreaterThan(1)
   const url = await video.evaluate(v => v.currentSrc)
-  if (native) expect(new URL(url).pathname).toMatch(/^\/v1\/api\/player\/media\/[^/]+\/[^/]+$/)
+  if (native) expect(new URL(url).pathname).toMatch(/^\/v1\/api\/player\/media\/[^/]+\/[^/]+\/master\.m3u8$/)
   else expect(url).toMatch(/^blob:/)
   testInfo.annotations.push({ type: 'engine', description: native ? 'Native WebKit HLS' : 'hls.js (MSE)' })
 })

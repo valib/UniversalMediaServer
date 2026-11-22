@@ -189,7 +189,7 @@ public class HlsHelper {
 						audioNames.put(audioName, 0);
 					}
 					sb.append(audioName);
-					sb.append("\",CHANNELS=").append(audioGroup.audioChannels);
+					sb.append("\",CHANNELS=\"").append(audioGroup.audioChannels).append('"');
 					sb.append(",AUTOSELECT=YES,DEFAULT=");
 					if (mediaAudioDefault != null && mediaAudioDefault.equals(mediaAudio)) {
 						sb.append("YES\n");
