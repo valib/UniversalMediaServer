@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { markerCenter } from './simulator-tap.mjs'
 
 export function markVideo() {
@@ -18,7 +19,7 @@ export function markVideo() {
   marker.style.left = bounds.left - parent.left + 10 + 'px'
   marker.style.top = bounds.top - parent.top + 10 + 'px'
   player.append(marker)
-  return { viewport: innerWidth, display: screen.width, width: Math.floor(bounds.width), height: Math.floor(bounds.height) }
+  return { viewport: innerWidth, display: screen.width, player: Math.round(parent.width), width: Math.floor(bounds.width), height: Math.floor(bounds.height) }
 }
 
 function frame(png, options) {
@@ -40,16 +41,32 @@ async function displayScreenshot() {
 // SafariDriver can omit the HTML and subtitle layers from its screenshot. An
 // on-page marker identifies the same video on either capture surface. Only the
 // lower half of that video can contribute pixels to the subtitle comparison.
-export function macCueCapture(bounds, webdriverScreenshot) {
+export function macCueCapture(bounds, webdriverScreenshot, playerScreenshot) {
+  const captures = { viewport: webdriverScreenshot, player: playerScreenshot, display: displayScreenshot }
   let source
   return async () => {
-    for (const candidate of source ? [source] : ['webdriver', 'display']) {
-      const width = candidate === 'webdriver' ? bounds.viewport : bounds.display
-      const png = candidate === 'webdriver' ? await webdriverScreenshot() : await displayScreenshot()
+    const failures = []
+    for (const candidate of source ? [source] : Object.keys(captures)) {
+      if (candidate === 'display' && !source) {
+        execFileSync('/usr/bin/open', ['-a', 'Safari'], { timeout: 10000 })
+        await delay(600)
+      }
+      let png
+      try {
+        png = await captures[candidate]()
+      }
+      catch (error) {
+        failures.push(candidate + ': ' + error.message)
+        continue
+      }
+      const width = bounds[candidate]
       const scale = 'scale=' + width + ':-1:flags=neighbor'
       const rgb = frame(png, ['-vf', scale, '-f', 'rawvideo', '-pix_fmt', 'rgb24'])
       const point = markerCenter(rgb, width)
-      if (!point) continue
+      if (!point) {
+        failures.push(candidate + ': no marker')
+        continue
+      }
       const x = Math.max(0, point.x - 15)
       const y = point.y - 15 + Math.floor(bounds.height / 2)
       const w = Math.min(bounds.width, width - x)
@@ -59,7 +76,7 @@ export function macCueCapture(bounds, webdriverScreenshot) {
       const crop = `${scale},crop=${w}:${h}:${x}:${y}`
       return { source, png: frame(png, ['-vf', crop, '-f', 'image2pipe', '-c:v', 'png']) }
     }
-    throw Error('The captured Safari video could not be located using its on-page marker')
+    throw Error('The captured Safari video could not be located (' + failures.join(', ') + ')')
   }
 }
 

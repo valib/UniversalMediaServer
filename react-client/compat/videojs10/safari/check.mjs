@@ -174,8 +174,13 @@ try {
   await click(button('Pause'))
   await check('Rendered inline cue uses the chosen color and restores server defaults', async () => {
     const webdriverScreenshot = async () => Buffer.from(await command('GET', '/session/' + session + '/screenshot'), 'base64')
+    const playerScreenshot = async () => {
+      const player = await post('/element', { using: 'css selector', value: '.ums-hls-skin' })
+      const id = player['element-6066-11e4-a52e-4f735466cecf']
+      return Buffer.from(await command('GET', '/session/' + session + '/element/' + id + '/screenshot'), 'base64')
+    }
     const capture = platform === 'macos'
-      ? macCueCapture(await evaluate(markVideo), webdriverScreenshot)
+      ? macCueCapture(await evaluate(markVideo), webdriverScreenshot, playerScreenshot)
       : async () => ({ source: 'webdriver', png: await webdriverScreenshot() })
     const initial = await capture()
     report.cueCapture = initial.source
