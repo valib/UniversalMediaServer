@@ -223,7 +223,7 @@ try {
       assert.match(ordinary.fullscreen.cue, /^(První|Druhá) česká stopa$/)
       report.fullscreen = 'system'
       report.systemCueAppearance = ordinary.fullscreen.appearance
-      assert.equal(typeof report.systemCueAppearance?.appliesSelectedColor, 'boolean')
+      assert.equal(report.systemCueAppearance?.appliesSelectedColor, true, 'The selected color must be visible on the system fullscreen cue')
       return
     }
     await click(button('Fullscreen'))
