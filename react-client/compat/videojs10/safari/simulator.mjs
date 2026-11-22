@@ -42,7 +42,12 @@ const server = createServer(async (req, res) => {
   }
   if (result.action) {
     try {
-      if (result.action === 'tap' && /^(enter )?fullscreen$/i.test(result.label)) {
+      if (result.action === 'tap' && /^(play( video)?|(enter )?fullscreen)$/i.test(result.label)) {
+        // A new Safari profile can present this first-launch tip over the entire page.
+        const { stdout } = await run('axe', ['describe-ui', '--udid', udid], { timeout: 20000 })
+        if (stdout.includes('View Bookmarks, Share Menu, and Open Tabs') && stdout.includes('dismiss popup')) {
+          await run('axe', ['tap', '--label', 'Close', '--element-type', 'Button', '--udid', udid], { timeout: 20000 })
+        }
         await run('axe', ['tap', '--label', result.label, '--wait-timeout', '15', '--udid', udid], { timeout: 30000 })
       }
       else if (result.action === 'capture') {

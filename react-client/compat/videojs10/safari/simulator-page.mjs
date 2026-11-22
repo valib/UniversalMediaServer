@@ -27,12 +27,14 @@ try {
   sample.click()
   video = await waitFor('video', () => document.querySelector('video'))
   video.scrollIntoView({ block: 'center' })
-  // iOS permits visible muted inline video to play without a physical gesture.
+  // Check decoding without relying on an audio output device.
   video.muted = true
   await waitFor('playlist metadata', () => video.readyState >= 1)
-  const playback = video.play()
-  const ready = waitFor('two seconds of decoded video', () => video.currentTime > 2 && video.videoWidth > 0)
-  await Promise.all([playback, ready])
+  const play = button('Play')
+  play.scrollIntoView({ block: 'center' })
+  const started = await send({ action: 'tap', label: play.getAttribute('aria-label') || play.textContent.trim() })
+  if (!started.ok) throw Error(await started.text())
+  await waitFor('two seconds of decoded video', () => video.currentTime > 2 && video.videoWidth > 0)
   const engine = document.querySelector('[aria-label="Playback engine"]')?.textContent
   if (mode === 'native' && (engine !== 'Browser HLS' || !/^\/v1\/api\/player\/media\/[^/]+\/[^/]+\/master\.m3u8$/.test(new URL(video.currentSrc).pathname))) throw Error('Expected the native UMS playlist')
   if (mode === 'mse' && (engine !== 'hls.js (MSE)' || !video.currentSrc.startsWith('blob:'))) throw Error('Expected hls.js playback')
