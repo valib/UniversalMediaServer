@@ -121,7 +121,12 @@ try {
   assert.equal(created.capabilities.platformName.toLowerCase(), capabilities.platformName.toLowerCase())
   report.stage = 'navigation'
   await post('/url', { url: 'http://127.0.0.1:5287/' })
-  if (mode === 'native') await click('//label[contains(., "Prefer native HLS")]/input')
+  const preference = await until('initial engine preference', () => evaluate(() => {
+    const input = document.querySelector('input[type=checkbox]')
+    return input && { native: input.checked }
+  }))
+  assert.ok(preference.native, 'Safari should start on the native HLS path')
+  if (mode === 'mse') await click('//label[contains(., "Prefer native HLS")]/input')
   report.stage = 'browse sample'
   await click(button('Media'))
   await click('//button[starts-with(normalize-space(.), "UMS HLS sample")]')

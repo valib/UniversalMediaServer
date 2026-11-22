@@ -8,7 +8,7 @@ const result = { mode, status: 'failed', userAgent: navigator.userAgent, checks:
 const button = text => Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim().startsWith(text))
 const send = result => fetch('/__simulator-report/' + token, { method: 'POST', body: JSON.stringify(result) })
 async function waitFor(label, read) {
-  await send({ status: 'in progress', stage: label, checks: result.checks })
+  await send({ status: 'in progress', stage: label, checks: result.checks }).catch(() => {})
   const end = Date.now() + 75000
   while (Date.now() < end) {
     const value = read()

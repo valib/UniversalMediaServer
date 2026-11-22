@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test'
 async function openSample(page: Page, version: '8' | '10') {
   await page.goto('/')
   await page.getByLabel('Player version').selectOption(version)
+  if (version === '10') await page.getByLabel('Prefer native HLS').uncheck()
   await page.getByRole('button', { name: process.env.UMS_FIXTURE_FOLDER || 'Media', exact: true }).click()
   await page.getByRole('button', { name: /^UMS HLS sample/ }).first().click()
   const video = page.locator('video')

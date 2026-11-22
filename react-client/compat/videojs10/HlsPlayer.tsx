@@ -42,10 +42,10 @@ function HlsSession({ uuid, media, native }: Props) {
     return Boolean(element.canPlayType('application/vnd.apple.mpegurl') || element.canPlayType('application/x-mpegurl'))
   })
   // Safari on macOS can block its compositor while AVFoundation initializes the
-  // first MSE audio track. Keep the poster visible until the decoded layer is ready.
+  // first MSE audio track. Loaded data alone does not mean its playback clock has started.
   const [awaitingFrame, setAwaitingFrame] = useState(() => !nativeHls && 'MediaSource' in window
     && Boolean(document.createElement('video').canPlayType('application/vnd.apple.mpegurl')))
-  const playlist = src + '/master.m3u8'
+  const playlist = nativeHls ? src + '/master.m3u8' : src
   const poster = '/v1/api/player/thumbnail/' + uuid + '/' + media.id
   const quality = useQualityOptions({
     formatRendition: rendition => [
@@ -83,7 +83,11 @@ function HlsSession({ uuid, media, native }: Props) {
         ref={video}
         mediaRef={adapter}
         style={awaitingFrame ? { display: 'none' } : undefined}
-        onLoadedData={() => setAwaitingFrame(false)}
+        onTimeUpdate={awaitingFrame
+          ? (event) => {
+              if (!event.currentTarget.paused && event.currentTarget.currentTime > 0.25) setAwaitingFrame(false)
+            }
+          : undefined}
         onLoadedMetadata={() => {
           if (adapter.current?.engine) setEngine('hls.js (MSE)')
           else if (video.current?.currentSrc === new URL(playlist, document.baseURI).href) setEngine('Browser HLS')
