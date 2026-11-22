@@ -1,4 +1,4 @@
-/* global document, Event, fetch, location, navigator, setTimeout, URL, URLSearchParams */
+/* global requestAnimationFrame, screen, document, Event, fetch, location, navigator, setTimeout, URL, URLSearchParams */
 const params = new URLSearchParams(location.hash.slice(1))
 const token = params.get('token')
 if (!/^[a-f0-9]{32}$/.test(token)) throw Error('Missing simulator test session')
@@ -17,6 +17,35 @@ async function waitFor(label, read) {
   }
   throw Error('Timed out waiting for ' + label)
 }
+async function tapControl(target) {
+  target.scrollIntoView({ block: 'center' })
+  const marker = document.createElement('span')
+  marker.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:10px;height:10px;background:#f0f;outline:4px solid #0f0;pointer-events:none;z-index:1'
+  marker.setAttribute('aria-hidden', 'true')
+  const position = target.style.position
+  target.style.position = 'relative'
+  target.append(marker)
+  let trusted = false
+  const onClick = (event) => {
+    trusted ||= event.isTrusted
+  }
+  target.addEventListener('click', onClick, true)
+  try {
+    for (let attempt = 0; attempt < 2 && !trusted; attempt++) {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const tap = await send({ action: 'tap', width: screen.width })
+      if (!tap.ok) throw Error(await tap.text())
+      // A first-launch Safari popover can consume the first physical tap.
+      for (let i = 0; i < 10 && !trusted; i++) await new Promise(resolve => setTimeout(resolve, 100))
+    }
+    if (!trusted) throw Error('Safari did not deliver a trusted tap to ' + target.textContent.trim())
+  }
+  finally {
+    target.removeEventListener('click', onClick, true)
+    marker.remove()
+    target.style.position = position
+  }
+}
 let video
 try {
   const checkbox = await waitFor('native preference', () => document.querySelector('input[type=checkbox]'))
@@ -31,9 +60,7 @@ try {
   video.muted = true
   await waitFor('playlist metadata', () => video.readyState >= 1)
   const play = button('Play')
-  play.scrollIntoView({ block: 'center' })
-  const started = await send({ action: 'tap', label: play.getAttribute('aria-label') || play.textContent.trim() })
-  if (!started.ok) throw Error(await started.text())
+  await tapControl(play)
   await waitFor('two seconds of decoded video', () => video.currentTime > 2 && video.videoWidth > 0)
   const engine = document.querySelector('[aria-label="Playback engine"]')?.textContent
   if (mode === 'native' && (engine !== 'Browser HLS' || !/^\/v1\/api\/player\/media\/[^/]+\/[^/]+\/master\.m3u8$/.test(new URL(video.currentSrc).pathname))) throw Error('Expected the native UMS playlist')
@@ -56,14 +83,10 @@ try {
   result.checks.push('Seek to the second chapter')
   video.pause()
   const toggle = button('Fullscreen')
-  toggle.scrollIntoView({ block: 'center' })
   const fullscreen = () => video.webkitDisplayingFullscreen || video.webkitPresentationMode === 'fullscreen'
   result.fullscreen = { system: false, exited: false, trustedTap: false }
-  toggle.addEventListener('click', (event) => {
-    result.fullscreen.trustedTap = event.isTrusted
-  }, { capture: true, once: true })
-  const tap = await send({ action: 'tap', label: toggle.getAttribute('aria-label') || toggle.textContent.trim() })
-  if (!tap.ok) throw Error(await tap.text())
+  await tapControl(toggle)
+  result.fullscreen.trustedTap = true
   await waitFor('system video fullscreen', fullscreen)
   result.fullscreen.system = true
   result.fullscreen.cue = cue()

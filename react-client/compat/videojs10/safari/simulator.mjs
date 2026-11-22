@@ -5,6 +5,7 @@ import { writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { tapMarker } from './simulator-tap.mjs'
 
 const origin = 'http://127.0.0.1:5287'
 const token = randomBytes(16).toString('hex')
@@ -12,6 +13,7 @@ const run = promisify(execFile)
 const udid = process.env.IOS_SIMULATOR_UDID
 const directory = process.env.SAFARI_RESULTS
 const mode = process.argv[2] || 'native'
+let checkedSafariTip = false
 let lastProgress
 let finish
 const received = new Promise((resolve) => {
@@ -42,13 +44,15 @@ const server = createServer(async (req, res) => {
   }
   if (result.action) {
     try {
-      if (result.action === 'tap' && /^(play( video)?|(enter )?fullscreen)$/i.test(result.label)) {
-        // A new Safari profile can present this first-launch tip over the entire page.
-        const { stdout } = await run('axe', ['describe-ui', '--udid', udid], { timeout: 20000 })
-        if (stdout.includes('View Bookmarks, Share Menu, and Open Tabs') && stdout.includes('dismiss popup')) {
-          await run('axe', ['tap', '--label', 'Close', '--element-type', 'Button', '--udid', udid], { timeout: 20000 })
+      if (result.action === 'tap') {
+        if (!checkedSafariTip) {
+          const tree = await run('axe', ['describe-ui', '--udid', udid], { timeout: 50000 }).catch(() => null)
+          if (tree?.stdout.includes('View Bookmarks, Share Menu, and Open Tabs') && tree.stdout.includes('dismiss popup')) {
+            await run('axe', ['tap', '--label', 'Close', '--element-type', 'Button', '--udid', udid], { timeout: 45000 })
+          }
+          checkedSafariTip = true
         }
-        await run('axe', ['tap', '--label', result.label, '--wait-timeout', '15', '--udid', udid], { timeout: 30000 })
+        await tapMarker(udid, directory, result.width)
       }
       else if (result.action === 'capture') {
         await run('xcrun', ['simctl', 'io', udid, 'screenshot', join(directory, 'system-fullscreen.png')], { timeout: 20000 })
@@ -60,7 +64,7 @@ const server = createServer(async (req, res) => {
       res.writeHead(204).end()
     }
     catch (error) {
-      res.writeHead(500).end(String(error))
+      res.writeHead(500).end([error.message, error.signal, error.stderr].filter(Boolean).join(' '))
     }
     return
   }

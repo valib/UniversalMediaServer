@@ -14,9 +14,6 @@ interface Props {
   native: boolean
 }
 
-// Prefer the managed implementation on browsers that provide both MSE APIs.
-const streamingEngine = { hlsJs: { preferManagedMediaSource: true } }
-
 type Choice = NonNullable<ReturnType<typeof useQualityOptions>>
 
 function TrackSelect({ choice, change }: { choice: Pick<Choice, 'label' | 'value' | 'options' | 'hidden' | 'setValue'>, change?: (id: string) => void }) {
@@ -41,10 +38,6 @@ function HlsSession({ uuid, media, native }: Props) {
     const element = document.createElement('video')
     return Boolean(element.canPlayType('application/vnd.apple.mpegurl') || element.canPlayType('application/x-mpegurl'))
   })
-  // Safari on macOS can block its compositor while AVFoundation initializes the
-  // first MSE audio track. Loaded data alone does not mean its playback clock has started.
-  const [awaitingFrame, setAwaitingFrame] = useState(() => !nativeHls && 'MediaSource' in window
-    && Boolean(document.createElement('video').canPlayType('application/vnd.apple.mpegurl')))
   const playlist = nativeHls ? src + '/master.m3u8' : src
   const poster = '/v1/api/player/thumbnail/' + uuid + '/' + media.id
   const quality = useQualityOptions({
@@ -78,21 +71,14 @@ function HlsSession({ uuid, media, native }: Props) {
 
   return (
     <Container className="ums-hls-skin">
-      {awaitingFrame && <img className="ums-video-poster" src={poster} alt="" />}
       <HlsJsVideo
         ref={video}
         mediaRef={adapter}
-        style={awaitingFrame ? { display: 'none' } : undefined}
-        onTimeUpdate={awaitingFrame
-          ? (event) => {
-              if (!event.currentTarget.paused && event.currentTarget.currentTime > 0.25) setAwaitingFrame(false)
-            }
-          : undefined}
         onLoadedMetadata={() => {
           if (adapter.current?.engine) setEngine('hls.js (MSE)')
           else if (video.current?.currentSrc === new URL(playlist, document.baseURI).href) setEngine('Browser HLS')
         }}
-        source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse', engine: streamingEngine }}
+        source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
         playsInline
         poster={poster}
       >
