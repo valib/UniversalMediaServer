@@ -26,13 +26,14 @@ The candidate lists the individual renditions the engine exposes. The menu inclu
 
 ## Safari and iOS
 
-Use the same sample on a Mac and an iOS device. To reach Vite from the device, start it on the test machine's LAN address, for example `yarn dev:videojs10 --host 192.168.1.10` with your own address. Select **10.1.0** and **Prefer native HLS**, start playback and record the **Playback engine** output. A result showing **hls.js (MSE)** exercises the MSE path.
+The **Safari HLS compatibility** workflow runs the same UMS sample in Safari on hosted macOS and in Mobile Safari on an Xcode iPhone simulator. Each job boots its own UMS server. A passing run requires a direct native HLS URL, decoded video, advancing playback, both Czech cues, subtitles off, alternate audio after a chapter seek, and fullscreen entry and exit. Each job uploads its own result, capabilities, logs and screenshots. The simulator can exercise system video fullscreen. The screenshots document what the automation surface can capture. Physical audio output and the appearance of OS-owned overlays require separate evidence.
 
-1. Listen to the two audio tracks before and after seeking. Check which quality choices the browser exposes.
-2. Select each Czech track in turn and inspect the actual words on screen. Turn subtitles off, then on again. Jump to the second chapter at 12 seconds.
-3. In **Subtitle appearance**, change one property at a time, including text opacity and a font family containing spaces. Resize the player or rotate the device and compare the cue size. Restore the server defaults.
-4. Enter fullscreen, check the active cue and audio, and exit. Record whether the device used system video fullscreen, whether the platform overrode the appearance and where keyboard focus returned.
+For a repeatable check on Linux, run the candidate in WebKit with desktop and iPhone display and touch settings. This also measures the two audio tones and the size and color of rendered inline cues. The engine check exercises hls.js on WebKit builds without native HLS. On builds advertising native HLS it requires the native path to play. Both configurations use the same live UMS service.
 
-Record the OS, browser version, playback engine and results for inline and fullscreen playback separately. Native Safari validation is required before the remaining player integration and the production dependency change.
+```sh
+yarn playwright test --config compat/videojs10/playwright.config.ts --project=webkit --project=webkit-phone
+```
+
+The Apple jobs run independently on pushes to the migration branch. Use their reports for the native Safari release decision. The Linux checks provide regression coverage while Apple results are pending. The production client continues to use Video.js 8.
 
 On Linux WebKit, the 8.23.7 control exposed a single “Unknown” track and hid its audio menu for this master. The baseline records this specific outcome as an expected failure. If it exposes both tracks, the test exercises the normal switch. The 10.1.0 candidate must fetch and decode the Czech tone on all three browser engines.

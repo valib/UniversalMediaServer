@@ -4,6 +4,7 @@ import { HlsJsVideo } from '@videojs/react/media/hlsjs-video'
 import { VideoPlayer, usePlayer } from '@videojs/react/video'
 import { useEffect, useRef, useState } from 'react'
 import CueAppearance from './CueAppearance'
+import NativeAudioSelect from './NativeAudioSelect'
 import type { VideoMedia } from '../../src/services/player-service'
 
 interface Props {
@@ -31,6 +32,11 @@ function HlsSession({ uuid, media, native }: Props) {
   const adapter = useRef<HlsJsAdapter>(null)
   const [engine, setEngine] = useState('')
   const src = '/v1/api/player/media/' + uuid + '/' + media.id
+  const [nativeHls] = useState(() => {
+    if (!native) return false
+    const element = document.createElement('video')
+    return Boolean(element.canPlayType('application/vnd.apple.mpegurl') || element.canPlayType('application/x-mpegurl'))
+  })
   const quality = useQualityOptions({
     formatRendition: rendition => [
       rendition.width && rendition.height && Math.min(rendition.width, rendition.height) + 'p',
@@ -65,8 +71,11 @@ function HlsSession({ uuid, media, native }: Props) {
       <HlsJsVideo
         ref={video}
         mediaRef={adapter}
-        onLoadedMetadata={() => setEngine(adapter.current?.engine ? 'hls.js (MSE)' : 'Browser HLS')}
-        source={{ src, type: 'application/vnd.apple.mpegurl', preferPlayback: native ? 'native' : 'mse' }}
+        onLoadedMetadata={() => {
+          if (adapter.current?.engine) setEngine('hls.js (MSE)')
+          else if (video.current?.currentSrc === new URL(src, document.baseURI).href) setEngine('Browser HLS')
+        }}
+        source={{ src, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
         playsInline
         poster={'/v1/api/player/thumbnail/' + uuid + '/' + media.id}
       >
@@ -88,6 +97,7 @@ function HlsSession({ uuid, media, native }: Props) {
         {media.subtitleStyle && <CueAppearance defaults={media.subtitleStyle} video={video} />}
         {quality && <TrackSelect choice={quality} />}
         {audio && <TrackSelect choice={audio} />}
+        {engine === 'Browser HLS' && (!audio || audio.hidden) && <NativeAudioSelect video={video} />}
         {captions && (
           <TrackSelect
             choice={captions}

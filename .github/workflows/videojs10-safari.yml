@@ -1,0 +1,49 @@
+name: Safari HLS compatibility
+on:
+  push:
+    branches: ['migration/videojs-10-hls-check']
+    paths:
+      - 'react-client/**'
+      - 'src/main/**'
+      - '.github/workflows/videojs10-safari.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safari:
+    name: Safari (${{ matrix.platform }})
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos, ios]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare native media dependencies
+        run: brew install ffmpeg libmediainfo
+      - name: Build server and resolve the Java runtime classpath
+        run: mvn -B -P testing-macos -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/safari-classpath
+      - name: Build web client for the UMS web server
+        working-directory: react-client
+        run: |
+          node .yarn/releases/yarn-*.cjs install --immutable
+          node .yarn/releases/yarn-*.cjs build
+          node .yarn/releases/yarn-*.cjs build:videojs10
+      - name: Play the UMS sample in Safari
+        run: bash react-client/compat/videojs10/safari/ci-server.sh "${{ matrix.platform }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safari-${{ matrix.platform }}-results
+          path: react-client/test-results/safari-${{ matrix.platform }}/
