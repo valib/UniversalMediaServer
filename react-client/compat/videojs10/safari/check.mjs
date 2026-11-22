@@ -64,6 +64,7 @@ async function screenshot(name) {
   await writeFile(join(directory, name + '.png'), Buffer.from(data, 'base64'))
 }
 async function check(name, run, continueOnFailure = false) {
+  report.stage = name
   console.log('CHECK', mode, name)
   try {
     await run()
@@ -83,7 +84,7 @@ function mediaState() {
   if (!v) return null
   return {
     paused: v.paused, time: v.currentTime, duration: Number.isFinite(v.duration) ? v.duration : null,
-    width: v.videoWidth, src: v.currentSrc, readyState: v.readyState, networkState: v.networkState,
+    width: v.videoWidth, src: v.currentSrc, presentationMode: v.webkitPresentationMode, readyState: v.readyState, networkState: v.networkState,
     error: v.error && { code: v.error.code, message: v.error.message },
     native: v.canPlayType('application/vnd.apple.mpegurl') || v.canPlayType('application/x-mpegurl'),
     engine: document.querySelector('[aria-label="Playback engine"]')?.textContent,
@@ -123,17 +124,22 @@ try {
     assert.ok(process.env.IOS_SIMULATOR_UDID, 'Missing booted iPhone simulator')
     Object.assign(capabilities, { 'safari:useSimulator': true, 'safari:deviceUDID': process.env.IOS_SIMULATOR_UDID })
   }
+  if (platform === 'ios') capabilities['webkit:alwaysAllowAutoplay'] = true
   const created = await command('POST', '/session', { capabilities: { alwaysMatch: capabilities } })
   session = created.sessionId
   await post('/timeouts', { implicit: 0, pageLoad: 30000, script: 15000 })
   report.capabilities = created.capabilities
   assert.equal(created.capabilities.browserName.toLowerCase(), 'safari')
   assert.equal(created.capabilities.platformName.toLowerCase(), capabilities.platformName.toLowerCase())
+  report.stage = 'navigation'
   await post('/url', { url: 'http://127.0.0.1:5287/' })
   if (mode === 'native') await click('//label[contains(., "Prefer native HLS")]/input')
+  report.stage = 'browse sample'
   await click(button('Media'))
   await click('//button[starts-with(normalize-space(.), "UMS HLS sample")]')
-  await click(button('Play'), true)
+  report.stage = 'start playback'
+  // The test covers decoding, track selection and presentation, independently of autoplay policy.
+  await click(button('Play'), platform !== 'ios')
   await check(mode + ' UMS HLS decodes and playback advances', async () => {
     const v = await until('two seconds of ' + mode + ' playback', async () => {
       const v = await state()
@@ -170,8 +176,8 @@ try {
       if (mode === 'native') return v.audio.some(t => t.enabled && /^(cs|ces|cze|Czech)(-|$)/i.test(t.language || t.label))
       return evaluate(() => performance.getEntriesByType('resource').some(entry => /\/hls\/NONE_[^/]+_1\/\d+\.ts$/.test(entry.name)))
     })
-  })
-  await click(button('Pause'), true)
+  }, true)
+  await click(button('Pause'), platform !== 'ios')
   await check('Rendered inline cue uses the chosen color and restores server defaults', async () => {
     const greenPixels = async () => {
       const png = await command('GET', '/session/' + session + '/screenshot')
@@ -210,6 +216,9 @@ try {
   await screenshot('inline')
   await check('Fullscreen enters and exits with an active cue', async () => {
     await click(button('Fullscreen'), true)
+    if (platform === 'ios' && (await state()).fullscreen === 'inline') {
+      await click(button('Fullscreen'))
+    }
     report.fullscreen = await until('fullscreen', async () => {
       const v = await state()
       return v.fullscreen !== 'inline' && v.cues.length && v.fullscreen
