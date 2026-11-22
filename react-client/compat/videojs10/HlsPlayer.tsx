@@ -41,7 +41,12 @@ function HlsSession({ uuid, media, native }: Props) {
     const element = document.createElement('video')
     return Boolean(element.canPlayType('application/vnd.apple.mpegurl') || element.canPlayType('application/x-mpegurl'))
   })
-  const playlist = nativeHls ? src + '/master.m3u8' : src
+  // Safari on macOS can block its compositor while AVFoundation initializes the
+  // first MSE audio track. Keep the poster visible until the decoded layer is ready.
+  const [awaitingFrame, setAwaitingFrame] = useState(() => !nativeHls && 'MediaSource' in window
+    && Boolean(document.createElement('video').canPlayType('application/vnd.apple.mpegurl')))
+  const playlist = src + '/master.m3u8'
+  const poster = '/v1/api/player/thumbnail/' + uuid + '/' + media.id
   const quality = useQualityOptions({
     formatRendition: rendition => [
       rendition.width && rendition.height && Math.min(rendition.width, rendition.height) + 'p',
@@ -73,16 +78,19 @@ function HlsSession({ uuid, media, native }: Props) {
 
   return (
     <Container className="ums-hls-skin">
+      {awaitingFrame && <img className="ums-video-poster" src={poster} alt="" />}
       <HlsJsVideo
         ref={video}
         mediaRef={adapter}
+        style={awaitingFrame ? { display: 'none' } : undefined}
+        onLoadedData={() => setAwaitingFrame(false)}
         onLoadedMetadata={() => {
           if (adapter.current?.engine) setEngine('hls.js (MSE)')
           else if (video.current?.currentSrc === new URL(playlist, document.baseURI).href) setEngine('Browser HLS')
         }}
         source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse', engine: streamingEngine }}
         playsInline
-        poster={'/v1/api/player/thumbnail/' + uuid + '/' + media.id}
+        poster={poster}
       >
         {media.externalSubtitles?.map(track => (
           <track key={track.id} id={'ums-sub-' + track.id} src={src + '/subtitles/' + track.id + '.vtt'} kind="subtitles" label={track.label} srcLang={track.language} default={track.default} />
