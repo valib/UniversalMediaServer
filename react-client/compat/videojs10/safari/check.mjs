@@ -1,5 +1,6 @@
-/* global performance, AbortSignal, Buffer, console, document, Event, fetch, process, URL, Image */
+/* global performance, AbortSignal, Buffer, console, document, Event, fetch, process, URL */
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -62,9 +63,18 @@ async function screenshot(name) {
   const data = await command('GET', '/session/' + session + '/screenshot')
   await writeFile(join(directory, name + '.png'), Buffer.from(data, 'base64'))
 }
-async function check(name, run) {
+async function check(name, run, continueOnFailure = false) {
   console.log('CHECK', mode, name)
-  await run()
+  try {
+    await run()
+  }
+  catch (error) {
+    if (!continueOnFailure) throw error
+    report.failures ??= []
+    report.failures.push({ name, error: String(error) })
+    await screenshot('failed-' + report.failures.length).catch(() => {})
+    return
+  }
   report.checks.push(name)
   console.log('PASS', name)
 }
@@ -165,24 +175,17 @@ try {
   await check('Rendered inline cue uses the chosen color and restores server defaults', async () => {
     const greenPixels = async () => {
       const png = await command('GET', '/session/' + session + '/screenshot')
-      return evaluate(async (encoded) => {
-        const image = new Image()
-        image.src = 'data:image/png;base64,' + encoded
-        await image.decode()
-        const canvas = document.createElement('canvas')
-        canvas.width = image.width
-        canvas.height = image.height
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(image, 0, 0)
-        const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        let green = 0
-        for (let i = 0; i < data.length; i += 4) {
-          if (data[i + 1] > 50 && data[i] < data[i + 1] / 2 && data[i + 2] < data[i + 1] / 2) green++
-        }
-        return green
-      }, png)
+      const pixels = execFileSync('ffmpeg', [
+        '-loglevel', 'error', '-i', 'pipe:0', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1',
+      ], { input: Buffer.from(png, 'base64'), maxBuffer: 48 * 1024 * 1024 })
+      let green = 0
+      for (let i = 0; i < pixels.length; i += 3) {
+        if (pixels[i + 1] > 50 && pixels[i] < pixels[i + 1] / 2 && pixels[i + 2] < pixels[i + 1] / 2) green++
+      }
+      return green
     }
     const baseline = await greenPixels()
+    report.defaultGreenPixels = baseline
     await click(button('Subtitle appearance'))
     await evaluate(() => {
       const input = document.querySelector('dialog input[type=color]')
@@ -192,13 +195,18 @@ try {
       input.dispatchEvent(new Event('change', { bubbles: true }))
     })
     await click(button('Close'))
-    await until('visible green glyphs', async () => await greenPixels() > baseline + 30)
+    await until('visible green glyphs', async () => {
+      report.styledGreenPixels = await greenPixels()
+      return report.styledGreenPixels > baseline + 30
+    })
     await screenshot('inline-green')
     await click(button('Subtitle appearance'))
     await click(button('Use server defaults'))
     await click(button('Close'))
     await until('default cue color', async () => await greenPixels() <= baseline + 5)
-  })
+  }, true)
+  // Restore controls if the appearance test failed inside its modal.
+  await evaluate(() => document.querySelector('dialog[open]')?.close())
   await screenshot('inline')
   await check('Fullscreen enters and exits with an active cue', async () => {
     await click(button('Fullscreen'), true)
@@ -212,6 +220,7 @@ try {
     await until('inline presentation', async () => (await state()).fullscreen === 'inline')
     report.focusAfterExit = (await state()).focus
   })
+  if (report.failures?.length) throw Error('See individual check failures')
   report.status = 'passed'
 }
 catch (error) {
@@ -228,7 +237,7 @@ catch (error) {
     await screenshot('failure').catch(() => {})
   }
   console.error(error)
-  process.exitCode = 1
+  process.exitCode = session ? 1 : 75
 }
 finally {
   console.log(JSON.stringify(report))

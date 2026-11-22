@@ -32,4 +32,4 @@ java -Xmx1g -Djava.awt.headless=true -Dums.profile.path="$profile/UMS.conf" \
 server=$!
 trap 'kill "$server" 2>/dev/null || true' EXIT
 curl --fail --silent --retry-all-errors --retry 60 --retry-delay 1 --max-time 3 http://127.0.0.1:9002/v1/api/player/ > /dev/null
-bash react-client/compat/videojs10/safari/run.sh "$platform"
+bash react-client/compat/videojs10/safari/run.sh "$platform" "${2:?Choose native or mse}"
