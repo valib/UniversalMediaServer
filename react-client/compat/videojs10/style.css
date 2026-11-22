@@ -1,0 +1,29 @@
+body {
+  margin: 1rem auto;
+  max-width: 72rem;
+  padding: 0 1rem;
+  font-family: system-ui, sans-serif;
+}
+label, section button { margin-inline-end: 0.75rem; }
+label select { margin-inline-start: 0.4rem; }
+section, fieldset { margin-block: 1rem; }
+button, input, select { font: inherit; }
+#videodiv, .ums-hls-skin {
+  width: 100%;
+  height: min(60vh, 40rem);
+}
+.ums-hls-skin video::cue {
+  color: var(--ums-cue-color);
+  font-family: var(--ums-cue-font);
+  font-size: var(--ums-cue-size);
+}
+.ums-hls-skin {
+  display: flex;
+  flex-direction: column;
+  background: black;
+}
+.ums-hls-skin video { width: 100%; min-height: 0; flex: 1; }
+.ums-hls-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; padding: 0.5rem; background: #eee; color: #171717; }
+.ums-hls-skin:fullscreen { width: 100%; height: 100%; }
+dialog form { display: grid; gap: 1rem; }
+dialog label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }

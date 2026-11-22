@@ -1,0 +1,2 @@
+# The repository also uses .ts for MPEG transport streams.
+*.ts -binary text diff merge

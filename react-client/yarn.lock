@@ -1184,6 +1184,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@videojs/core@npm:10.1.0":
+  version: 10.1.0
+  resolution: "@videojs/core@npm:10.1.0"
+  dependencies:
+    "@videojs/media": "npm:10.1.0"
+    "@videojs/store": "npm:10.1.0"
+    "@videojs/utils": "npm:10.1.0"
+  checksum: 10c0/28634704b9b7bd97c3ed56bf6c5e1c6f5d8bf72dc6c66052f1fe0dd02bc94ac58cad996894455230a14ae54c0c865e9e66c61c42a04c6d1742560ca3837a4451
+  languageName: node
+  linkType: hard
+
+"@videojs/hlsjs-video@npm:10.1.0":
+  version: 10.1.0
+  resolution: "@videojs/hlsjs-video@npm:10.1.0"
+  dependencies:
+    "@videojs/media": "npm:10.1.0"
+    "@videojs/native-hls-video": "npm:10.1.0"
+    "@videojs/spf": "npm:10.1.0"
+    "@videojs/utils": "npm:10.1.0"
+    hls.js: "npm:1.6.19"
+  checksum: 10c0/b9110843241fa49d460d4e0913b20c3ea807ce16e1d03b1d923229ba574e0dce0d0a6fd14de882bb18edfc4df9a2100224befcae4e0f2964c1ddd488e30fbb3b
+  languageName: node
+  linkType: hard
+
 "@videojs/http-streaming@npm:^3.17.3, @videojs/http-streaming@npm:^3.17.5":
   version: 3.17.5
   resolution: "@videojs/http-streaming@npm:3.17.5"
@@ -1199,6 +1223,126 @@ __metadata:
   peerDependencies:
     video.js: ^8.19.0
   checksum: 10c0/2c3017ed49a43be64dd6f69cbb251ccded49e8c0678b84b9ba2566e1e8b0cd7e93157ffe40f78dbfea3ee8684c05b1ad8cff3183be9b703d54eedfbd20338e1e
+  languageName: node
+  linkType: hard
+
+"@videojs/media@npm:10.1.0":
+  version: 10.1.0
+  resolution: "@videojs/media@npm:10.1.0"
+  dependencies:
+    "@videojs/utils": "npm:10.1.0"
+  checksum: 10c0/09fd84ba97c63d9bbde7a95fd87b63f47f245f5a086db315dd0725cc36f8c1970a3faa1f09ddfd496467891f6ce8afd49e55fd3bf72f02469915e6bf98618b47
+  languageName: node
+  linkType: hard
+
+"@videojs/native-hls-video@npm:10.1.0":
+  version: 10.1.0
+  resolution: "@videojs/native-hls-video@npm:10.1.0"
+  dependencies:
+    "@videojs/media": "npm:10.1.0"
+    "@videojs/spf": "npm:10.1.0"
+    "@videojs/utils": "npm:10.1.0"
+  checksum: 10c0/e441fdb492f44e8d2301a2490edc1b1ede765ac99110989484340e991623f3c072ccf1fd2441d35c113c7b67802e8af315fc394f649be5e5c0725bc3dbe6b428
+  languageName: node
+  linkType: hard
+
+"@videojs/react@npm:10.1.0":
+  version: 10.1.0
+  resolution: "@videojs/react@npm:10.1.0"
+  dependencies:
+    "@videojs/core": "npm:10.1.0"
+    "@videojs/media": "npm:10.1.0"
+    "@videojs/native-hls-video": "npm:10.1.0"
+    "@videojs/spf": "npm:10.1.0"
+    "@videojs/store": "npm:10.1.0"
+    "@videojs/utils": "npm:10.1.0"
+    react-compiler-runtime: "npm:^1.0.0"
+  peerDependencies:
+    "@videojs/cloudflare-video": 10.1.0
+    "@videojs/dash-video": 10.1.0
+    "@videojs/google-cast": 10.1.0
+    "@videojs/hlsjs-video": 10.1.0
+    "@videojs/mux-audio": 10.1.0
+    "@videojs/mux-data": 10.1.0
+    "@videojs/mux-video": 10.1.0
+    "@videojs/playerjs-video": 10.1.0
+    "@videojs/shaka-video": 10.1.0
+    "@videojs/spotify-audio": 10.1.0
+    "@videojs/tiktok-video": 10.1.0
+    "@videojs/twitch-video": 10.1.0
+    "@videojs/vimeo-video": 10.1.0
+    "@videojs/wistia-video": 10.1.0
+    "@videojs/youtube-video": 10.1.0
+    react: ^18.0.0 || ^19.0.0
+    react-dom: ^18.0.0 || ^19.0.0
+  peerDependenciesMeta:
+    "@videojs/cloudflare-video":
+      optional: true
+    "@videojs/dash-video":
+      optional: true
+    "@videojs/google-cast":
+      optional: true
+    "@videojs/hlsjs-video":
+      optional: true
+    "@videojs/mux-audio":
+      optional: true
+    "@videojs/mux-data":
+      optional: true
+    "@videojs/mux-video":
+      optional: true
+    "@videojs/playerjs-video":
+      optional: true
+    "@videojs/shaka-video":
+      optional: true
+    "@videojs/spotify-audio":
+      optional: true
+    "@videojs/tiktok-video":
+      optional: true
+    "@videojs/twitch-video":
+      optional: true
+    "@videojs/vimeo-video":
+      optional: true
+    "@videojs/wistia-video":
+      optional: true
+    "@videojs/youtube-video":
+      optional: true
+  checksum: 10c0/e3e3ddb693157c9434daf071e3fd0aa37992a5609051f5763335cc44fd808ca428e0ab9fe51ac6bef940aec9db59c994bd1c751b3f42e14b60b5bec98febe494
+  languageName: node
+  linkType: hard
+
+"@videojs/spf@npm:10.1.0":
+  version: 10.1.0
+  resolution: "@videojs/spf@npm:10.1.0"
+  dependencies:
+    "@videojs/media": "npm:10.1.0"
+    "@videojs/utils": "npm:10.1.0"
+    signal-polyfill: "npm:^0.2.2"
+  checksum: 10c0/8c14f731b9440e3c2aaa94b0e9cd196d711bbdb4be53df809f798a87a8c52d1e3a8a8f80976c46092f9f7d159ebd00421c22e18e40fcb5ad681ae7e87805d2fd
+  languageName: node
+  linkType: hard
+
+"@videojs/store@npm:10.1.0":
+  version: 10.1.0
+  resolution: "@videojs/store@npm:10.1.0"
+  dependencies:
+    "@videojs/utils": "npm:10.1.0"
+    react-compiler-runtime: "npm:^1.0.0"
+  peerDependencies:
+    "@videojs/element": 10.1.0
+    react: ^18.0.0 || ^19.0.0
+  peerDependenciesMeta:
+    "@videojs/element":
+      optional: true
+    react:
+      optional: true
+  checksum: 10c0/dd27c219b06eae816e945b8ad7cf96e8df3d8cdd7061244b173ad4660e238834d7ccf84a1b2ec9d917d9a6a746e5255a067eb023f9992451d339ee1022f60b26
+  languageName: node
+  linkType: hard
+
+"@videojs/utils@npm:10.1.0":
+  version: 10.1.0
+  resolution: "@videojs/utils@npm:10.1.0"
+  checksum: 10c0/c007e2f5fafc3bae418566d021c36afd9396eec239f395a8cb0ee463e5533fd94236842a9139b98ece2899c0034710be48bcc945628ab306a349cabfad599880
   languageName: node
   linkType: hard
 
@@ -2645,6 +2789,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"hls.js@npm:1.6.19":
+  version: 1.6.19
+  resolution: "hls.js@npm:1.6.19"
+  checksum: 10c0/b249de61cf3d09f751e094f1a80f7e1993ac1ee3aa6ea6ec653a3bf9b62c3f20740a34b8ec404e91a2dcc3ecbeccff2998707522251dd316a33d7e699c196ea4
+  languageName: node
+  linkType: hard
+
 "https-proxy-agent@npm:^5.0.1":
   version: 5.0.1
   resolution: "https-proxy-agent@npm:5.0.1"
@@ -3565,6 +3716,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-compiler-runtime@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "react-compiler-runtime@npm:1.0.0"
+  peerDependencies:
+    react: ^17.0.0 || ^18.0.0 || ^19.0.0 || ^0.0.0-experimental
+  checksum: 10c0/e081192380ae32d18bebaf341071ae8aecf80f4401b188f80e4b77e8d8995bb4c7175b8c3f75e8307019eac2015edf45c7999f788dcfcd99fdbe2ba9a2d465a4
+  languageName: node
+  linkType: hard
+
 "react-country-flag@npm:3.1.0":
   version: 3.1.0
   resolution: "react-country-flag@npm:3.1.0"
@@ -4070,6 +4230,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"signal-polyfill@npm:^0.2.2":
+  version: 0.2.2
+  resolution: "signal-polyfill@npm:0.2.2"
+  checksum: 10c0/485b0e66d93961454af32e7fbff88130138dffcbf7bce35e5c873d760ceb9ce33a125dd63cc59454c739c43246980515b1162cbe0ebc975a974ee036fb58d18a
+  languageName: node
+  linkType: hard
+
 "source-map-js@npm:^1.2.1":
   version: 1.2.2
   resolution: "source-map-js@npm:1.2.2"
@@ -4357,6 +4524,8 @@ __metadata:
     "@types/lodash": "npm:4.17.27"
     "@types/react": "npm:19.2.18"
     "@types/react-dom": "npm:19.2.4"
+    "@videojs/hlsjs-video": "npm:10.1.0"
+    "@videojs/react": "npm:10.1.0"
     "@vitejs/plugin-react": "npm:5.1.4"
     axios: "npm:1.21.0"
     eslint: "npm:9.39.2"
