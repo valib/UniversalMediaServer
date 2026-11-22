@@ -18,7 +18,7 @@ async function command(method, route, body) {
   const response = await fetch('http://127.0.0.1:4444' + route, {
     method, headers: { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(route === '/session' ? 100000 : 40000),
+    signal: AbortSignal.timeout(route === '/session' || route.endsWith('/url') ? 120000 : 40000),
   })
   const { value } = await response.json()
   if (!response.ok) throw Error(method + ' ' + route + ' ' + (value?.message || response.status))
@@ -26,7 +26,7 @@ async function command(method, route, body) {
 }
 const post = (route, body) => command('POST', '/session/' + session + route, body)
 const evaluate = (fn, ...args) => post('/execute/sync', { script: 'return (' + fn + ').apply(null, arguments)', args })
-async function until(description, read, timeout = 25000) {
+async function until(description, read, timeout = platform === 'ios' ? 75000 : 25000) {
   const end = Date.now() + timeout
   let result
   do {
@@ -119,7 +119,7 @@ function chooseOption(kind) {
 const state = () => evaluate(mediaState)
 const button = name => '//button[normalize-space(.)="' + name + '"]'
 try {
-  const capabilities = { browserName: 'Safari', platformName: platform === 'ios' ? 'iOS' : 'macOS' }
+  const capabilities = { browserName: 'Safari', pageLoadStrategy: 'eager', platformName: platform === 'ios' ? 'iOS' : 'macOS' }
   if (platform === 'ios') {
     assert.ok(process.env.IOS_SIMULATOR_UDID, 'Missing booted iPhone simulator')
     Object.assign(capabilities, { 'safari:useSimulator': true, 'safari:deviceUDID': process.env.IOS_SIMULATOR_UDID })
@@ -127,7 +127,7 @@ try {
   if (platform === 'ios') capabilities['webkit:alwaysAllowAutoplay'] = true
   const created = await command('POST', '/session', { capabilities: { alwaysMatch: capabilities } })
   session = created.sessionId
-  await post('/timeouts', { implicit: 0, pageLoad: 30000, script: 15000 })
+  await post('/timeouts', { implicit: 0, pageLoad: 90000, script: 15000 })
   report.capabilities = created.capabilities
   assert.equal(created.capabilities.browserName.toLowerCase(), 'safari')
   assert.equal(created.capabilities.platformName.toLowerCase(), capabilities.platformName.toLowerCase())

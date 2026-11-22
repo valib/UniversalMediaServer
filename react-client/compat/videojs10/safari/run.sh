@@ -36,7 +36,8 @@ start_driver() {
   echo 'SafariDriver did not become ready' >&2
   return 1
 }
-node node_modules/vite/bin/vite.js --config compat/videojs10/vite.config.ts --host 127.0.0.1 --port 5287 --strictPort >"$SAFARI_RESULTS/vite.log" 2>&1 &
+export UMS_SIMULATOR_REPORT=1
+node node_modules/vite/bin/vite.js preview --config compat/videojs10/vite.config.ts --host 127.0.0.1 --port 5287 --strictPort >"$SAFARI_RESULTS/vite.log" 2>&1 &
 vite=$!
 trap 'kill "$vite" 2>/dev/null || true; if [[ -n ${driver:-} ]]; then kill "$driver" 2>/dev/null || true; fi' EXIT
 curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 http://127.0.0.1:5287/ > /dev/null

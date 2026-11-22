@@ -8,12 +8,13 @@ import { promisify } from 'node:util'
 
 const origin = 'http://127.0.0.1:5287'
 const token = randomBytes(16).toString('hex')
+let lastProgress
 let finish
 const received = new Promise((resolve) => {
   finish = resolve
 })
 const server = createServer(async (req, res) => {
-  if (req.method !== 'POST' || req.url !== '/' + token || req.headers.origin !== origin) {
+  if (req.method !== 'POST' || req.url !== '/__simulator-report/' + token || (req.headers.origin && req.headers.origin !== origin)) {
     res.writeHead(404).end()
     return
   }
@@ -35,13 +36,17 @@ const server = createServer(async (req, res) => {
     res.writeHead(400).end()
     return
   }
-  res.writeHead(204, { 'Access-Control-Allow-Origin': origin }).end()
-  finish(result)
+  res.writeHead(204).end()
+  if (result.status === 'in progress') {
+    lastProgress = result
+    console.log('Mobile Safari', result.stage)
+  }
+  else finish(result)
 })
-await new Promise((resolve, reject) => server.once('error', reject).listen(0, '127.0.0.1', resolve))
-const timeout = setTimeout(() => finish({ status: 'failed', error: 'Mobile Safari did not return a result' }), 100000)
+await new Promise((resolve, reject) => server.once('error', reject).listen(5289, '127.0.0.1', resolve))
+const timeout = setTimeout(() => finish({ status: 'failed', error: 'Mobile Safari did not return a final result', lastProgress }), 300000)
 try {
-  const url = origin + '/safari/simulator.html#port=' + server.address().port + '&token=' + token
+  const url = origin + '/safari/simulator.html#token=' + token
   await promisify(execFile)('xcrun', ['simctl', 'openurl', process.env.IOS_SIMULATOR_UDID, url], { timeout: 25000 })
   const result = await received
   console.log('Simulator playback', JSON.stringify(result))

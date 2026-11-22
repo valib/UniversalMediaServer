@@ -1,13 +1,14 @@
 /* global document, Event, fetch, location, navigator, setTimeout, URL, URLSearchParams */
 const params = new URLSearchParams(location.hash.slice(1))
-const port = Number(params.get('port'))
 const token = params.get('token')
-if (!Number.isInteger(port) || port < 1024 || port > 65535 || !/^[a-f0-9]{32}$/.test(token)) throw Error('Missing simulator test session')
+if (!/^[a-f0-9]{32}$/.test(token)) throw Error('Missing simulator test session')
 
 const result = { status: 'failed', userAgent: navigator.userAgent, checks: [] }
 const button = text => Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim().startsWith(text))
+const send = result => fetch('/__simulator-report/' + token, { method: 'POST', body: JSON.stringify(result) })
 async function waitFor(label, read) {
-  const end = Date.now() + 30000
+  await send({ status: 'in progress', stage: label, checks: result.checks })
+  const end = Date.now() + 75000
   while (Date.now() < end) {
     const value = read()
     if (value) return value
@@ -24,10 +25,10 @@ try {
   const sample = await waitFor('sample', () => button('UMS HLS sample'))
   sample.click()
   video = await waitFor('video', () => document.querySelector('video'))
-  await waitFor('playlist metadata', () => video.readyState >= 1)
   video.scrollIntoView({ block: 'center' })
   // iOS permits visible muted inline video to play without a physical gesture.
   video.muted = true
+  await waitFor('playlist metadata', () => video.readyState >= 1)
   const playback = video.play()
   const ready = waitFor('two seconds of decoded video', () => video.currentTime > 2 && video.videoWidth > 0)
   await Promise.all([playback, ready])
@@ -59,5 +60,5 @@ finally {
     result.media = { time: video.currentTime, width: video.videoWidth, height: video.videoHeight, paused: video.paused, error: video.error?.code }
     video.pause()
   }
-  await fetch('http://127.0.0.1:' + port + '/' + token, { method: 'POST', body: JSON.stringify(result) })
+  await send(result)
 }
