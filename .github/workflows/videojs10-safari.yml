@@ -15,7 +15,7 @@ jobs:
   safari:
     name: Safari (${{ matrix.platform }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
@@ -50,11 +50,18 @@ jobs:
           node .yarn/releases/yarn-*.cjs install --immutable
           node .yarn/releases/yarn-*.cjs build
           node .yarn/releases/yarn-*.cjs build:videojs10
+      - name: Boot the iPhone and launch Mobile Safari
+        id: simulator
+        if: matrix.platform == 'ios'
+        timeout-minutes: 20
+        run: |
+          udid=$(bash react-client/compat/videojs10/safari/boot-simulator.sh)
+          echo "IOS_SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
       - name: Play the sample with native HLS
         timeout-minutes: 15
         run: bash react-client/compat/videojs10/safari/ci-server.sh "${{ matrix.platform }}" native
       - name: Play the sample with hls.js (MSE)
-        if: ${{ !cancelled() && steps.client.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.client.outcome == 'success' && (matrix.platform == 'macos' || steps.simulator.outcome == 'success') }}
         timeout-minutes: 15
         run: bash react-client/compat/videojs10/safari/ci-server.sh "${{ matrix.platform }}" mse
       - uses: actions/upload-artifact@v4

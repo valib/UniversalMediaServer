@@ -85,6 +85,7 @@ try {
   if (!chooseOption('audio')) throw Error('Missing Czech audio choice')
   if (!chooseOption('chapter')) throw Error('Missing second chapter')
   await waitFor('chapter seek', () => video.currentTime >= 11.5 && video.currentTime < 15 && !video.seeking)
+  video.pause()
   await waitFor('Czech audio after chapter seek', () => mode === 'native'
     ? Array.from(video.audioTracks).some(t => t.enabled && /^(cs|ces|cze|Czech)(-|$)/i.test(t.language || t.label))
     : performance.getEntriesByType('resource').some(entry => /\/hls\/NONE_[^/]+_1\/\d+\.ts$/.test(entry.name)))

@@ -91,7 +91,7 @@ const server = createServer(async (req, res) => {
   }
   else finish(result)
 })
-await new Promise((resolve, reject) => server.once('error', reject).listen(5289, '127.0.0.1', resolve))
+await new Promise((resolve, reject) => server.once('error', reject).listen(Number(process.env.UMS_SIMULATOR_REPORT_PORT || 5289), '127.0.0.1', resolve))
 const timeout = setTimeout(() => finish({ status: 'failed', error: 'Mobile Safari did not return a final result', lastProgress }), 480000)
 try {
   const url = origin + '/safari/simulator.html?engine=' + mode + '#mode=' + mode + '&token=' + token
