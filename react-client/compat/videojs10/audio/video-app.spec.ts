@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page, type Request } from '@playwright/test'
 import type { Renderer } from '../../../src/services/home-service'
 import type { BaseBrowse } from '../../../src/services/player-service'
 
@@ -60,8 +60,18 @@ async function control(request: APIRequestContext, id: number, action: string, v
 }
 
 for (const source of ['HLS', 'direct']) {
-  test(source + ' video plays, seeks and handles remote controls on the UMS server', async ({ page, request }) => {
+  test(source + ' video plays, seeks and handles remote controls on the UMS server', async ({ page, request }, testInfo) => {
     const { uuid, sample } = await findSample(page, request, source)
+    const coldStart = source === 'HLS' && testInfo.project.name === 'chromium web interface'
+    let firstSegment: Request | undefined
+    if (coldStart) {
+      await page.route('**/hls/*/0.ts', async (route) => {
+        firstSegment = route.request()
+        // Hold the first segment longer than hls.js's default first-byte timeout.
+        await new Promise(resolve => setTimeout(resolve, 12_000))
+        await route.continue()
+      }, { times: 1 })
+    }
     if (source === 'direct') {
       await page.route('**/v1/api/player/play', async (route) => {
         const response = await route.fetch()
@@ -76,6 +86,7 @@ for (const source of ['HLS', 'direct']) {
     const video = skin.locator('video')
     await skin.getByRole('button', { name: 'Play', exact: true }).click()
     await expect.poll(() => video.evaluate(v => v.currentTime > 1 && v.videoWidth > 0), { timeout: 25000 }).toBe(true)
+    if (coldStart) expect((await firstSegment?.response())?.status()).toBe(200)
     if (source === 'direct') {
       // The sample starts at zero. Reaching 14 seconds here requires a resume seek.
       await expect.poll(() => video.evaluate(v => v.currentTime), { timeout: 5000 }).toBeGreaterThan(14.2)

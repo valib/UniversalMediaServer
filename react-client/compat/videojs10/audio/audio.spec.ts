@@ -32,16 +32,23 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
   // A direct play link may start the initial root browse before the route takes effect.
   // Deliver that real browse response last, after UMS has answered the play request.
   const playResponse = page.waitForResponse(response => response.url().endsWith('/v1/api/player/play'))
+  const mediaPath = '/v1/api/player/media/' + uuid + '/' + tracks[0].id
+  let mediaResponses = 0
+  page.on('response', (response) => {
+    if (response.status() >= 200 && response.status() < 300 && new URL(response.url()).pathname === mediaPath) mediaResponses++
+  })
   await page.route('**/v1/api/player/browse', async (route) => {
     const previousListing = await route.fetch()
     await playResponse
     await route.fulfill({ response: previousListing })
   })
   await page.goto('/player/play/' + tracks[0].id)
-  await playResponse
+  const { medias } = await (await playResponse).json()
   const audio = page.locator('audio')
   const cover = page.locator('img').filter({ visible: true }).and(page.locator('[src$="/thumbnail/' + uuid + '/' + tracks[0].id + '"]'))
   await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+  await expect(audio).toHaveAttribute('preload', medias[0].isTranscoded ? 'none' : 'metadata')
+  if (medias[0].isTranscoded) expect(mediaResponses).toBe(0)
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   await expect.poll(() => audio.evaluate((el) => {
     if (el.error) throw Error(el.error.message || 'Media error ' + el.error.code)

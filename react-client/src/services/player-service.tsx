@@ -101,6 +101,7 @@ export interface SurroundMedias {
 
 export interface AudioMedia extends PlayMedia {
   mediaType: 'audio'
+  isTranscoded?: boolean
   isNativeAudio: boolean
   mime: string
   width: number

@@ -22,7 +22,7 @@ function UmsAudio({ uuid, media, session, onEnded }: { uuid: string, media: Audi
     <AudioPlayer>
       <img src={playerApiUrl + 'thumbnail/' + resource} alt={media.name} style={{ display: 'block', width: '100%', maxHeight: '45vh', objectFit: 'contain' }} />
       <CompatAudioSkin>
-        <Audio ref={audio} preload="metadata" onEnded={onEnded}>
+        <Audio ref={audio} preload={media.isTranscoded ? 'none' : 'metadata'} onEnded={onEnded}>
           <source src={playerApiUrl + 'media/' + resource} type={media.mime} />
         </Audio>
       </CompatAudioSkin>

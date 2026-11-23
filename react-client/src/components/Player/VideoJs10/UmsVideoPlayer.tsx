@@ -10,7 +10,7 @@ import useMediaSession, { type MediaSession } from './useMediaSession'
 import { isHlsVideo } from './hls'
 import './video.css'
 
-const HlsJsVideo = lazy(() => import('@videojs/react/media/hlsjs-video').then(module => ({ default: module.HlsJsVideo })))
+const UmsHlsVideo = lazy(() => import('./UmsHlsVideo'))
 
 interface Props {
   uuid: string
@@ -124,13 +124,14 @@ function VideoSession({ uuid, media, native, session, onEnded }: Props) {
       <Hotkey keys="f" action="toggleFullscreen" />
       {hls
         ? (
-            <HlsJsVideo
+            <UmsHlsVideo
               {...mediaProps}
               mediaRef={adapter}
-              source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
+              src={playlist}
+              native={nativeHls}
             >
               {textTracks}
-            </HlsJsVideo>
+            </UmsHlsVideo>
           )
         : <Video {...mediaProps} src={src} preload="metadata">{textTracks}</Video>}
       <div className="ums-video-controls">
