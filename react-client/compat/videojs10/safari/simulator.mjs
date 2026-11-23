@@ -57,6 +57,11 @@ const server = createServer(async (req, res) => {
           const file = join(directory, 'tap-target.png')
           await screenshot(file)
           const point = await findButton(file, result.width)
+          // Safari reports fullscreen before its transition finishes painting the controls.
+          if (!point) {
+            res.writeHead(409).end('The marked button is not visible on the desktop yet')
+            return
+          }
           await run('cliclick', ['c:' + point.x + ',' + point.y], { timeout: 10000 })
         }
         else {

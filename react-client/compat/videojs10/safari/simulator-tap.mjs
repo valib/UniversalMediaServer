@@ -53,14 +53,13 @@ export async function findButton(file, width) {
   const { stdout } = await exec('ffmpeg', [
     '-v', 'error', '-i', file, '-vf', 'scale=' + width + ':-1:flags=neighbor', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1',
   ], { encoding: 'buffer', maxBuffer: 32 * 1024 * 1024, timeout: 20000 })
-  const point = markerCenter(stdout, width)
-  if (!point) throw Error('The screenshot did not contain the marked button')
-  return point
+  return markerCenter(stdout, width)
 }
 
 export async function tapMarker(udid, directory, width) {
   const file = join(directory, 'tap-target.png')
   await simulatorScreenshot(udid, file)
   const point = await findButton(file, width)
+  if (!point) throw Error('The screenshot did not contain the marked button')
   await exec('axe', ['tap', '-x', String(point.x), '-y', String(point.y), '--udid', udid], { timeout: 60000 })
 }
