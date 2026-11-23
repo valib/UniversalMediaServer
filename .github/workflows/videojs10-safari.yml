@@ -19,9 +19,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15-intel, macos-26]
+        os: [macos-15-intel, macos-26-intel]
     steps:
       - uses: actions/checkout@v4
+      - name: Launch Safari on the macOS 26 desktop
+        if: matrix.os == 'macos-26-intel'
+        run: open -a Safari about:blank
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

@@ -87,7 +87,17 @@ const state = () => evaluate(mediaState, mode === 'native')
 const button = name => '//button[normalize-space(.)="' + name + '"]'
 try {
   const capabilities = { browserName: 'Safari', pageLoadStrategy: 'eager', platformName: 'macOS' }
-  const created = await command('POST', '/session', { capabilities: { alwaysMatch: capabilities } })
+  const createSession = () => command('POST', '/session', { capabilities: { alwaysMatch: capabilities } })
+  let created
+  try {
+    created = await createSession()
+  }
+  catch (error) {
+    if (!error.message.includes('RWIApplication')) throw error
+    // LaunchServices can finish opening Safari after the first WebDriver handshake times out.
+    execFileSync('/usr/bin/open', ['-a', 'Safari', 'about:blank'], { timeout: 15000 })
+    created = await createSession()
+  }
   session = created.sessionId
   await post('/timeouts', { implicit: 0, pageLoad: 90000, script: 15000 })
   report.capabilities = created.capabilities
