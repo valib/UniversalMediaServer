@@ -29,7 +29,16 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
   const listing = await request.post('/v1/api/player/browse', { headers: { Player: uuid }, data: { uuid, id: folder.id, lang: 'en' } })
   const tracks = (await listing.json()).medias.filter((entry: { name: string }) => entry.name.startsWith('UMS audio'))
   expect(tracks).toHaveLength(2)
+  // A direct play link may start the initial root browse before the route takes effect.
+  // Deliver that real browse response last, after UMS has answered the play request.
+  const playResponse = page.waitForResponse(response => response.url().endsWith('/v1/api/player/play'))
+  await page.route('**/v1/api/player/browse', async (route) => {
+    const previousListing = await route.fetch()
+    await playResponse
+    await route.fulfill({ response: previousListing })
+  })
   await page.goto('/player/play/' + tracks[0].id)
+  await playResponse
   const audio = page.locator('audio')
   const cover = page.locator('img').filter({ visible: true }).and(page.locator('[src$="/thumbnail/' + uuid + '/' + tracks[0].id + '"]'))
   await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
