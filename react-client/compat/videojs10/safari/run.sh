@@ -23,9 +23,9 @@ start_driver() {
   return 1
 }
 preview_port=5287
-if [[ "$platform" == ios ]]; then
+if [[ "$platform" == ios || ${UMS_SAFARI_DESKTOP:-0} == 1 ]]; then
   export UMS_SIMULATOR_REPORT=1
-  # Mobile Safari can keep fetching segments for a previous tab after a test ends.
+  # Safari can keep fetching segments for a previous tab after a test ends.
   if [[ "$mode" == mse ]]; then
     preview_port=5288
     export UMS_SIMULATOR_REPORT_PORT=5290
@@ -50,8 +50,8 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 "http://127.0.0.1:$preview_port/" > /dev/null
-if [[ "$platform" == ios ]]; then
-  node compat/videojs10/safari/simulator.mjs "$mode" &
+if [[ ${UMS_SIMULATOR_REPORT:-0} == 1 ]]; then
+  node compat/videojs10/safari/simulator.mjs "$mode" "$platform" &
 else
   sudo /usr/bin/safaridriver --enable
   start_driver

@@ -6,7 +6,8 @@ const token = params.get('token')
 if (!/^[a-f0-9]{32}$/.test(token)) throw Error('Missing simulator test session')
 
 const mode = params.get('mode') || 'native'
-const result = { mode, status: 'failed', userAgent: navigator.userAgent, checks: [] }
+const desktop = params.get('platform') === 'macos'
+const result = { platform: desktop ? 'macos' : 'ios', mode, status: 'failed', userAgent: navigator.userAgent, checks: [] }
 const button = text => Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim().startsWith(text))
 const send = result => fetch('/__simulator-report/' + token, { method: 'POST', body: JSON.stringify(result) })
 async function waitFor(label, read) {
@@ -56,8 +57,9 @@ async function tapControl(target) {
 }
 let video
 try {
+  if (desktop && !/Macintosh.*Version\/[\d.]+.*Safari\//.test(navigator.userAgent)) throw Error('Expected desktop Safari')
   const checkbox = await waitFor('native preference', () => document.querySelector('input[type=checkbox]'))
-  if (!checkbox.checked) throw Error('Mobile Safari must default to native HLS')
+  if (!checkbox.checked) throw Error('Safari must default to native HLS')
   if (mode === 'mse') checkbox.click()
   const folder = await waitFor('UMS shared folder', () => Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Media'))
   folder.click()
@@ -76,7 +78,7 @@ try {
   const engine = document.querySelector('[aria-label="Playback engine"]')?.textContent
   if (mode === 'native' && (engine !== 'Browser HLS' || !/^\/v1\/api\/player\/media\/[^/]+\/[^/]+\/master\.m3u8$/.test(new URL(video.currentSrc).pathname))) throw Error('Expected the native UMS playlist')
   if (mode === 'mse' && (engine !== 'hls.js (MSE)' || !video.currentSrc.startsWith('blob:'))) throw Error('Expected hls.js playback')
-  result.checks.push(engine + ' decodes in Mobile Safari')
+  result.checks.push(engine + ' decodes in ' + (desktop ? 'desktop Safari' : 'Mobile Safari'))
   const cue = () => Array.from(video.textTracks).filter(t => t.kind === 'subtitles' && t.mode === 'showing')
     .flatMap(t => Array.from(t.activeCues || [], c => c.text))[0]
   const first = await waitFor('Czech cue', () => cue()?.match(/^(První|Druhá) česká stopa$/)?.[0])
@@ -98,6 +100,7 @@ try {
   result.checks.push('Czech audio remains selected after the chapter seek')
   const toggle = button('Fullscreen')
   const fullscreen = () => video.webkitDisplayingFullscreen || video.webkitPresentationMode === 'fullscreen'
+  const documentFullscreen = () => document.fullscreenElement || document.webkitFullscreenElement
   result.fullscreen = { system: false, exited: false, trustedTap: false }
   async function captureCue(appearance) {
     await tapControl(toggle)
@@ -129,12 +132,26 @@ try {
   }
   const defaultColor = getComputedStyle(video).getPropertyValue('--ums-cue-color')
   const inlineDefault = await captureInline('default')
-  const baseline = await captureCue('default')
-  result.fullscreen.cue = baseline.cue
+  let baseline
+  if (desktop) {
+    await tapControl(toggle)
+    await waitFor('desktop fullscreen', () => documentFullscreen() || fullscreen())
+    result.fullscreen.system = Boolean(fullscreen())
+    result.fullscreen.cue = await waitFor('Czech fullscreen cue', () => cue()?.match(/^(První|Druhá) česká stopa$/)?.[0])
+    const shot = await send({ action: 'capture', appearance: 'desktop' })
+    if (!shot.ok) throw Error(await shot.text())
+    if (documentFullscreen()) await tapControl(toggle)
+    else video.webkitSetPresentationMode('inline')
+    await waitFor('inline desktop video', () => !documentFullscreen() && !fullscreen())
+  }
+  else {
+    baseline = await captureCue('default')
+    result.fullscreen.cue = baseline.cue
+    result.fullscreen.system = true
+  }
   result.fullscreen.trustedTap = true
-  result.fullscreen.system = true
   result.fullscreen.exited = true
-  result.checks.push('System fullscreen enters and exits with an active cue')
+  result.checks.push('Fullscreen enters and exits with an active cue')
   button('Subtitle appearance').click()
   const input = document.querySelector('dialog input[type=color]')
   Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value').set.call(input, '#00ff00')
@@ -142,12 +159,16 @@ try {
   input.dispatchEvent(new Event('change', { bubbles: true }))
   document.querySelector('dialog button:last-child').click()
   await waitFor('selected subtitle color', () => getComputedStyle(video).getPropertyValue('--ums-cue-color').trim().startsWith('#00ff00'))
-  const styled = await captureCue('green')
-  if (styled.cue !== baseline.cue || Math.abs(styled.time - baseline.time) > 0.25) throw Error('Fullscreen comparison changed cue or playback time')
-  result.fullscreen.appearance = { baseline, styled, appliesSelectedColor: styled.green > baseline.green + 30 }
-  if (!result.fullscreen.appearance.appliesSelectedColor) throw Error('Missing green Czech subtitle in system fullscreen')
-  const inlineGreen = await captureInline('green')
-  if (inlineGreen <= inlineDefault + 30) throw Error('Missing green Czech subtitle in inline playback')
+  if (!desktop) {
+    const styled = await captureCue('green')
+    if (styled.cue !== baseline.cue || Math.abs(styled.time - baseline.time) > 0.25) throw Error('Fullscreen comparison changed cue or playback time')
+    result.fullscreen.appearance = { baseline, styled, appliesSelectedColor: styled.green > baseline.green + 30 }
+    if (!result.fullscreen.appearance.appliesSelectedColor) throw Error('Missing green Czech subtitle in system fullscreen')
+  }
+  const inlineGreen = await waitFor('green Czech subtitle in inline playback', async () => {
+    const pixels = await captureInline('green')
+    return pixels > inlineDefault + 30 && pixels
+  })
   button('Subtitle appearance').click()
   button('Use server defaults').click()
   button('Close').click()
@@ -155,7 +176,7 @@ try {
   const restored = await captureInline('restored')
   result.inline = { baseline: inlineDefault, styled: inlineGreen, restored }
   if (restored > inlineDefault + 5) throw Error('Inline cue did not restore the server color')
-  result.checks.push('Inline and system fullscreen Czech cue colors, including restored inline defaults')
+  result.checks.push('Inline Czech cue color and restored server defaults')
   result.status = 'passed'
 }
 catch (error) {
