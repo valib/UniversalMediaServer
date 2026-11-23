@@ -13,6 +13,8 @@ async function waitFor(label, read) {
   await send({ status: 'in progress', stage: label, checks: result.checks }).catch(() => {})
   const end = Date.now() + 75000
   while (Date.now() < end) {
+    const error = document.querySelector('p[role=alert]')?.textContent
+    if (error) throw Error(label + ': ' + error)
     const value = await read()
     if (value) return value
     await new Promise(resolve => setTimeout(resolve, 200))
@@ -160,6 +162,10 @@ finally {
     const buffered = Array.from({ length: video.buffered.length }, (_, i) => [video.buffered.start(i), video.buffered.end(i)])
     result.media = { time: video.currentTime, width: video.videoWidth, height: video.videoHeight, paused: video.paused, seeking: video.seeking, readyState: video.readyState, buffered, error: video.error?.code }
     video.pause()
+    if (mode === 'native') {
+      video.removeAttribute('src')
+      video.load()
+    }
   }
   await send(result)
 }

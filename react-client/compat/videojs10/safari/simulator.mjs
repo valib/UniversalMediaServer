@@ -8,7 +8,7 @@ import { promisify } from 'node:util'
 import { dismissSafariTip, simulatorScreenshot, tapMarker } from './simulator-tap.mjs'
 import { cropVideo, greenPixels, systemCuePixels } from './cue-frame.mjs'
 
-const origin = 'http://127.0.0.1:5287'
+const origin = process.env.UMS_SIMULATOR_ORIGIN || 'http://127.0.0.1:5287'
 const token = randomBytes(16).toString('hex')
 const run = promisify(execFile)
 const udid = process.env.IOS_SIMULATOR_UDID

@@ -22,12 +22,17 @@ start_driver() {
   echo 'SafariDriver did not become ready' >&2
   return 1
 }
+preview_port=5287
 if [[ "$platform" == ios ]]; then
   export UMS_SIMULATOR_REPORT=1
-  # A timed-out simulator process can briefly retain its listener.
-  if [[ "$mode" == mse ]]; then export UMS_SIMULATOR_REPORT_PORT=5290; fi
+  # Mobile Safari can keep fetching segments for a previous tab after a test ends.
+  if [[ "$mode" == mse ]]; then
+    preview_port=5288
+    export UMS_SIMULATOR_REPORT_PORT=5290
+  fi
+  export UMS_SIMULATOR_ORIGIN="http://127.0.0.1:$preview_port"
 fi
-node node_modules/vite/bin/vite.js preview --config compat/videojs10/vite.config.ts --host 127.0.0.1 --port 5287 --strictPort >"$SAFARI_RESULTS/vite.log" 2>&1 &
+node node_modules/vite/bin/vite.js preview --config compat/videojs10/vite.config.ts --host 127.0.0.1 --port "$preview_port" --strictPort >"$SAFARI_RESULTS/vite.log" 2>&1 &
 vite=$!
 cleanup() {
   if [[ -n ${check_pid:-} ]]; then
@@ -44,7 +49,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 http://127.0.0.1:5287/ > /dev/null
+curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 "http://127.0.0.1:$preview_port/" > /dev/null
 if [[ "$platform" == ios ]]; then
   node compat/videojs10/safari/simulator.mjs "$mode" &
 else
