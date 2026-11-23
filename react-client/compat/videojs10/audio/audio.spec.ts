@@ -43,7 +43,10 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
   const cover = page.locator('img').filter({ visible: true }).and(page.locator('[src$="/thumbnail/' + uuid + '/' + tracks[0].id + '"]'))
   await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
   await page.getByRole('button', { name: 'Play', exact: true }).click()
-  await expect.poll(() => audio.evaluate(el => el.currentTime)).toBeGreaterThan(1)
+  await expect.poll(() => audio.evaluate((el) => {
+    if (el.error) throw Error(el.error.message || 'Media error ' + el.error.code)
+    return el.currentTime
+  }), { timeout: 25000 }).toBeGreaterThan(1)
   await expect(cover).toBeVisible()
   const originalAudio = await audio.elementHandle()
 
