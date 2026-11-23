@@ -24,10 +24,10 @@ import { I18nInterface } from '../services/i18n-service'
 import { SessionInterface } from '../services/session-service'
 import { playerApiUrl } from '../utils'
 import { showError, showWarning } from '../utils/notifications'
-import { type AudioController, PlayerRemoteAction } from '../services/player-service'
+import { type MediaController, PlayerRemoteAction } from '../services/player-service'
 
 const PlayerProvider = ({ children, i18n, session }: { children?: ReactNode, i18n: I18nInterface, session: SessionInterface }) => {
-  const audioController = useRef<AudioController | null>(null)
+  const mediaController = useRef<MediaController | null>(null)
   const [reqId, setReqId] = useState('0')
   const [reqType, setReqType] = useState('browse')
   const [askingUuid, setAskingUuid] = useState<boolean>(false)
@@ -110,8 +110,8 @@ const PlayerProvider = ({ children, i18n, session }: { children?: ReactNode, i18
   }
 
   const onRemoteAction = (data: PlayerRemoteAction) => {
-    if (audioController.current && data.request !== 'setPlayId') {
-      audioController.current.command(data).catch(() => {
+    if (mediaController.current && data.request !== 'setPlayId') {
+      mediaController.current.command(data).catch(() => {
         if (data.request === 'play') showWarning({ title: i18n.get('RemoteControl'), message: i18n.get('RemotePlayOnlyAllowed') })
       })
       return
@@ -179,7 +179,7 @@ const PlayerProvider = ({ children, i18n, session }: { children?: ReactNode, i18
 
   return (
     <PlayerContext.Provider value={{
-      audioController,
+      mediaController,
       uuid: uuid,
       reqId: reqId,
       reqType: reqType,

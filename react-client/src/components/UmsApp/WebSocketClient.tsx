@@ -53,7 +53,7 @@ const WebSocketClient = ({ i18n, session, player }: { i18n: I18nInterface, sessi
       sendJsonMessage({ action: 'token', data: session.token })
       sendJsonMessage({ action: 'subscribe', data: session.subscribe })
       sendJsonMessage({ action: 'uuid', data: session.uuid })
-      player.audioController.current?.report()
+      player.mediaController.current?.report()
     }
   }, [i18n.setServerReadyState, serverWebSocketReadyState])
 

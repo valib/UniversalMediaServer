@@ -32,8 +32,9 @@ import MediaSelections from './MediaSelections'
 import PlayerNavbar from './PlayerNavbar'
 import MediaGrid from './MediaGrid'
 import MediaPanel from './MediaPanel'
+import { isHlsVideo } from './VideoJs10/hls'
 
-const CandidateAudioPlayer = import.meta.env.MODE === 'videojs10' ? lazy(() => import('./VideoJs10/AudioPlayer')) : undefined
+const CandidatePlayer = import.meta.env.MODE === 'videojs10' ? lazy(() => import('./VideoJs10/MediaPlayer')) : undefined
 
 const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: SessionInterface, player: PlayerInterface }) => {
   const [data, setData] = useState({ goal: '', folders: [], breadcrumbs: [], isRealFolder: false, medias: [], useWebControl: false } as BaseBrowse)
@@ -336,6 +337,7 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
 
   const playMedia = data.goal === 'show' ? (data.medias[0]) as PlayMedia : undefined
   const fullyplayed = (playMedia && playMedia.fullyplayed != null) ? playMedia.fullyplayed : data.fullyplayed
+  const singleMedia = data.medias.length === 1 ? data.medias[0] as AudioMedia | VideoMedia : undefined
 
   return (!session.authenticate || session.havePermission(UmsPermission.web_player_browse))
     ? (
@@ -347,12 +349,12 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
               data.goal === 'play'
                 ? (
                     <Paper>
-                      {CandidateAudioPlayer && data.medias.length === 1 && (data.medias[0] as PlayMedia).mediaType === 'audio'
+                      {CandidatePlayer && singleMedia && (singleMedia.mediaType === 'audio' || isHlsVideo(singleMedia))
                         ? (
                             <Suspense>
-                              <CandidateAudioPlayer
-                                key={player.uuid + '/' + data.medias[0].id}
-                                media={data.medias[0] as AudioMedia}
+                              <CandidatePlayer
+                                key={player.uuid + '/' + singleMedia.id}
+                                media={singleMedia}
                                 player={player}
                                 sendJsonMessage={session.sendJsonMessage}
                                 downloadLabel={i18n.get('Download')}

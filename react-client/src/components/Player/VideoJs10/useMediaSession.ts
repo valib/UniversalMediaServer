@@ -1,26 +1,16 @@
-import { Audio, AudioPlayer, CompatAudioSkin } from '@videojs/react/audio'
-import '@videojs/react/audio/compat-skin.css'
 import { useEffect, useEffectEvent, useRef } from 'react'
+import type { PlayerInterface, VideoPlayerOption } from '../../../services/player-service'
 
-import type { AudioMedia, PlayerInterface, VideoPlayerOption } from '../../../services/player-service'
-import { playerApiUrl } from '../../../utils'
+export type MediaSession = Pick<VideoPlayerOption, 'sendJsonMessage'> & Pick<PlayerInterface, 'mediaController'>
 
-type Props = Pick<VideoPlayerOption, 'sendJsonMessage'> & {
-  media: AudioMedia
-  player: PlayerInterface
-  downloadLabel: string
-}
-
-export default function UmsAudioPlayer({ media, player, sendJsonMessage, downloadLabel }: Props) {
-  const audio = useRef<HTMLAudioElement>(null)
-  const { uuid, audioController } = player
-  const { id, surroundMedias: { prev, next } } = media
-  const resource = uuid + '/' + id
-  const send = useEffectEvent((data: Record<string, string>) => sendJsonMessage({ action: 'player_status', data }, false))
+export default function useMediaSession<T extends HTMLMediaElement>(uuid: string, id: string, session?: MediaSession) {
+  const ref = useRef<T>(null)
+  const mediaController = session?.mediaController
+  const send = useEffectEvent((data: Record<string, string>) => session?.sendJsonMessage({ action: 'player_status', data }, false))
 
   useEffect(() => {
-    const element = audio.current
-    if (!element) return
+    const element = ref.current
+    if (!element || !mediaController) return
     let playback = element.paused ? 'PAUSED' : 'PLAYING'
     let previous = ''
     const report = (force = false) => {
@@ -58,7 +48,7 @@ export default function UmsAudioPlayer({ media, player, sendJsonMessage, downloa
       }
       report()
     }
-    const controller: NonNullable<typeof audioController.current> = {
+    const controller: NonNullable<typeof mediaController.current> = {
       report: () => { if (previous || element.readyState > 0) report(true) },
       command: async ({ request, arg0 }) => {
         switch (request) {
@@ -83,7 +73,7 @@ export default function UmsAudioPlayer({ media, player, sendJsonMessage, downloa
         }
       },
     }
-    audioController.current = controller
+    mediaController.current = controller
     const events = ['loadedmetadata', 'play', 'playing', 'pause', 'timeupdate', 'volumechange', 'seeked', 'ended', 'error', 'abort']
     events.forEach(name => element.addEventListener(name, update))
     const leave = () => {
@@ -101,26 +91,10 @@ export default function UmsAudioPlayer({ media, player, sendJsonMessage, downloa
       events.forEach(name => element.removeEventListener(name, update))
       window.removeEventListener('pagehide', leave)
       window.removeEventListener('pageshow', restore)
-      audioController.current = null
+      mediaController.current = null
       leave()
     }
-  }, [uuid, id, audioController])
+  }, [uuid, id, mediaController])
 
-  return (
-    <AudioPlayer>
-      <img src={playerApiUrl + 'thumbnail/' + resource} alt={media.name} style={{ display: 'block', width: '100%', maxHeight: '45vh', objectFit: 'contain' }} />
-      <CompatAudioSkin>
-        <Audio
-          ref={audio}
-          preload="metadata"
-          onEnded={() => { if (media.autoContinue && next) player.askPlayId(next.id) }}
-        >
-          <source src={playerApiUrl + 'media/' + resource} type={media.mime} />
-        </Audio>
-      </CompatAudioSkin>
-      {prev && <button onClick={() => player.askPlayId(prev.id)}>{prev.name}</button>}
-      {next && <button onClick={() => player.askPlayId(next.id)}>{next.name}</button>}
-      {media.isDownload && <a href={playerApiUrl + 'download/' + resource} download>{downloadLabel}</a>}
-    </AudioPlayer>
-  )
+  return ref
 }

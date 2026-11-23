@@ -18,7 +18,7 @@ import { createContext } from 'react'
 import { PlayerInterface, PlayerRemoteAction } from '../services/player-service'
 
 const PlayerContext = createContext<PlayerInterface>({
-  audioController: { current: null },
+  mediaController: { current: null },
   uuid: '',
   reqId: '0',
   reqType: 'browse',
