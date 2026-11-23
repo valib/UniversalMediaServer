@@ -7,7 +7,6 @@ case "$platform" in macos|ios) ;; *) exit 2 ;; esac
 cd "$(dirname "$0")/../../.."
 export SAFARI_RESULTS="$PWD/test-results/safari-$platform/$mode"
 mkdir -p "$SAFARI_RESULTS"
-sudo /usr/bin/safaridriver --enable
 if [[ "$platform" == ios ]]; then
   IOS_SIMULATOR_UDID=$(xcrun simctl list devices available -j | node --input-type=module -e '
     import { readFileSync } from "node:fs"
@@ -20,8 +19,6 @@ if [[ "$platform" == ios ]]; then
   ')
   export IOS_SIMULATOR_UDID
   xcrun simctl bootstatus "$IOS_SIMULATOR_UDID" -b
-  xcrun simctl spawn "$IOS_SIMULATOR_UDID" defaults write com.apple.mobilesafari AllowRemoteAutomation -bool YES
-  xcrun simctl spawn "$IOS_SIMULATOR_UDID" defaults write com.apple.webinspectord RemoteInspectorEnabled -bool YES
   open -a Simulator --args -CurrentDeviceUDID "$IOS_SIMULATOR_UDID"
   xcrun simctl launch "$IOS_SIMULATOR_UDID" com.apple.mobilesafari
 fi
@@ -49,19 +46,10 @@ cleanup() {
 }
 trap cleanup EXIT
 curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 http://127.0.0.1:5287/ > /dev/null
-smoke=0
 if [[ "$platform" == ios ]]; then
-  node compat/videojs10/safari/simulator.mjs "$mode" || smoke=$?
+  node compat/videojs10/safari/simulator.mjs "$mode"
+else
+  sudo /usr/bin/safaridriver --enable
+  start_driver
+  node compat/videojs10/safari/check.mjs "$platform" "$mode"
 fi
-start_driver
-if node compat/videojs10/safari/check.mjs "$platform" "$mode"; then exit "$smoke"; else status=$?; fi
-if [[ "$platform" != ios || "$status" != 75 ]]; then exit "$status"; fi
-# Retry only a failed simulator session handshake, before any playback check ran.
-mv "$SAFARI_RESULTS/result.json" "$SAFARI_RESULTS/first-session.json"
-kill "$driver" 2>/dev/null || true
-wait "$driver" 2>/dev/null || true
-xcrun simctl terminate "$IOS_SIMULATOR_UDID" com.apple.mobilesafari 2>/dev/null || true
-xcrun simctl launch "$IOS_SIMULATOR_UDID" com.apple.mobilesafari
-start_driver
-node compat/videojs10/safari/check.mjs "$platform" "$mode"
-exit "$smoke"

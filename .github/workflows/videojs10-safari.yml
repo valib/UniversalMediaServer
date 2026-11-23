@@ -22,7 +22,7 @@ jobs:
         include:
           - os: macos-15-intel
             platform: macos
-          - os: macos-15
+          - os: macos-15-intel
             platform: ios
           - os: macos-26
             platform: macos

@@ -1,26 +1,9 @@
-/* global document, innerWidth, screen */
 import { execFileSync } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { markerCenter } from './simulator-tap.mjs'
-
-export function markVideo() {
-  const video = document.querySelector('video')
-  const player = video.closest('.ums-video-skin')
-  player.style.position = 'relative'
-  const bounds = video.getBoundingClientRect()
-  const parent = player.getBoundingClientRect()
-  const marker = document.createElement('span')
-  marker.id = 'capture-origin'
-  marker.setAttribute('aria-hidden', 'true')
-  marker.style.cssText = 'position:absolute;width:10px;height:10px;background:#f0f;outline:4px solid #0f0;pointer-events:none;z-index:1'
-  marker.style.left = bounds.left - parent.left + 10 + 'px'
-  marker.style.top = bounds.top - parent.top + 10 + 'px'
-  player.append(marker)
-  return { viewport: innerWidth, display: screen.width, player: Math.round(parent.width), width: Math.floor(bounds.width), height: Math.floor(bounds.height) }
-}
 
 function frame(png, options) {
   return execFileSync('ffmpeg', ['-v', 'error', '-i', 'pipe:0', '-frames:v', '1', ...options, 'pipe:1'], { input: png, maxBuffer: 48 * 1024 * 1024 })
@@ -60,24 +43,29 @@ export function macCueCapture(bounds, webdriverScreenshot, playerScreenshot) {
         continue
       }
       const width = bounds[candidate]
-      const scale = 'scale=' + width + ':-1:flags=neighbor'
-      const rgb = frame(png, ['-vf', scale, '-f', 'rawvideo', '-pix_fmt', 'rgb24'])
-      const point = markerCenter(rgb, width)
-      if (!point) {
-        failures.push(candidate + ': no marker')
-        continue
+      const cropped = cropVideo(png, bounds, width)
+      if (cropped) {
+        source = candidate
+        return { source, png: cropped }
       }
-      const x = Math.max(0, point.x - 15)
-      const y = point.y - 15 + Math.floor(bounds.height / 2)
-      const w = Math.min(bounds.width, width - x)
-      const h = Math.min(Math.floor(bounds.height / 2), rgb.length / (width * 3) - y)
-      if (w < 1 || h < 1 || y < 0) continue
-      source = candidate
-      const crop = `${scale},crop=${w}:${h}:${x}:${y}`
-      return { source, png: frame(png, ['-vf', crop, '-f', 'image2pipe', '-c:v', 'png']) }
+      failures.push(candidate + ': video marker or crop missing')
     }
     throw Error('The captured Safari video could not be located (' + failures.join(', ') + ')')
   }
+}
+
+export function cropVideo(png, bounds, width) {
+  const scale = 'scale=' + width + ':-1:flags=neighbor'
+  const rgb = frame(png, ['-vf', scale, '-f', 'rawvideo', '-pix_fmt', 'rgb24'])
+  const point = markerCenter(rgb, width)
+  if (!point) return null
+  const x = Math.max(0, point.x - 15)
+  const y = point.y - 15 + Math.floor(bounds.height / 2)
+  const w = Math.min(bounds.width, width - x)
+  const h = Math.min(Math.floor(bounds.height / 2), rgb.length / (width * 3) - y)
+  if (w < 1 || h < 1 || y < 0) return null
+  const crop = `${scale},crop=${w}:${h}:${x}:${y}`
+  return frame(png, ['-vf', crop, '-f', 'image2pipe', '-c:v', 'png'])
 }
 
 export function greenPixels(png) {
