@@ -24,6 +24,24 @@ test('existing UMS player decodes the HLS sample', async ({ page }) => {
   await expect(page.locator('.vjs-quality-selector')).toBeAttached()
 })
 
+test('candidate resumes a video and keeps a later manual seek', async ({ page }) => {
+  await page.route('**/v1/api/player/play', async (route) => {
+    const response = await route.fetch()
+    const data = await response.json()
+    data.medias[0].resumePosition = 20
+    await route.fulfill({ response, json: data })
+  })
+  const video = await openSample(page, '10')
+  await page.getByRole('button', { name: /^play$/i }).click()
+  // The 30-second fixture cannot reach this position naturally within the timeout.
+  await expect.poll(() => video.evaluate(v => v.currentTime), { timeout: 10000 }).toBeGreaterThanOrEqual(19.5)
+  await page.getByRole('button', { name: /^pause$/i }).click()
+  await page.getByRole('slider', { name: 'Position (s)' }).press('Home')
+  await expect.poll(() => video.evaluate(v => v.currentTime)).toBeLessThan(1)
+  await page.getByRole('button', { name: /^play$/i }).click()
+  await expect.poll(() => video.evaluate(v => v.currentTime > 1 && v.currentTime < 5)).toBe(true)
+})
+
 test('candidate plays UMS MPEG-TS and switches decoded video, audio and WebVTT tracks', async ({ page }) => {
   const segments: string[] = []
   page.on('response', (r) => {

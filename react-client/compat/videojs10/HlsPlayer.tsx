@@ -31,6 +31,7 @@ function TrackSelect({ choice, change }: { choice: Pick<Choice, 'label' | 'value
 function HlsSession({ uuid, media, native }: Props) {
   const video = useRef<HTMLVideoElement>(null)
   const adapter = useRef<HlsJsAdapter>(null)
+  const pendingResume = useRef(media.resumePosition)
   const [engine, setEngine] = useState('')
   const src = '/v1/api/player/media/' + uuid + '/' + media.id
   const [nativeHls] = useState(() => {
@@ -69,15 +70,26 @@ function HlsSession({ uuid, media, native }: Props) {
     }
   }, [tracks, subtitle, selectSubtitles])
 
+  function restorePosition(element: HTMLVideoElement) {
+    const saved = pendingResume.current
+    if (saved === undefined || element.readyState < HTMLMediaElement.HAVE_METADATA
+      || !Number.isFinite(element.duration) || element.duration <= 0) return
+    pendingResume.current = undefined
+    if (saved > 0 && saved < element.duration) element.currentTime = saved
+  }
+
   return (
     <Container className="ums-hls-skin">
       <HlsJsVideo
         ref={video}
         mediaRef={adapter}
-        onLoadedMetadata={() => {
+        onLoadedMetadata={(event) => {
+          restorePosition(event.currentTarget)
           if (adapter.current?.engine) setEngine('hls.js (MSE)')
           else if (video.current?.currentSrc === new URL(playlist, document.baseURI).href) setEngine('Browser HLS')
         }}
+        onCanPlay={event => restorePosition(event.currentTarget)}
+        onSeeking={() => { pendingResume.current = undefined }}
         source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
         playsInline
         poster={poster}
