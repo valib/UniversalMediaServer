@@ -1,11 +1,11 @@
 /* global console, process, setTimeout, clearTimeout, Buffer */
 import { execFile } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { dismissSafariTip, findButton, simulatorScreenshot, tapMarker } from './simulator-tap.mjs'
+import { captureScreenshot, dismissSafariTip, findButton, simulatorScreenshot, tapMarker } from './simulator-tap.mjs'
 import { cropVideo, greenPixels, systemCuePixels } from './cue-frame.mjs'
 
 const origin = process.env.UMS_SIMULATOR_ORIGIN || 'http://127.0.0.1:5287'
@@ -17,10 +17,9 @@ const mode = process.argv[2] || 'native'
 const desktop = process.argv[3] === 'macos'
 const browser = desktop ? 'Safari on macOS' : 'Mobile Safari'
 const reportFile = join(directory, desktop ? 'result.json' : 'simulator-playback.json')
-async function screenshot(file) {
+function screenshot(file) {
   if (!desktop) return simulatorScreenshot(udid, file)
-  await run('/usr/sbin/screencapture', ['-x', '-D', '1', '-t', 'png', file], { timeout: 15000 })
-  return readFile(file)
+  return captureScreenshot(file, () => run('/usr/sbin/screencapture', ['-x', '-D', '1', '-t', 'png', file], { timeout: 25000 }), 2)
 }
 let lastProgress
 let finish
