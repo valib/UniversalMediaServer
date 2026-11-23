@@ -37,12 +37,12 @@ async function until(description, read, timeout = platform === 'ios' ? 75000 : 2
   } while (Date.now() < end)
   throw Error('Timed out waiting for ' + description)
 }
-async function click(xpath) {
+async function click(xpath, { userGesture = false } = {}) {
   const [element] = await until(xpath, async () => {
     const elements = await post('/elements', { using: 'xpath', value: xpath })
     return elements.length && elements
   })
-  if (platform !== 'ios') {
+  if (platform !== 'ios' || userGesture) {
     await post('/element/' + element['element-6066-11e4-a52e-4f735466cecf'] + '/click', {})
     return
   }
@@ -131,12 +131,19 @@ try {
   report.stage = 'browse sample'
   await click(button('Media'))
   await click('//button[starts-with(normalize-space(.), "UMS HLS sample")]')
+  report.stage = 'load playlist metadata'
+  await until('playlist metadata', () => evaluate(() => {
+    const video = document.querySelector('video')
+    if (!video) return false
+    // Match the ordinary simulator session on hosts without an audio output.
+    if (!video.muted) video.muted = true
+    return video.readyState >= video.HAVE_METADATA
+  }))
   report.stage = 'start playback'
-  // The test covers decoding, track selection and presentation, independently of autoplay policy.
-  await click(button('Play'))
+  await click(button('Play'), { userGesture: true })
   await check(mode + ' UMS HLS decodes and playback advances', async () => {
     const v = await until('two seconds of ' + mode + ' playback', async () => {
-      const v = await state()
+      const v = await evaluate(mediaState, false)
       return v?.time > 2 && v.width > 0 && v
     })
     if (mode === 'native') {

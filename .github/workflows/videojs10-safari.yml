@@ -19,14 +19,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15]
+        os: [macos-15-intel]
         platform: [macos, ios]
         engine: [native, mse]
         include:
-          - os: macos-26
+          - os: macos-26-intel
             platform: macos
             engine: native
-          - os: macos-26
+          - os: macos-26-intel
             platform: macos
             engine: mse
     steps:
