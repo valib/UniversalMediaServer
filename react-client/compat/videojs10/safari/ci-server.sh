@@ -25,7 +25,7 @@ upnp_enable = false
 web_path = $PWD/src/main/external-resources/web
 ffmpeg_path = $(command -v ffmpeg)
 ffmpeg_executable_type = custom
-cpu_cores = 2
+number_of_cpu_cores = 2
 CONFIG
 java -Xmx1g -Djava.awt.headless=true -Dums.profile.path="$profile/UMS.conf" \
   -Djna.library.path="$(brew --prefix libmediainfo)/lib" \
