@@ -12,12 +12,24 @@ for (const source of ['HLS', 'direct']) {
     const browse = await request.post('/v1/api/player/browse', { headers: { Player: uuid }, data: { uuid, id: folder.id, lang: 'en' } })
     expect(browse.ok()).toBe(true)
     const sample = ((await browse.json()) as BaseBrowse).medias.find(item => item.name.startsWith('UMS ' + source + ' sample'))!
+    if (source === 'direct') {
+      await page.route('**/v1/api/player/play', async (route) => {
+        const response = await route.fetch()
+        const data = await response.json()
+        data.medias[0].resumePosition = 14
+        await route.fulfill({ response, json: data })
+      })
+    }
     await page.goto('/player/play/' + sample.id)
 
     const skin = page.locator('.ums-video-skin')
     const video = skin.locator('video')
     await skin.getByRole('button', { name: 'Play', exact: true }).click()
     await expect.poll(() => video.evaluate(v => v.currentTime > 1 && v.videoWidth > 0), { timeout: 25000 }).toBe(true)
+    if (source === 'direct') {
+      // The sample starts at zero. Reaching 14 seconds here requires a resume seek.
+      await expect.poll(() => video.evaluate(v => v.currentTime), { timeout: 5000 }).toBeGreaterThan(14.2)
+    }
     const renderersUrl = 'http://127.0.0.1:9001/v1/api/renderers/'
     const getRenderer = async () => {
       const response = await request.get(renderersUrl)
