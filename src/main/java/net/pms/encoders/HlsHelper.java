@@ -248,16 +248,12 @@ public class HlsHelper {
 					if (videoGroup.label.equals(COPY_CONF_NAME)) {
 						sb.append(mediaInfo.getBitRate());
 						sb.append(",RESOLUTION=").append(mediaInfo.getWidth()).append("x").append(mediaInfo.getHeight());
-						sb.append(",AUDIO=\"").append(audioGroup.label).append("\"");
-						sb.append(",CODECS=\"").append("avc1.");
-						sb.append(getAvcProfileHex(mediaInfo));
-						sb.append(getAvcLevelHex(mediaInfo));
 					} else {
 						sb.append(videoGroup.bandwidth);
 						sb.append(",RESOLUTION=").append(videoGroup.resolutionWidth).append("x").append(videoGroup.resolutionHeight);
-						sb.append(",AUDIO=\"").append(audioGroup.label).append("\"");
-						sb.append(",CODECS=\"").append(videoGroup.videoCodec);
 					}
+					sb.append(",AUDIO=\"").append(audioGroup.label).append("\"");
+					sb.append(",CODECS=\"").append(videoGroup.getVideoCodec(mediaInfo));
 					sb.append(",").append(audioGroup.audioCodec).append("\"");
 					if (subtitleAdded) {
 						sb.append(",SUBTITLES=\"sub1\"");
@@ -568,6 +564,11 @@ public class HlsHelper {
 
 		public static HlsVideoConfiguration getByKey(String label) {
 			return BY_LABEL.get(label);
+		}
+
+		public String getVideoCodec(MediaInfo media) {
+			// COPY keeps the source dimensions, but FFmpeg still encodes 8-bit High Profile AVC.
+			return COPY_CONF_NAME.equals(label) ? "avc1.6400" + getAvcLevelHex(media) : videoCodec;
 		}
 
 		public static HlsVideoConfiguration[] getValues() {

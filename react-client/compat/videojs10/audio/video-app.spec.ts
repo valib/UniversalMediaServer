@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 import type { Renderer } from '../../../src/services/home-service'
 import type { BaseBrowse } from '../../../src/services/player-service'
@@ -15,6 +16,33 @@ async function findSample(page: Page, request: APIRequestContext, source: string
 }
 
 const renderersUrl = 'http://127.0.0.1:9001/v1/api/renderers/'
+
+test('HLS advertises the AVC codec carried by each video rendition', async ({ page, request }) => {
+  const { uuid, sample } = await findSample(page, request, 'HLS')
+  const play = await request.post('/v1/api/player/play', { headers: { Player: uuid }, data: { uuid, id: sample.id, lang: 'en' } })
+  expect(play.ok()).toBe(true)
+  const master = await request.get('/v1/api/player/media/' + uuid + '/' + sample.id + '/master.m3u8')
+  expect(master.ok()).toBe(true)
+  const variants = [...(await master.text()).matchAll(/^#EXT-X-STREAM-INF:([^\r\n]+)\r?\n([^\r\n]+)/gm)]
+  expect(variants.length).toBeGreaterThan(1)
+  for (const [, attributes, uri] of variants) {
+    const codec = attributes.match(/CODECS="(avc1\.[0-9a-f]{6})(?:,|")/i)?.[1].toLowerCase()
+    const playlist = await request.get(new URL(uri, master.url()).href)
+    expect(playlist.ok()).toBe(true)
+    const segmentUri = (await playlist.text()).split(/\r?\n/).find(line => line && !line.startsWith('#'))
+    expect(segmentUri).toBeTruthy()
+    const segment = await request.get(new URL(segmentUri!, playlist.url()).href)
+    expect(segment.ok()).toBe(true)
+    // Extract the H.264 sequence parameter set without decoding or re-encoding.
+    const sps = execFileSync('ffmpeg', ['-v', 'error', '-i', 'pipe:0', '-map', '0:v:0', '-frames:v', '1',
+      '-c:v', 'copy', '-bsf:v', 'filter_units=pass_types=7', '-f', 'h264', 'pipe:1'], { input: await segment.body() })
+    const startCode = sps.indexOf(Buffer.from([0, 0, 1]))
+    expect(startCode).toBeGreaterThanOrEqual(0)
+    const header = startCode + 3
+    expect(sps[header] & 31).toBe(7)
+    expect(codec, uri).toBe('avc1.' + sps.subarray(header + 1, header + 4).toString('hex'))
+  }
+})
 
 async function getRenderer(request: APIRequestContext, uuid: string) {
   const response = await request.get(renderersUrl)

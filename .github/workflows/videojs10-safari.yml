@@ -50,7 +50,7 @@ jobs:
         run: bash react-client/compat/videojs10/safari/ci-server.sh macos mse
       - name: Prepare the iPhone and launch Mobile Safari
         id: simulator
-        if: ${{ !cancelled() && matrix.os == 'macos-26' && steps.client.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.os == 'macos-15-intel' && steps.client.outcome == 'success' }}
         timeout-minutes: 20
         run: |
           brew install cameroncooke/axe/axe
