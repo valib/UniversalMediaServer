@@ -11,6 +11,7 @@ on:
       - 'react-client/compat/videojs10/audio/**'
       - 'react-client/compat/videojs10/create-fixture.sh'
       - 'react-client/package.json'
+      - 'react-client/vite.config.ts'
       - 'react-client/yarn.lock'
       - '.github/workflows/videojs10-audio.yml'
   workflow_dispatch:
@@ -42,11 +43,11 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg libmediainfo-dev pulseaudio pulseaudio-utils
       - name: Build UMS
         run: mvn -B -P testing -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
-      - name: Build the opt-in client and install browsers
+      - name: Build the production client and install browsers
         working-directory: react-client
         run: |
           node .yarn/releases/yarn-*.cjs install --immutable
-          node .yarn/releases/yarn-*.cjs build:videojs10:app
+          node .yarn/releases/yarn-*.cjs build
           node node_modules/@playwright/test/cli.js install --with-deps --only-shell ${{ matrix.browser }}
       - name: Provide audio output for headless browsers
         run: |
