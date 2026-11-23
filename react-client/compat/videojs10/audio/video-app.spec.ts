@@ -1,17 +1,39 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 import type { Renderer } from '../../../src/services/home-service'
 import type { BaseBrowse } from '../../../src/services/player-service'
 
+async function findSample(page: Page, request: APIRequestContext, source: string) {
+  const root = page.waitForResponse(response => response.url().endsWith('/v1/api/player/browse') && response.request().postDataJSON()?.id === '0')
+  await page.goto('/player/browse/0')
+  const rootResponse = await root
+  const { uuid } = rootResponse.request().postDataJSON()
+  const folder = ((await rootResponse.json()) as BaseBrowse).folders.find(item => item.name === 'Media')!
+  const browse = await request.post('/v1/api/player/browse', { headers: { Player: uuid }, data: { uuid, id: folder.id, lang: 'en' } })
+  expect(browse.ok()).toBe(true)
+  const sample = ((await browse.json()) as BaseBrowse).medias.find(item => item.name.startsWith('UMS ' + source + ' sample'))!
+  return { uuid, sample }
+}
+
+const renderersUrl = 'http://127.0.0.1:9001/v1/api/renderers/'
+
+async function getRenderer(request: APIRequestContext, uuid: string) {
+  const response = await request.get(renderersUrl)
+  expect(response.ok()).toBe(true)
+  return ((await response.json()).renderers as Renderer[]).find(renderer => renderer.uuid === uuid)
+}
+
+async function playingRendererId(request: APIRequestContext, uuid: string) {
+  await expect.poll(async () => (await getRenderer(request, uuid))?.state.playback).toBe(1)
+  return (await getRenderer(request, uuid))!.id
+}
+
+async function control(request: APIRequestContext, id: number, action: string, value?: number) {
+  expect((await request.post(renderersUrl + 'control', { data: { id, action, value } })).ok()).toBe(true)
+}
+
 for (const source of ['HLS', 'direct']) {
   test(source + ' video plays, seeks and handles remote controls on the UMS server', async ({ page, request }) => {
-    const root = page.waitForResponse(response => response.url().endsWith('/v1/api/player/browse') && response.request().postDataJSON()?.id === '0')
-    await page.goto('/player/browse/0')
-    const rootResponse = await root
-    const { uuid } = rootResponse.request().postDataJSON()
-    const folder = ((await rootResponse.json()) as BaseBrowse).folders.find(item => item.name === 'Media')!
-    const browse = await request.post('/v1/api/player/browse', { headers: { Player: uuid }, data: { uuid, id: folder.id, lang: 'en' } })
-    expect(browse.ok()).toBe(true)
-    const sample = ((await browse.json()) as BaseBrowse).medias.find(item => item.name.startsWith('UMS ' + source + ' sample'))!
+    const { uuid, sample } = await findSample(page, request, source)
     if (source === 'direct') {
       await page.route('**/v1/api/player/play', async (route) => {
         const response = await route.fetch()
@@ -30,23 +52,14 @@ for (const source of ['HLS', 'direct']) {
       // The sample starts at zero. Reaching 14 seconds here requires a resume seek.
       await expect.poll(() => video.evaluate(v => v.currentTime), { timeout: 5000 }).toBeGreaterThan(14.2)
     }
-    const renderersUrl = 'http://127.0.0.1:9001/v1/api/renderers/'
-    const getRenderer = async () => {
-      const response = await request.get(renderersUrl)
-      expect(response.ok()).toBe(true)
-      return ((await response.json()).renderers as Renderer[]).find(renderer => renderer.uuid === uuid)
-    }
-    await expect.poll(async () => (await getRenderer())?.state.playback).toBe(1)
-    const id = (await getRenderer())!.id
-    const control = async (action: string) => {
-      expect((await request.post(renderersUrl + 'control', { data: { id, action } })).ok()).toBe(true)
-    }
-    await control('pause')
+    await expect(page.locator('style.vjs-styles-defaults')).toHaveCount(0)
+    const rendererId = await playingRendererId(request, uuid)
+    await control(request, rendererId, 'pause')
     await expect(video).toHaveJSProperty('paused', true)
-    await expect.poll(async () => (await getRenderer())?.state.playback).toBe(2)
+    await expect.poll(async () => (await getRenderer(request, uuid))?.state.playback).toBe(2)
     await skin.getByRole('combobox', { name: 'Chapter' }).selectOption({ label: 'Second chapter' })
     await expect.poll(() => video.evaluate(v => v.currentTime)).toBeCloseTo(12, 0)
-    await expect.poll(async () => (await getRenderer())?.state.position).toBe('00:00:12')
+    await expect.poll(async () => (await getRenderer(request, uuid))?.state.position).toBe('00:00:12')
     if (source === 'direct') {
       const captions = skin.getByRole('combobox').filter({ has: page.getByRole('option', { name: 'Off', exact: true }) })
       const activeCues = () => video.evaluate(v => Array.from(v.textTracks)
@@ -59,7 +72,7 @@ for (const source of ['HLS', 'direct']) {
       await captions.selectOption({ label: 'Off' })
       await expect.poll(activeCues).toEqual([])
     }
-    await control('play')
+    await control(request, rendererId, 'play')
     await expect.poll(() => video.evaluate(v => v.currentTime)).toBeGreaterThan(13)
     await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('href', '/v1/api/player/download/' + uuid + '/' + sample.id)
     if (source === 'direct') {
@@ -84,3 +97,30 @@ for (const source of ['HLS', 'direct']) {
     }
   })
 }
+
+test('the legacy player loads on demand and accepts UMS remote controls', async ({ page, request }) => {
+  const { uuid, sample } = await findSample(page, request, 'HLS')
+  const legacyStyles = page.locator('style.vjs-styles-defaults')
+  await expect(legacyStyles).toHaveCount(0)
+  // VHS accepts this HLS MIME alias even on browsers that do not advertise native playback for it.
+  await page.route('**/v1/api/player/play', async (route) => {
+    const response = await route.fetch()
+    const data = await response.json()
+    data.medias[0].mime = 'video/vnd.apple.mpegurl'
+    await route.fulfill({ response, json: data })
+  })
+  await page.goto('/player/play/' + sample.id)
+  const legacy = page.locator('.video-js')
+  const video = legacy.locator('video')
+  await expect(legacyStyles).toHaveCount(1)
+  await legacy.getByRole('button', { name: 'Play Video', exact: true }).click()
+  await expect.poll(() => video.evaluate(v => v.videoWidth > 0 && v.currentTime > 1), { timeout: 25000 }).toBe(true)
+  const id = await playingRendererId(request, uuid)
+  await control(request, id, 'volume', 37)
+  await expect.poll(() => video.evaluate(v => v.volume)).toBeCloseTo(0.37)
+  await control(request, id, 'pause')
+  await expect(video).toHaveJSProperty('paused', true)
+  await expect.poll(async () => (await getRenderer(request, uuid))?.state.playback).toBe(2)
+  await control(request, id, 'play')
+  await expect(video).toHaveJSProperty('paused', false)
+})

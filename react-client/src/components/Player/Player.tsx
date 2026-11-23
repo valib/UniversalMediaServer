@@ -25,7 +25,6 @@ import { PlayerInterface } from '../../services/player-service'
 import { SessionInterface, UmsPermission } from '../../services/session-service'
 import { AudioMedia, BaseBrowse, BaseMedia, ImageMedia, PlayMedia, VideoMedia, VideoMetadata } from '../../services/player-service'
 import { playerApiUrl } from '../../utils'
-import VideoPlayer from './VideoPlayer'
 import { showError } from '../../utils/notifications'
 import MediaFolders from './MediaFolders'
 import MediaSelections from './MediaSelections'
@@ -35,6 +34,7 @@ import MediaPanel from './MediaPanel'
 import { isHlsVideo } from './VideoJs10/hls'
 
 const CandidatePlayer = import.meta.env.MODE === 'videojs10' ? lazy(() => import('./VideoJs10/MediaPlayer')) : undefined
+const VideoPlayer = lazy(() => import('./VideoPlayer'))
 
 const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: SessionInterface, player: PlayerInterface }) => {
   const [data, setData] = useState({ goal: '', folders: [], breadcrumbs: [], isRealFolder: false, medias: [], useWebControl: false } as BaseBrowse)
@@ -179,7 +179,11 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
     return (
       <Paper>
         <VideoPlayer
-          {...{ media: media, uuid: player.uuid, askPlayId: player.askPlayId, sendJsonMessage: session.sendJsonMessage }}
+          media={media}
+          uuid={player.uuid}
+          mediaController={player.mediaController}
+          askPlayId={player.askPlayId}
+          sendJsonMessage={session.sendJsonMessage}
         />
       </Paper>
     )
@@ -351,9 +355,9 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
               data.goal === 'play'
                 ? (
                     <Paper>
-                      {CandidatePlayer && singleMedia && (singleMedia.mediaType === 'audio' || candidateVideo)
-                        ? (
-                            <Suspense>
+                      <Suspense>
+                        {CandidatePlayer && singleMedia && (singleMedia.mediaType === 'audio' || candidateVideo)
+                          ? (
                               <CandidatePlayer
                                 key={player.uuid + '/' + singleMedia.id}
                                 media={singleMedia}
@@ -361,9 +365,9 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
                                 sendJsonMessage={session.sendJsonMessage}
                                 downloadLabel={i18n.get('Download')}
                               />
-                            </Suspense>
-                          )
-                        : <MediaPlayer player={player} data={data} />}
+                            )
+                          : <MediaPlayer player={player} data={data} />}
+                      </Suspense>
                     </Paper>
                   )
                 : data.goal === 'show'
