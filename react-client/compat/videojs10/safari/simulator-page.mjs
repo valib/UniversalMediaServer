@@ -13,7 +13,7 @@ async function waitFor(label, read) {
   await send({ status: 'in progress', stage: label, checks: result.checks }).catch(() => {})
   const end = Date.now() + 75000
   while (Date.now() < end) {
-    const value = read()
+    const value = await read()
     if (value) return value
     await new Promise(resolve => setTimeout(resolve, 200))
   }
@@ -98,15 +98,12 @@ try {
     await waitFor('system video fullscreen', fullscreen)
     const actualCue = cue()
     if (!/^(První|Druhá) česká stopa$/.test(actualCue)) throw Error('Missing Czech fullscreen cue')
-    let pixels
-    for (let i = 0; i < 4; i++) {
+    const pixels = await waitFor('rendered ' + appearance + ' fullscreen cue', async () => {
       const response = await send({ action: 'capture', appearance })
       if (!response.ok) throw Error(await response.text())
-      pixels = await response.json()
-      if (pixels.light > 30 || pixels.green > 30) break
-      await new Promise(resolve => setTimeout(resolve, 500))
-    }
-    if (pixels.light <= 30 && pixels.green <= 30) throw Error('Missing visible fullscreen subtitle in ' + appearance + ' frame')
+      const frame = await response.json()
+      return frame.letterboxed && (appearance === 'green' ? frame.green > 30 : frame.light > 30) && frame
+    })
     video.webkitExitFullscreen()
     await waitFor('inline video after fullscreen', () => !fullscreen())
     return { cue: actualCue, time: video.currentTime, ...pixels }

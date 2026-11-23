@@ -80,6 +80,18 @@ export function greenPixels(png) {
 // The iPhone displays the black 16:9 fixture centered on its portrait screen.
 // Inspect the subtitle band inside the picture, excluding system controls.
 export function systemCuePixels(png) {
+  // On the portrait iPhone the black fixture is letterboxed. During the native
+  // fullscreen transition simctl may still return a frame with Safari's page.
+  const preview = frame(png, ['-vf', 'scale=48:48', '-f', 'rawvideo', '-pix_fmt', 'gray'])
+  let dark = 0
+  for (const top of [8, 35]) {
+    for (let y = top; y < top + 5; y++) {
+      for (let x = 4; x < 44; x++) {
+        if (preview[y * 48 + x] < 25) dark++
+      }
+    }
+  }
+  const letterboxed = dark >= 380
   const rgb = frame(png, ['-vf', 'crop=iw*0.8:iw*0.18:iw*0.1:ih/2+iw*0.1', '-f', 'rawvideo', '-pix_fmt', 'rgb24'])
   let green = 0
   let light = 0
@@ -88,5 +100,5 @@ export function systemCuePixels(png) {
     if (g > 50 && r < g / 2 && b < g / 2) green++
     if (Math.min(r, g, b) > 100 && Math.max(r, g, b) - Math.min(r, g, b) < 25) light++
   }
-  return { green, light }
+  return { green, light, letterboxed }
 }

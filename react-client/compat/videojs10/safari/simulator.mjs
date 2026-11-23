@@ -95,7 +95,16 @@ await new Promise((resolve, reject) => server.once('error', reject).listen(Numbe
 const timeout = setTimeout(() => finish({ status: 'failed', error: 'Mobile Safari did not return a final result', lastProgress }), 480000)
 try {
   const url = origin + '/safari/simulator.html?engine=' + mode + '#mode=' + mode + '&token=' + token
-  await promisify(execFile)('xcrun', ['simctl', 'openurl', process.env.IOS_SIMULATOR_UDID, url], { timeout: 25000 })
+  const navigate = () => run('xcrun', ['simctl', 'openurl', udid, url], { timeout: 90000 })
+  try {
+    await navigate()
+  }
+  catch (error) {
+    if (!error.killed) throw error
+    // A cold simulator may open Safari before simctl acknowledges the request.
+    // Retry only when the page has not reported any progress.
+    if (!lastProgress) await navigate()
+  }
   const result = await received
   console.log('Simulator playback', JSON.stringify(result))
   await writeFile(join(process.env.SAFARI_RESULTS, 'simulator-playback.json'), JSON.stringify(result, null, 2) + '\n')
