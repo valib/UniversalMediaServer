@@ -42,7 +42,7 @@ On Linux WebKit, the 8.23.7 control exposed a single “Unknown” track and hid
 
 From `react-client`, run `yarn build:videojs10:audio` to build the regular application with Video.js 10 for audio. The opt-in client is written to `node_modules/.cache/ums-videojs10-audio/web/react-client`. The normal build uses Video.js 8. The opt-in audio component uses the UMS thumbnail and media endpoints, the existing player session and the renderer's WebSocket controls.
 
-The **Video.js 10 audio** workflow starts an isolated UMS server, shares two MP3s with embedded artwork and opens both ports in Chromium. To repeat it locally, install FFmpeg, MediaInfo and Chromium through Playwright, build the opt-in client and run these commands from the repository root:
+The **Video.js 10 audio** workflow starts an isolated UMS server, shares two MP3s with embedded artwork and opens both ports in Chromium, Firefox and WebKit. It checks server-side playback state, reconnects the WebSocket while playback is paused and verifies the session switches to the next track. To repeat it locally, install FFmpeg, MediaInfo and the three browsers through Playwright, build the opt-in client and run these commands from the repository root:
 
 ```sh
 mvn -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
