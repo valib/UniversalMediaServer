@@ -1,0 +1,47 @@
+name: Video.js 10 audio
+on:
+  push:
+    branches: ['migration/videojs-10-hls-check']
+    paths:
+      - 'react-client/src/**'
+      - 'react-client/compat/videojs10/audio/**'
+      - 'react-client/package.json'
+      - 'react-client/yarn.lock'
+      - '.github/workflows/videojs10-audio.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audio:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build UMS and install media dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg libmediainfo-dev
+          mvn -B -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
+      - name: Build the opt-in client and install Chromium
+        working-directory: react-client
+        run: |
+          node .yarn/releases/yarn-*.cjs install --immutable
+          node .yarn/releases/yarn-*.cjs build:videojs10:audio
+          node node_modules/@playwright/test/cli.js install --with-deps chromium --only-shell
+      - name: Play audio through both UMS entry points
+        run: bash react-client/compat/videojs10/audio/run.sh
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: videojs10-audio-results
+          path: react-client/test-results/videojs10-audio*

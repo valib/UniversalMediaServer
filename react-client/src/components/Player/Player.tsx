@@ -17,7 +17,7 @@
 import { ActionIcon, Box, Breadcrumbs, Button, Group, Image, LoadingOverlay, Menu, Paper, ScrollArea, Text } from '@mantine/core'
 import { IconChevronDown, IconHome, IconRecordMail, IconRecordMailOff } from '@tabler/icons-react'
 import axios, { AxiosError, AxiosResponse } from 'axios'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 
 import { I18nInterface } from '../../services/i18n-service'
@@ -32,6 +32,8 @@ import MediaSelections from './MediaSelections'
 import PlayerNavbar from './PlayerNavbar'
 import MediaGrid from './MediaGrid'
 import MediaPanel from './MediaPanel'
+
+const CandidateAudioPlayer = import.meta.env.MODE === 'videojs10' ? lazy(() => import('./VideoJs10/AudioPlayer')) : undefined
 
 const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: SessionInterface, player: PlayerInterface }) => {
   const [data, setData] = useState({ goal: '', folders: [], breadcrumbs: [], isRealFolder: false, medias: [], useWebControl: false } as BaseBrowse)
@@ -343,7 +345,19 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
               data.goal === 'play'
                 ? (
                     <Paper>
-                      <MediaPlayer player={player} data={data} />
+                      {CandidateAudioPlayer && data.medias.length === 1 && (data.medias[0] as PlayMedia).mediaType === 'audio'
+                        ? (
+                            <Suspense>
+                              <CandidateAudioPlayer
+                                key={player.uuid + '/' + data.medias[0].id}
+                                media={data.medias[0] as AudioMedia}
+                                player={player}
+                                sendJsonMessage={session.sendJsonMessage}
+                                downloadLabel={i18n.get('Download')}
+                              />
+                            </Suspense>
+                          )
+                        : <MediaPlayer player={player} data={data} />}
                     </Paper>
                   )
                 : data.goal === 'show'

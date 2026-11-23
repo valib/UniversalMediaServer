@@ -14,10 +14,11 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51
  * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-import { Context, createContext } from 'react'
+import { createContext } from 'react'
 import { PlayerInterface, PlayerRemoteAction } from '../services/player-service'
 
-const PlayerContext: Context<PlayerInterface> = createContext({
+const PlayerContext = createContext<PlayerInterface>({
+  audioController: { current: null },
   uuid: '',
   reqId: '0',
   reqType: 'browse',

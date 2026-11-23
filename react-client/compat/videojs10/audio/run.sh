@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Run the opt-in application on both UMS ports with a private profile.
+set -euo pipefail
+cd "$(dirname "$0")/../../../.."
+profile=$(mktemp -d "${TMPDIR:-/tmp}/ums-audio.XXXXXX")
+results="$PWD/react-client/test-results/videojs10-audio-server"
+mkdir -p "$profile/Media" "$results"
+trap 'if [[ -n ${server:-} ]]; then kill "$server" 2>/dev/null || true; wait "$server" 2>/dev/null || true; fi; rm -rf "$profile"' EXIT
+ffmpeg -nostdin -v error -f lavfi -i color=c=navy:s=128x128 -frames:v 1 -threads 1 "$profile/cover.jpg"
+for track in 01 02; do
+  ffmpeg -nostdin -v error -f lavfi -i 'sine=frequency=440:duration=30' -i "$profile/cover.jpg" \
+    -map 0:a -map 1:v -c:a libmp3lame -c:v copy -disposition:v attached_pic -id3v2_version 3 \
+    "$profile/Media/UMS audio $track.mp3"
+done
+node -e 'require("node:fs").writeFileSync(process.argv[1] + "/SHARED.conf", JSON.stringify([{type:"Folder",file:process.argv[1] + "/Media",active:true,monitored:true,metadata:false,groups:[]}]))' "$profile"
+cat > "$profile/UMS.conf" <<CONFIG
+hostname = 127.0.0.1
+web_player_enable = true
+web_player_auth = false
+authenticate_localhost_as_admin = true
+web_player_download = true
+web_player_port = 9002
+web_gui_port = 9001
+web_gui_on_start = false
+run_wizard = false
+single_instance = false
+external_network = false
+upnp_enable = false
+web_path = $PWD/react-client/node_modules/.cache/ums-videojs10-audio/web
+ffmpeg_path = $(command -v ffmpeg)
+ffmpeg_executable_type = custom
+CONFIG
+java -Xmx1g -Djava.awt.headless=true -Dums.profile.path="$profile/UMS.conf" \
+  -cp "target/classes:$(cat target/audio-classpath)" net.pms.PMS headless > "$results/server.log" 2>&1 &
+server=$!
+for port in 9001 9002; do
+  curl -fsS --retry-all-errors --retry 50 --retry-delay 1 --max-time 3 "http://127.0.0.1:$port/v1/api/player/" -o /dev/null
+done
+cd react-client
+node node_modules/@playwright/test/cli.js test --config compat/videojs10/audio/playwright.config.ts "$@"
