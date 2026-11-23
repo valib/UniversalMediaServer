@@ -4,7 +4,9 @@ set -euo pipefail
 cd "$(dirname "$0")/../../../.."
 profile=$(mktemp -d "${TMPDIR:-/tmp}/ums-audio.XXXXXX")
 results="$PWD/react-client/test-results/videojs10-audio-server"
-mkdir -p "$profile/Media" "$results"
+# Headless WebKit uses this directory for GStreamer's disk-backed media buffer.
+export WPE_SHELL_MEDIA_DISK_CACHE_PATH="$profile/webkit-media"
+mkdir -p "$profile/Media" "$WPE_SHELL_MEDIA_DISK_CACHE_PATH" "$results"
 trap 'if [[ -n ${server:-} ]]; then kill "$server" 2>/dev/null || true; wait "$server" 2>/dev/null || true; fi; rm -rf "$profile"' EXIT
 ffmpeg -nostdin -v error -f lavfi -i color=c=navy:s=128x128 -frames:v 1 -threads 1 "$profile/cover.jpg"
 for track in 01 02; do
