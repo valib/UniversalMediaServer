@@ -10,7 +10,7 @@ const platform = process.argv[2]
 assert.ok(['macos', 'ios'].includes(platform), 'Choose macos or ios')
 const mode = process.argv[3] || 'native'
 assert.ok(['native', 'mse'].includes(mode), 'Choose native or mse')
-const directory = join(process.env.SAFARI_RESULTS || 'test-results/safari-' + platform, mode)
+const directory = process.env.SAFARI_RESULTS || join('test-results/safari-' + platform, mode)
 await mkdir(directory, { recursive: true })
 const report = { platform, mode, checks: [], status: 'failed' }
 let session
@@ -223,7 +223,7 @@ try {
     if (platform === 'ios') {
       // SafariDriver shields its window from system input. The other Safari session
       // on this simulator receives an actual HID tap on this player's control.
-      const ordinary = JSON.parse(await readFile(join(directory, '..', 'simulator-playback.json'), 'utf8'))
+      const ordinary = JSON.parse(await readFile(join(directory, 'simulator-playback.json'), 'utf8'))
       assert.equal(ordinary.mode, mode)
       assert.equal(ordinary.status, 'passed', ordinary.error)
       assert.ok(ordinary.fullscreen?.trustedTap && ordinary.fullscreen.system && ordinary.fullscreen.exited)
