@@ -4,10 +4,10 @@ import { lazy, useState } from 'react'
 
 import type { AudioMedia, PlayerInterface, VideoMedia, VideoPlayerOption } from '../../../services/player-service'
 import { playerApiUrl } from '../../../utils'
-import { isHlsVideo, prefersNativeHls } from './hls'
+import { prefersNativeHls } from './hls'
 import useMediaSession, { type MediaSession } from './useMediaSession'
 
-const HlsPlayer = lazy(() => import('./HlsPlayer').then(module => ({ default: module.HlsPlayer })))
+const UmsVideoPlayer = lazy(() => import('./UmsVideoPlayer'))
 
 type Props = Pick<VideoPlayerOption, 'sendJsonMessage'> & {
   media: AudioMedia | VideoMedia
@@ -40,8 +40,8 @@ export default function MediaPlayer({ media, player, sendJsonMessage, downloadLa
   }
   return (
     <>
-      {isHlsVideo(media)
-        ? <HlsPlayer uuid={uuid} media={media} native={native} session={session} onEnded={onEnded} />
+      {media.mediaType === 'video'
+        ? <UmsVideoPlayer uuid={uuid} media={media} native={native} session={session} onEnded={onEnded} />
         : <UmsAudio uuid={uuid} media={media} session={session} onEnded={onEnded} />}
       {prev && <button onClick={() => player.askPlayId(prev.id)}>{prev.name}</button>}
       {next && <button onClick={() => player.askPlayId(next.id)}>{next.name}</button>}

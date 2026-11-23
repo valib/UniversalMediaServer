@@ -69,7 +69,7 @@ try {
   const cue = () => Array.from(video.textTracks).filter(t => t.kind === 'subtitles' && t.mode === 'showing')
     .flatMap(t => Array.from(t.activeCues || [], c => c.text))[0]
   const first = await waitFor('Czech cue', () => cue()?.match(/^(První|Druhá) česká stopa$/)?.[0])
-  const choices = Array.from(document.querySelectorAll('.ums-hls-controls select'))
+  const choices = Array.from(document.querySelectorAll('.ums-video-controls select'))
   const captions = choices.find(select => Array.from(select.options).some(option => option.value.startsWith('ums-sub-')))
   const alternate = Array.from(captions.options).find(option => option.value.startsWith('ums-sub-') && !option.selected)
   captions.value = alternate.value

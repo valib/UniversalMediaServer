@@ -338,6 +338,8 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
   const playMedia = data.goal === 'show' ? (data.medias[0]) as PlayMedia : undefined
   const fullyplayed = (playMedia && playMedia.fullyplayed != null) ? playMedia.fullyplayed : data.fullyplayed
   const singleMedia = data.medias.length === 1 ? data.medias[0] as AudioMedia | VideoMedia : undefined
+  const candidateVideo = CandidatePlayer && singleMedia?.mediaType === 'video'
+    && (isHlsVideo(singleMedia) || (singleMedia.mime && document.createElement('video').canPlayType(singleMedia.mime)))
 
   return (!session.authenticate || session.havePermission(UmsPermission.web_player_browse))
     ? (
@@ -349,7 +351,7 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
               data.goal === 'play'
                 ? (
                     <Paper>
-                      {CandidatePlayer && singleMedia && (singleMedia.mediaType === 'audio' || isHlsVideo(singleMedia))
+                      {CandidatePlayer && singleMedia && (singleMedia.mediaType === 'audio' || candidateVideo)
                         ? (
                             <Suspense>
                               <CandidatePlayer

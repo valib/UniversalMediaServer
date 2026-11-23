@@ -50,7 +50,7 @@ test('candidate plays UMS MPEG-TS and switches decoded video, audio and WebVTT t
   const video = await openSample(page, '10')
   await page.getByRole('button', { name: /^play$/i }).click()
   await expect.poll(() => video.evaluate(v => v.currentTime), { timeout: 25000 }).toBeGreaterThan(0.5)
-  const choices = page.locator('.ums-hls-controls select')
+  const choices = page.locator('.ums-video-controls select')
   const quality = choices.filter({ has: page.locator('option', { hasText: 'kb/s' }) })
   const audio = choices.filter({ has: page.locator('option', { hasText: 'English' }) })
   const captions = choices.filter({ has: page.locator('option', { hasText: /^off$/i }) })
@@ -140,7 +140,7 @@ test('native cues change color and size in the rendered frame', async ({ page })
   await page.getByRole('button', { name: /^play$/i }).click()
   await expect.poll(() => video.evaluate(v => v.currentTime), { timeout: 20000 }).toBeGreaterThan(1)
   await video.evaluate(v => v.pause())
-  const skin = page.locator('.ums-hls-skin')
+  const skin = page.locator('.ums-video-skin')
   await skin.evaluate((el) => {
     el.style.height = '330px'
   })

@@ -38,11 +38,11 @@ The macOS 15 hls.js check has repeatedly blocked inside WebKit while initializin
 
 On Linux WebKit, the 8.23.7 control exposed a single “Unknown” track and hid its audio menu for this master. The baseline records this specific outcome as an expected failure. If it exposes both tracks, the test exercises the normal switch. The 10.1.0 candidate must fetch and decode the Czech tone on all three browser engines.
 
-## Audio and HLS video in the UMS web interface and standalone player
+## Audio and video in the UMS web interface and standalone player
 
-From `react-client`, run `yarn build:videojs10:app` to build the regular application with Video.js 10 for audio and HLS video. The opt-in client is written to `node_modules/.cache/ums-videojs10-audio/web/react-client`. The normal build uses Video.js 8. The opt-in build uses the same HLS component as the comparison page. Both media types report playback to UMS and accept its remote controls. Other video formats still use the existing player.
+From `react-client`, run `yarn build:videojs10:app` to build the regular application with Video.js 10 for audio, HLS and video whose MIME type the browser can play directly. The opt-in client is written to `node_modules/.cache/ums-videojs10-audio/web/react-client`. The normal build uses Video.js 8. The comparison page and the opt-in client share the same HLS controls. Direct video uses the UMS media URL and the browser's native video element. Both audio and video report playback to UMS and accept its remote controls. The opt-in client falls back to the existing player for unrecognized video MIME types.
 
-The **Video.js 10 web player** workflow starts an isolated UMS server, shares two MP3s with embedded artwork and a chaptered HLS sample, and opens both ports in Chromium, Firefox and WebKit. It checks server-side playback state, reconnects the WebSocket while playback is paused and verifies the session switches to the next track. The video check decodes the HLS sample, seeks to a chapter and pauses and resumes through the renderer API. To repeat it locally, install FFmpeg, MediaInfo and the three browsers through Playwright, build the opt-in client and run these commands from the repository root:
+The **Video.js 10 web player** workflow starts an isolated UMS server with two MP3s with embedded artwork, a chaptered HLS sample and a directly served MP4. It opens both ports in Chromium, Firefox and WebKit. The audio check reconnects the WebSocket while playback is paused and verifies the session switches to the next track. For each video, it checks decoded frames, chapter seeking, and pause and resume through the renderer API. The MP4 check also verifies byte-range responses. To repeat it locally, install FFmpeg, MediaInfo and the three browsers through Playwright, build the opt-in client and run these commands from the repository root:
 
 ```sh
 mvn -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath

@@ -82,6 +82,7 @@ export interface SubtitleStyle {
 }
 
 export interface VideoMedia extends PlayMedia {
+  mediaType: 'video'
   subtitleStyle?: SubtitleStyle
   externalSubtitles?: ExternalSubtitleTrack[]
   height: number
@@ -98,6 +99,7 @@ export interface SurroundMedias {
 }
 
 export interface AudioMedia extends PlayMedia {
+  mediaType: 'audio'
   isNativeAudio: boolean
   mime: string
   width: number

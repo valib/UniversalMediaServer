@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: '.',
-  testMatch: ['audio.spec.ts', 'hls-app.spec.ts'],
+  testMatch: ['audio.spec.ts', 'video-app.spec.ts'],
   workers: 1,
   timeout: 60000,
   expect: { timeout: 10000 },
