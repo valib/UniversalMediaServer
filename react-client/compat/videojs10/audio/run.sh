@@ -15,6 +15,12 @@ done
 sh react-client/compat/videojs10/create-fixture.sh "$profile/Media"
 ffmpeg -nostdin -v error -i "$profile/Media/UMS HLS sample.mkv" \
   -map 0:v:0 -map 0:a:0 -map_chapters 0 -c copy -movflags +faststart "$profile/Media/UMS direct sample.mp4"
+cp "$profile/Media/UMS HLS sample.cs.vtt" "$profile/Media/UMS direct sample.cs.vtt"
+cat > "$profile/Media/UMS direct sample.en.srt" <<'SRT'
+1
+00:00:00,000 --> 00:00:29,900
+English MP4 subtitle
+SRT
 node -e 'require("node:fs").writeFileSync(process.argv[1] + "/SHARED.conf", JSON.stringify([{type:"Folder",file:process.argv[1] + "/Media",active:true,monitored:true,metadata:false,groups:[]}]))' "$profile"
 cat > "$profile/UMS.conf" <<CONFIG
 hostname = 127.0.0.1

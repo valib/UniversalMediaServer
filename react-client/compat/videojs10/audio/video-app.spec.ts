@@ -47,6 +47,18 @@ for (const source of ['HLS', 'direct']) {
     await skin.getByRole('combobox', { name: 'Chapter' }).selectOption({ label: 'Second chapter' })
     await expect.poll(() => video.evaluate(v => v.currentTime)).toBeCloseTo(12, 0)
     await expect.poll(async () => (await getRenderer())?.state.position).toBe('00:00:12')
+    if (source === 'direct') {
+      const captions = skin.getByRole('combobox').filter({ has: page.getByRole('option', { name: 'Off', exact: true }) })
+      const activeCues = () => video.evaluate(v => Array.from(v.textTracks)
+        .filter(track => track.kind === 'subtitles' && track.mode === 'showing')
+        .flatMap(track => Array.from(track.activeCues || [], cue => (cue as VTTCue).text)))
+      await captions.selectOption({ label: 'Czech' })
+      await expect.poll(activeCues).toEqual(['První česká stopa'])
+      await captions.selectOption({ label: 'English' })
+      await expect.poll(activeCues).toEqual(['English MP4 subtitle'])
+      await captions.selectOption({ label: 'Off' })
+      await expect.poll(activeCues).toEqual([])
+    }
     await control('play')
     await expect.poll(() => video.evaluate(v => v.currentTime)).toBeGreaterThan(13)
     await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('href', '/v1/api/player/download/' + uuid + '/' + sample.id)

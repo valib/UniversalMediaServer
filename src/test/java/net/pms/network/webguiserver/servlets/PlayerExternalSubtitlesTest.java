@@ -8,32 +8,44 @@ import net.pms.util.SubtitleColor;
 import net.pms.PMS;
 import net.pms.configuration.UmsConfiguration;
 import net.pms.encoders.EncodingFormat;
+import net.pms.encoders.FFMpegVideo;
 import net.pms.encoders.FFmpegHlsVideo;
 import net.pms.encoders.TranscodingSettings;
+import net.pms.formats.MPG;
+import net.pms.formats.audio.MP3;
 import net.pms.formats.v2.SubtitleType;
 import net.pms.media.MediaInfo;
 import net.pms.media.subtitle.MediaSubtitle;
 import net.pms.renderers.Renderer;
 import net.pms.store.container.FileTranscodeVirtualFolder;
 import net.pms.store.item.RealFile;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class PlayerExternalSubtitlesTest {
-	@Test
-	void externalTracksAreOfferedOnlyForOrdinaryHlsWithoutChangingSelection() throws Exception {
+	private UmsConfiguration config;
+	private Renderer renderer;
+
+	@BeforeEach
+	void setUp() throws Exception {
 		System.setProperty(PMS.PROPERTY_RUNNING_TESTS, "true");
-		var config = new UmsConfiguration(false);
+		config = new UmsConfiguration(false);
 		PMS.setConfiguration(config);
-		var renderer = new Renderer((String) null) {
+		renderer = new Renderer((String) null) {
 			@Override
 			public UmsConfiguration getUmsConfiguration() {
 				return config;
 			}
 		};
+	}
+
+	@Test
+	void externalHlsTracksKeepTheirIdsAndDefaultSelection() throws Exception {
 		var constructor = FFmpegHlsVideo.class.getDeclaredConstructor();
 		constructor.setAccessible(true);
 		var engine = constructor.newInstance();
 		var item = new RealFile(renderer, new File("avatar.avi"));
+		item.setFormat(new MPG());
 		var media = new MediaInfo();
 		var subtitle = new MediaSubtitle();
 		subtitle.setId(0);
@@ -89,5 +101,38 @@ class PlayerExternalSubtitlesTest {
 		assertTrue(PlayerApiServlet.getExternalSubtitles(item).isEmpty());
 		assertNull(PlayerApiServlet.findExternalSubtitle(item, czechId));
 		assertSame(subtitle, item.getMediaSubtitle());
+	}
+
+	@Test
+	void directVideoListsAndServesOnlyItsSelectableTextTracks() throws Exception {
+		var item = new RealFile(renderer, new File("sample.mp4"));
+		item.setFormat(new MPG());
+		var media = new MediaInfo();
+		var subtitle = new MediaSubtitle();
+		subtitle.setType(SubtitleType.SUBRIP);
+		subtitle.setExternalFileOnly(new File("sample.cs.srt"));
+		media.getSubtitlesTracks().add(subtitle);
+		item.setMediaInfo(media);
+		var tracks = PlayerApiServlet.getExternalSubtitles(item);
+		assertEquals(1, tracks.size());
+		String id = tracks.get(0).getAsJsonObject().get("id").getAsString();
+		assertSame(subtitle, PlayerApiServlet.findExternalSubtitle(item, id));
+
+		config.setDisableSubtitles(true);
+		assertTrue(PlayerApiServlet.getExternalSubtitles(item).isEmpty());
+		assertNull(PlayerApiServlet.findExternalSubtitle(item, id));
+		config.setDisableSubtitles(false);
+		item.setParent(new FileTranscodeVirtualFolder(renderer, item));
+		assertTrue(PlayerApiServlet.getExternalSubtitles(item).isEmpty());
+		assertNull(PlayerApiServlet.findExternalSubtitle(item, id));
+		item.setParent(null);
+		item.setFormat(new MP3());
+		assertNull(PlayerApiServlet.findExternalSubtitle(item, id));
+		item.setFormat(new MPG());
+		var constructor = FFMpegVideo.class.getDeclaredConstructor();
+		constructor.setAccessible(true);
+		item.setTranscodingSettings(new TranscodingSettings(constructor.newInstance(), EncodingFormat.VIDEO.get("MPEGTS-H264-AC3")));
+		assertTrue(PlayerApiServlet.getExternalSubtitles(item).isEmpty());
+		assertNull(PlayerApiServlet.findExternalSubtitle(item, id));
 	}
 }
