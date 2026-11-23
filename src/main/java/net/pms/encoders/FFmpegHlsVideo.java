@@ -26,6 +26,7 @@ import net.pms.io.ProcessWrapper;
 import net.pms.media.MediaInfo;
 import net.pms.media.MediaLang;
 import net.pms.network.HTTPResource;
+import net.pms.renderers.devices.WebGuiRenderer;
 import net.pms.store.StoreItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 public class FFmpegHlsVideo extends FFMpegVideo {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(FFmpegHlsVideo.class);
+	private static final int WEB_SEGMENT_BUFFER_BYTES = 8 * 1024;
 
 	public static final EngineId ID = StandardEngineId.FFMPEG_HLS_VIDEO;
 	public static final String NAME = "FFmpeg HLS Video";
@@ -61,8 +63,10 @@ public class FFmpegHlsVideo extends FFMpegVideo {
 			LOGGER.error("No Hls configuration to transcode.");
 			return null;
 		}
-		params.setMinBufferSize(params.getMinFileSize());
-		params.setSecondReadMinSize(100000);
+		boolean webSegment = params.getMediaRenderer() instanceof WebGuiRenderer;
+		// The web player requests short segments and may retry before a large buffer fills.
+		params.setMinBufferSize(webSegment ? Math.min(params.getMinFileSize(), WEB_SEGMENT_BUFFER_BYTES / 1048576.0) : params.getMinFileSize());
+		params.setSecondReadMinSize(webSegment ? WEB_SEGMENT_BUFFER_BYTES : 100000);
 		params.setWaitBeforeStart(0);
 		// Use device-specific conf
 		UmsConfiguration configuration = params.getMediaRenderer().getUmsConfiguration();
@@ -259,6 +263,10 @@ public class FFmpegHlsVideo extends FFMpegVideo {
 			cmdList.add("webvtt");
 		} else {
 			cmdList.add(FormatConfiguration.MPEGTS);
+			if (webSegment) {
+				cmdList.add("-flush_packets");
+				cmdList.add("1");
+			}
 			cmdList.add("-skip_estimate_duration_from_pts");
 			cmdList.add("1");
 			cmdList.add("-use_wallclock_as_timestamps");
