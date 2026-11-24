@@ -15,13 +15,18 @@ jobs:
   safari:
     name: Safari (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      UMS_SAFARI_DESKTOP: ${{ matrix.os == 'macos-26-intel' && '1' || '0' }}
     timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15-intel, macos-26]
+        os: [macos-15-intel, macos-26-intel]
     steps:
       - uses: actions/checkout@v4
+      - name: Install desktop mouse input for Safari on macOS 26
+        if: matrix.os == 'macos-26-intel'
+        run: brew install cliclick
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

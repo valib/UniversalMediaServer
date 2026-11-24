@@ -48,14 +48,18 @@ export function markerCenter(rgb, width) {
   return null
 }
 
-export async function tapMarker(udid, directory, width) {
-  if (!Number.isInteger(width) || width < 240 || width > 1500) throw Error('Invalid simulator screen width')
-  const file = join(directory, 'tap-target.png')
-  await simulatorScreenshot(udid, file)
+export async function findButton(file, width) {
+  if (!Number.isInteger(width) || width < 240 || width > 4096) throw Error('Invalid screen width')
   const { stdout } = await exec('ffmpeg', [
     '-v', 'error', '-i', file, '-vf', 'scale=' + width + ':-1:flags=neighbor', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1',
   ], { encoding: 'buffer', maxBuffer: 32 * 1024 * 1024, timeout: 20000 })
-  const point = markerCenter(stdout, width)
-  if (!point) throw Error('The simulator screenshot did not contain the marked button')
+  return markerCenter(stdout, width)
+}
+
+export async function tapMarker(udid, directory, width) {
+  const file = join(directory, 'tap-target.png')
+  await simulatorScreenshot(udid, file)
+  const point = await findButton(file, width)
+  if (!point) throw Error('The screenshot did not contain the marked button')
   await exec('axe', ['tap', '-x', String(point.x), '-y', String(point.y), '--udid', udid], { timeout: 60000 })
 }
