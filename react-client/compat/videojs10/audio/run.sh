@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the opt-in application on both UMS ports with a private profile.
+# Run the production application on both UMS ports with a private profile.
 set -euo pipefail
 cd "$(dirname "$0")/../../../.."
 profile=$(mktemp -d "${TMPDIR:-/tmp}/ums-audio.XXXXXX")
@@ -39,7 +39,7 @@ external_network = false
 upnp_enable = false
 number_of_cpu_cores = 2
 disable_transcode_for_extensions = mp4
-web_path = $PWD/react-client/node_modules/.cache/ums-videojs10-audio/web
+web_path = ${UMS_TEST_WEB_PATH:-$PWD/src/main/external-resources/web}
 ffmpeg_path = $(command -v ffmpeg)
 ffmpeg_executable_type = custom
 CONFIG

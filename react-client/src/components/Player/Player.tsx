@@ -33,8 +33,8 @@ import MediaGrid from './MediaGrid'
 import MediaPanel from './MediaPanel'
 import { isHlsVideo } from './VideoJs10/hls'
 
-const CandidatePlayer = import.meta.env.MODE === 'videojs10' ? lazy(() => import('./VideoJs10/MediaPlayer')) : undefined
-const VideoPlayer = lazy(() => import('./VideoPlayer'))
+const MediaPlayer = lazy(() => import('./VideoJs10/MediaPlayer'))
+const LegacyVideoPlayer = lazy(() => import('./VideoPlayer'))
 
 const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: SessionInterface, player: PlayerInterface }) => {
   const [data, setData] = useState({ goal: '', folders: [], breadcrumbs: [], isRealFolder: false, medias: [], useWebControl: false } as BaseBrowse)
@@ -175,20 +175,6 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
     </Group>
   )
 
-  const VideoJsMediaPlayer = ({ player, media }: { player: PlayerInterface, media: VideoMedia | AudioMedia }) => {
-    return (
-      <Paper>
-        <VideoPlayer
-          media={media}
-          uuid={player.uuid}
-          mediaController={player.mediaController}
-          askPlayId={player.askPlayId}
-          sendJsonMessage={session.sendJsonMessage}
-        />
-      </Paper>
-    )
-  }
-
   const ImageMediaPlayer = ({ player, media }: { player: PlayerInterface, media: ImageMedia }) => {
     if (media.delay && media.surroundMedias.next) {
       setTimeout(() => {
@@ -208,18 +194,26 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
     )
   }
 
-  const MediaPlayer = ({ player, data }: { player: PlayerInterface, data: BaseBrowse }) => {
-    if (data.medias.length === 1) {
-      switch ((data.medias[0] as PlayMedia).mediaType) {
-        case 'video':
-          return <VideoJsMediaPlayer media={data.medias[0] as VideoMedia} player={player} />
-        case 'audio':
-          return <VideoJsMediaPlayer media={data.medias[0] as AudioMedia} player={player} />
-        case 'image':
-          return <ImageMediaPlayer media={data.medias[0] as ImageMedia} player={player} />
-      }
+  function renderMediaPlayer() {
+    if (data.medias.length !== 1) return null
+    const item = data.medias[0] as PlayMedia
+    if (item.mediaType === 'image') return <ImageMediaPlayer media={item as ImageMedia} player={player} />
+    if (item.mediaType !== 'audio' && item.mediaType !== 'video') return null
+    const media = item as AudioMedia | VideoMedia
+    const key = player.uuid + '/' + media.id
+    if (media.mediaType === 'video' && !isHlsVideo(media) && !(media.mime && document.createElement('video').canPlayType(media.mime))) {
+      return (
+        <LegacyVideoPlayer
+          key={key}
+          media={media}
+          uuid={player.uuid}
+          mediaController={player.mediaController}
+          askPlayId={player.askPlayId}
+          sendJsonMessage={session.sendJsonMessage}
+        />
+      )
     }
-    return undefined
+    return <MediaPlayer key={key} media={media} player={player} sendJsonMessage={session.sendJsonMessage} downloadLabel={i18n.get('Download')} />
   }
 
   /**
@@ -341,9 +335,6 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
 
   const playMedia = data.goal === 'show' ? (data.medias[0]) as PlayMedia : undefined
   const fullyplayed = (playMedia && playMedia.fullyplayed != null) ? playMedia.fullyplayed : data.fullyplayed
-  const singleMedia = data.medias.length === 1 ? data.medias[0] as AudioMedia | VideoMedia : undefined
-  const candidateVideo = CandidatePlayer && singleMedia?.mediaType === 'video'
-    && (isHlsVideo(singleMedia) || (singleMedia.mime && document.createElement('video').canPlayType(singleMedia.mime)))
 
   return (!session.authenticate || session.havePermission(UmsPermission.web_player_browse))
     ? (
@@ -355,19 +346,7 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
               data.goal === 'play'
                 ? (
                     <Paper>
-                      <Suspense>
-                        {CandidatePlayer && singleMedia && (singleMedia.mediaType === 'audio' || candidateVideo)
-                          ? (
-                              <CandidatePlayer
-                                key={player.uuid + '/' + singleMedia.id}
-                                media={singleMedia}
-                                player={player}
-                                sendJsonMessage={session.sendJsonMessage}
-                                downloadLabel={i18n.get('Download')}
-                              />
-                            )
-                          : <MediaPlayer player={player} data={data} />}
-                      </Suspense>
+                      <Suspense>{renderMediaPlayer()}</Suspense>
                     </Paper>
                   )
                 : data.goal === 'show'
