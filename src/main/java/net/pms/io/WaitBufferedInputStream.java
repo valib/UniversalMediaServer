@@ -27,7 +27,10 @@ public class WaitBufferedInputStream extends InputStream {
 	private volatile boolean closed;
 
 	public void setReadCount(long readCount) {
-		this.readCount = readCount;
+		synchronized (outputStream) {
+			this.readCount = readCount;
+			outputStream.notifyAll();
+		}
 	}
 
 	public long getReadCount() {
@@ -40,7 +43,7 @@ public class WaitBufferedInputStream extends InputStream {
 	}
 
 	/** Waits for the normal startup buffer without consuming the first byte. */
-	public long getLengthAtStart() {
+	public long getLengthAtStart() throws IOException {
 		if (closed) {
 			return -1;
 		}

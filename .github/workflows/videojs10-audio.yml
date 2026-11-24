@@ -67,7 +67,7 @@ jobs:
           node .yarn/releases/yarn-*.cjs install --immutable
           node .yarn/releases/yarn-*.cjs build
           node node_modules/@playwright/test/cli.js install --with-deps --only-shell ${{ matrix.browser }}
-      - name: Provide audio output for headless browsers
+      - name: Provide audio output for the browser tests
         run: |
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=ums_audio
@@ -76,10 +76,16 @@ jobs:
         env:
           BROWSER: ${{ matrix.browser }}
           DEBUG: ${{ matrix.browser == 'webkit' && 'pw:browser' || '' }}
-          GST_DEBUG: 'webkitmediaplayer:2,downloadbuffer:2,pulsesink:2'
         run: |
           projects=(--project="$BROWSER web interface" --project="$BROWSER standalone player")
           if [[ "$BROWSER" == webkit ]]; then
+            # Keep the virtual sound card clock running between isolated browser sessions.
+            export PULSE_SINK=ums_audio
+            export GST_PLUGIN_FEATURE_RANK=pulsesink:MAX
+            export GST_DEBUG='webkitmediaplayer:4,webkitwebsrc:4,downloadbuffer:3,pulsesink:4'
+            parec --device=ums_audio.monitor --raw > /dev/null &
+            audio_monitor=$!
+            trap 'kill "$audio_monitor" 2>/dev/null || true' EXIT
             xvfb-run -a bash react-client/compat/videojs10/audio/run.sh --headed "${projects[@]}"
           else
             bash react-client/compat/videojs10/audio/run.sh "${projects[@]}"

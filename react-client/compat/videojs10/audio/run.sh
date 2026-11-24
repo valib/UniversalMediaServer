@@ -14,6 +14,9 @@ for track in 01 02; do
     -map 0:a -map 1:v -c:a libmp3lame -c:v copy -disposition:v attached_pic -id3v2_version 3 \
     "$profile/Media/UMS audio $track.mp3"
 done
+# Long enough to wrap the 4 MiB audio buffer at UMS's 320 kb/s output rate.
+ffmpeg -nostdin -v error -f lavfi -i 'sine=frequency=730:duration=130' \
+  -c:a libmp3lame "$profile/Media/UMS long audio sample.mp3"
 sh react-client/compat/videojs10/create-fixture.sh "$profile/Media"
 ffmpeg -nostdin -v error -i "$profile/Media/UMS HLS sample.mkv" \
   -map 0:v:0 -map 0:a:0 -map_chapters 0 -c copy -movflags +faststart "$profile/Media/UMS direct sample.mp4"
@@ -38,6 +41,7 @@ single_instance = false
 external_network = false
 upnp_enable = false
 number_of_cpu_cores = 2
+maximum_audio_buffer_size = 4
 disable_transcode_for_extensions = mp4
 web_path = ${UMS_TEST_WEB_PATH:-$PWD/src/main/external-resources/web}
 ffmpeg_path = $(command -v ffmpeg)

@@ -15,6 +15,41 @@ async function findSample(page: Page, request: APIRequestContext, source: string
   return { uuid, sample }
 }
 
+test('a second request can replay a transcoded file after the audio buffer wraps', async ({ page, request }) => {
+  const { uuid, sample } = await findSample(page, request, 'long audio')
+  const play = await request.post('/v1/api/player/play', { headers: { Player: uuid }, data: { uuid, id: sample.id, lang: 'en' } })
+  expect(play.ok()).toBe(true)
+  const media = (await play.json()).medias[0]
+  expect(media.isTranscoded).toBe(true)
+  expect(media.mime).toBe('audio/mpeg')
+  const url = new URL('/v1/api/player/media/' + uuid + '/' + sample.id, page.url()).href
+  const first = await fetch(url)
+  expect(first.status).toBe(200)
+  expect(first.headers.get('accept-ranges')).toBe('none')
+  const reader = first.body!.getReader()
+  const chunks: Uint8Array[] = []
+  let length = 0
+  let replay: Buffer | undefined
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      chunks.push(value)
+      length += value.byteLength
+      if (!replay && length > 4 * 1024 * 1024) {
+        const second = await request.get(url)
+        expect(second.status()).toBe(200)
+        replay = await second.body()
+      }
+    }
+  }
+  finally {
+    await reader.cancel()
+  }
+  expect(replay?.length).toBeGreaterThan(4 * 1024 * 1024)
+  expect(Buffer.concat(chunks).equals(replay!)).toBe(true)
+})
+
 const renderersUrl = 'http://127.0.0.1:9001/v1/api/renderers/'
 
 function videoPackets(segment: Buffer): { pts: number, duration: number }[] {

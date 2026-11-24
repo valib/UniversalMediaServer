@@ -45,6 +45,7 @@ import net.pms.formats.Format;
 import net.pms.formats.FormatFactory;
 import net.pms.image.BufferedImageFilterChain;
 import net.pms.image.ImagesUtil;
+import net.pms.io.BufferedOutputFile.DiscardedPositionException;
 import net.pms.io.OutputParams;
 import net.pms.io.ProcessWrapper;
 import net.pms.io.SizeLimitInputStream;
@@ -942,18 +943,7 @@ public abstract class StoreItem extends StoreResource {
 				lastTimeSeek = params.getTimeSeek();
 			}
 
-			externalProcess = getTranscodingSettings().getEngine().launchTranscode(this, mediaInfo, params);
-			if (params.getWaitBeforeStart() > 0) {
-				LOGGER.trace("Sleeping for {} milliseconds", params.getWaitBeforeStart());
-				try {
-					Thread.sleep(params.getWaitBeforeStart());
-				} catch (InterruptedException e) {
-					LOGGER.error(null, e);
-					Thread.currentThread().interrupt();
-				}
-
-				LOGGER.trace("Finished sleeping for " + params.getWaitBeforeStart() + " milliseconds");
-			}
+			externalProcess = startTranscode(params);
 		} else if (params.getTimeSeek() > 0 && mediaInfo != null && mediaInfo.isMediaParsed() && mediaInfo.getDurationInSeconds() > 0) {
 
 			// Time seek request => stop running transcode process and start a new one
@@ -987,11 +977,41 @@ public abstract class StoreItem extends StoreResource {
 			}
 		}
 
-		ProcessWrapper process = externalProcess;
+		try {
+			return openTranscodeStream(externalProcess, low, externalProcess != previousProcess);
+		} catch (DiscardedPositionException e) {
+			if (externalProcess != previousProcess || !(this instanceof RealFile)) {
+				throw e;
+			}
+			// A file can be encoded again from the beginning. Existing readers still
+			// own the original process and will release it when they disconnect.
+			LOGGER.debug("Restarting transcode to read discarded byte {} of {}", low, getName());
+			ProcessWrapper replacement = startTranscode(params);
+			if (replacement == null) {
+				return null;
+			}
+			externalProcess = replacement;
+			return openTranscodeStream(replacement, low, true);
+		}
+	}
+
+	private ProcessWrapper startTranscode(OutputParams params) throws IOException {
+		ProcessWrapper process = getTranscodingSettings().getEngine().launchTranscode(this, mediaInfo, params);
+		if (process != null && params.getWaitBeforeStart() > 0) {
+			LOGGER.trace("Waiting {} ms for the transcoder to start", params.getWaitBeforeStart());
+			try {
+				Thread.sleep(params.getWaitBeforeStart());
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+		return process;
+	}
+
+	private static InputStream openTranscodeStream(ProcessWrapper process, long low, boolean newlyStarted) throws IOException {
 		if (process == null) {
 			return null;
 		}
-
 		InputStream is = process.getInputStream(low);
 		for (int retry = 0; is == null && retry < 10; retry++) {
 			LOGGER.debug("Waiting 500 ms for the transcoder output stream");
@@ -1009,7 +1029,7 @@ public abstract class StoreItem extends StoreResource {
 		// this cleans up lingering MEncoder web video transcode processes that hang
 		// instead of exiting
 		// A reused process may be serving the first reader and refusing a second one.
-		if (is == null && process != previousProcess && !process.isDestroyed()) {
+		if (is == null && newlyStarted && !process.isDestroyed()) {
 			Runnable r = () -> {
 				LOGGER.error("External input stream instance is null... stopping process");
 				process.stopProcess();

@@ -30,6 +30,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -141,6 +142,71 @@ public class BufferedOutputFileImplTest {
 		assertEquals(-1, buffer.getCompleteLength());
 		assertArrayEquals(expected, tail.readAllBytes());
 		assertEquals(0, tail.available());
+	}
+
+	@Test
+	public void testBothReadersKeepTheirBytesWhenTheWriterWraps() throws Exception {
+		int capacity = 1024 * 1024;
+		byte[] media = new byte[capacity + 32768];
+		new Random(104).nextBytes(media);
+		OutputParams params = new OutputParams(PMS.getConfiguration());
+		params.setMinBufferSize(0);
+		params.setSecondReadMinSize(0);
+		params.setMaxBufferSize(1);
+		BufferedOutputFileImpl buffer = new BufferedOutputFileImpl(params);
+		var executor = Executors.newSingleThreadExecutor();
+		try (InputStream slow = buffer.getInputStream(0); InputStream fast = buffer.getInputStream(0)) {
+			int prefix = capacity - 32768;
+			buffer.write(media, 0, prefix);
+			assertArrayEquals(Arrays.copyOf(media, prefix), fast.readNBytes(prefix));
+
+			var tail = executor.submit(() -> {
+				buffer.write(media, prefix, media.length - prefix - 1);
+				buffer.write(media[media.length - 1]);
+				buffer.close();
+				return true;
+			});
+			// The fast client can consume up to the edge while the slow client still needs byte zero.
+			assertArrayEquals(Arrays.copyOfRange(media, prefix, capacity), fast.readNBytes(capacity - prefix));
+			assertEquals(capacity, buffer.getWriteCount());
+			assertArrayEquals(media, slow.readNBytes(media.length));
+			assertTrue(tail.get(5, TimeUnit.SECONDS));
+			assertArrayEquals(Arrays.copyOfRange(media, capacity, media.length), fast.readAllBytes());
+			int oldest = media.length - capacity;
+			assertThrows(BufferedOutputFile.DiscardedPositionException.class, () -> buffer.getInputStream(oldest - 1));
+			try (InputStream retained = buffer.getInputStream(oldest)) {
+				assertEquals(media[oldest] & 0xff, retained.read());
+			}
+		} finally {
+			buffer.reset();
+			executor.shutdownNow();
+		}
+	}
+
+	@Test
+	public void testClosingPausedReaderReleasesSingleByteWriter() throws Exception {
+		int capacity = 1024 * 1024;
+		OutputParams params = new OutputParams(PMS.getConfiguration());
+		params.setMaxBufferSize(1);
+		params.setMinBufferSize(0);
+		BufferedOutputFileImpl buffer = new BufferedOutputFileImpl(params);
+		var executor = Executors.newSingleThreadExecutor();
+		try (InputStream paused = buffer.getInputStream(0); InputStream tail = buffer.getInputStream(capacity)) {
+			buffer.write(new byte[capacity]);
+			var last = executor.submit(() -> {
+				buffer.write(0x7f);
+				buffer.close();
+				return true;
+			});
+			assertThrows(TimeoutException.class, () -> last.get(200, TimeUnit.MILLISECONDS));
+			paused.close();
+			assertTrue(last.get(5, TimeUnit.SECONDS));
+			assertEquals(0x7f, tail.read());
+			assertEquals(-1, tail.read());
+		} finally {
+			buffer.reset();
+			executor.shutdownNow();
+		}
 	}
 
 	public static class FiniteEncoder {

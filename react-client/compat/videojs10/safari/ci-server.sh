@@ -32,12 +32,26 @@ java -Xmx1g -Djava.awt.headless=true -Dums.profile.path="$profile/UMS.conf" \
   -cp "target/classes:$(cat target/safari-classpath)" net.pms.PMS headless >"$results/server.log" 2>&1 &
 server=$!
 trap 'kill "$server" 2>/dev/null || true; wait "$server" 2>/dev/null || true' EXIT
+player_api=http://127.0.0.1:9002/v1/api/player
+probe_uuid=
+player_request() {
+  curl --fail --silent --max-time 3 --header "Player: $probe_uuid" --header 'Content-Type: application/json' \
+    --data "{\"uuid\":\"$probe_uuid\",\"id\":\"0\",\"lang\":\"en\"}" "$player_api/$1"
+}
+library_ready() {
+  # During startup the web server can answer with HTML before the player API is mounted.
+  if [[ -z "$probe_uuid" ]]; then
+    probe_uuid=$(curl --fail --silent --max-time 3 "$player_api/" | jq -er '.uuid | strings | select(length > 0)') || return 1
+  fi
+  player_request browse | jq -e 'any(.folders[]?; .name == "Media")' > /dev/null
+}
 deadline=$((SECONDS + 180))
-until curl --fail --silent --max-time 3 http://127.0.0.1:9002/v1/api/player/ > /dev/null; do
+until library_ready 2>/dev/null; do
   if ! kill -0 "$server" 2>/dev/null || (( SECONDS >= deadline )); then
     tail -60 "$results/server.log" >&2
     exit 1
   fi
   sleep 1
 done
+player_request logout > /dev/null || true
 bash react-client/compat/videojs10/safari/run.sh "$platform" "$mode"

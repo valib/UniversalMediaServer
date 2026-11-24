@@ -33,7 +33,6 @@ import net.pms.PMS;
 import net.pms.configuration.UmsConfiguration;
 import net.pms.gui.GuiManager;
 import net.pms.renderers.Renderer;
-import net.pms.util.UMSUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,8 +65,9 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	private static final int MARGIN_LARGE = 20000000;
 	private static final int MARGIN_MEDIUM = 2000000;
 	private static final int MARGIN_SMALL = 600000;
-	private static final int CHECK_INTERVAL = 500;
-	private static final int CHECK_END_OF_PROCESS = 2500; // must be superior to CHECK_INTERVAL
+	private static final long PREBUFFER_TIMEOUT = TimeUnit.MILLISECONDS.toNanos(7500);
+	private static final long LIVE_READ_TIMEOUT = TimeUnit.SECONDS.toNanos(30);
+	private static final int CHECK_END_OF_PROCESS = 2500;
 
 	private final UmsConfiguration configuration;
 	private final Renderer renderer;
@@ -80,7 +80,8 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	private final boolean cleanup;
 	private final int secondReadMinSize;
 	private final boolean hlsSegment;
-	private int waitingReaders;
+	private boolean canGrow;
+	private int waitingWriters;
 	private final FileOutputStream debugOutput = null;
 
 	private int bufferOverflowWarning;
@@ -148,7 +149,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			} else {
 				try {
 					// Try to allocate the realistic alternative size
-					copy = new byte[(int) realisticSize];
+					copy = new byte[(int) Math.min(realisticSize, newSize)];
 				} catch (OutOfMemoryError e2) {
 					LOGGER.debug("Cannot grow buffer size from " + FORMATTER.format(buffer.length) + " bytes to " + FORMATTER.format(realisticSize) + " bytes either.");
 					LOGGER.trace("freeMemory: " + FORMATTER.format(Runtime.getRuntime().freeMemory()));
@@ -214,6 +215,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			// Try to limit memory usage a bit.
 			// Start with a modest allocation initially, grow to max when needed later.
 			buffer = growBuffer(null, INITIAL_BUFFER_SIZE);
+			canGrow = true;
 		} else {
 			buffer = growBuffer(null, maxMemorySize);
 		}
@@ -234,7 +236,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	public synchronized void close() throws IOException {
 		LOGGER.trace("EOF");
 		eof = true;
-		signalReaders();
+		notifyAll();
 		if (cleanup) {
 			detachInputStream();
 		}
@@ -246,7 +248,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	}
 
 	@Override
-	public synchronized InputStream getInputStream(long newReadPosition) {
+	public synchronized InputStream getInputStream(long newReadPosition) throws IOException {
 		if (buffer == null) {
 			return null;
 		}
@@ -265,12 +267,14 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			}
 		}
 
+		checkRetainedPosition(Math.max(0, newReadPosition));
 		WaitBufferedInputStream input = new WaitBufferedInputStream(this);
 		if (newReadPosition > 0) {
 			LOGGER.debug("Setting InputStream new position to: " + FORMATTER.format(newReadPosition));
 			input.setReadCount(newReadPosition);
 		}
 		inputStreams.add(input);
+		notifyAll();
 		readerGeneration++;
 		if (attachedThread != null) {
 			attachedThread.setReadyToStop(false);
@@ -298,39 +302,68 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			return;
 		}
 		synchronized (this) {
-			long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-			waitingReaders++;
-			try {
-				while (buffer != null && !eof && writeCount <= input.getReadCount()) {
-					if (!inputStreams.contains(input)) {
-						throw new IOException("Stream closed");
-					}
-					long remaining = deadline - System.nanoTime();
-					if (remaining <= 0) {
-						throw new SocketTimeoutException("Timed out waiting for HLS segment data");
-					}
-					try {
-						TimeUnit.NANOSECONDS.timedWait(this, remaining);
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-						throw new InterruptedIOException("Interrupted while waiting for HLS segment data");
-					}
+			long deadline = System.nanoTime() + LIVE_READ_TIMEOUT;
+			while (buffer != null && !eof && writeCount <= input.getReadCount()) {
+				if (!inputStreams.contains(input)) {
+					throw new IOException("Stream closed");
 				}
-			} finally {
-				waitingReaders--;
+				long remaining = deadline - System.nanoTime();
+				if (remaining <= 0) {
+					throw new SocketTimeoutException("Timed out waiting for HLS segment data");
+				}
+				try {
+					TimeUnit.NANOSECONDS.timedWait(this, remaining);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					throw new InterruptedIOException("Interrupted while waiting for HLS segment data");
+				}
 			}
 		}
 	}
 
-	// Called under the buffer lock after publishing data, closing or cancelling a reader.
-	private void signalReaders() {
-		if (waitingReaders > 0) {
-			notifyAll();
+	// Called under the buffer lock. Keep the normal prefetch margin for the selected
+	// connection, but never overwrite unread bytes belonging to any attached reader.
+	private int writableBytes(int requested) throws InterruptedIOException {
+		while (buffer != null && !eof) {
+			if (canGrow && requested > buffer.length - writeCount) {
+				buffer = growBuffer(buffer, maxMemorySize);
+				canGrow = false;
+			}
+			WaitBufferedInputStream selected = getCurrentInputStream();
+			long position = selected == null ? 0 : selected.getReadCount();
+			if (writeCount - position <= Math.max(0, bufferOverflowWarning)) {
+				long oldest = Math.min(position, writeCount);
+				for (WaitBufferedInputStream reader : inputStreams) {
+					oldest = Math.min(oldest, reader.getReadCount());
+				}
+				long free = buffer.length - (writeCount - oldest);
+				if (free > 0) {
+					return (int) Math.min(free, requested);
+				}
+			}
+			if (waitingWriters++ == 0) {
+				notifyAll();
+			}
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new InterruptedIOException("Interrupted while waiting for transcode buffer space");
+			} finally {
+				waitingWriters--;
+			}
+		}
+		return 0;
+	}
+
+	private void checkRetainedPosition(long position) throws DiscardedPositionException {
+		if (position < Math.max(0, writeCount - buffer.length)) {
+			throw new DiscardedPositionException(position);
 		}
 	}
 
 	@Override
-	public void write(byte[] b, int off, int len) throws IOException {
+	public synchronized void write(byte[] b, int off, int len) throws IOException {
 		Objects.checkFromIndexSize(off, len, b.length);
 		if (len == 0) {
 			return;
@@ -340,78 +373,66 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			debugOutput.flush();
 		}
 
-		WaitBufferedInputStream input = getCurrentInputStream();
-
-		//LOGGER.trace("write(" + b.length + ", " + off + ", " + len + "), writeCount = " + writeCount + ", readCount = " + (input != null ? input.getReadCount() : "null"));
-
-		while (buffer != null && writeCount - (input == null ? 0 : input.getReadCount()) > bufferOverflowWarning) {
-			UMSUtils.sleep(CHECK_INTERVAL);
-			input = getCurrentInputStream();
+		while (len > 0) {
+			int count = writableBytes(len);
+			if (count == 0) {
+				return;
+			}
+			writeToBuffer(b, off, count);
+			off += count;
+			len -= count;
 		}
-
-		writeToBuffer(b, off, len);
 	}
 
-	// The writer must be able to wait for readers without holding the reset lock.
-	private synchronized void writeToBuffer(byte[] b, int off, int len) {
-		if (buffer != null) {
-			int mb = (int) (writeCount % maxMemorySize);
-			if (buffer.length == INITIAL_BUFFER_SIZE && len > buffer.length - mb) {
-				buffer = growBuffer(buffer, maxMemorySize);
-			}
-			int copied = 0;
-			while (copied < len) {
-				int logical = (int) ((writeCount + copied) % maxMemorySize);
-				int physical = logical % buffer.length;
-				int count = Math.min(len - copied, Math.min(maxMemorySize - logical, buffer.length - physical));
-				System.arraycopy(b, off + copied, buffer, physical, count);
-				copied += count;
-			}
+	private void writeToBuffer(byte[] b, int off, int len) {
+		int offset = (int) (writeCount % buffer.length);
+		int first = Math.min(len, buffer.length - offset);
+		System.arraycopy(b, off, buffer, offset, first);
+		System.arraycopy(b, off + first, buffer, 0, len - first);
 
-			long end = writeCount + len;
-			if (timeseek > 0 && timeend == 0) {
-				int packetLength = 6; // minimum to get packet size
-				while (packetpos + packetLength < end && buffer != null) {
-					int packetposMB = (int) (packetpos % maxMemorySize);
-					int streamPos = 0;
-					if (buffer[modulo(packetposMB, buffer.length)] == 71) { // TS
-						packetLength = 188;
-						streamPos = 4;
+		long end = writeCount + len;
+		if (timeseek > 0 && timeend == 0) {
+			int packetLength = 6; // minimum to get packet size
+			while (packetpos + packetLength < end && buffer != null) {
+				int packetposMB = (int) (packetpos % buffer.length);
+				int streamPos = 0;
+				if (buffer[modulo(packetposMB, buffer.length)] == 71) { // TS
+					packetLength = 188;
+					streamPos = 4;
 
-						// adaptation field
-						if ((buffer[modulo(packetposMB + 3, buffer.length)] & 0x20) == 0x20) {
-							streamPos += 1 + ((buffer[modulo(packetposMB + 4, buffer.length)] + 256) % 256);
-						}
+					// adaptation field
+					if ((buffer[modulo(packetposMB + 3, buffer.length)] & 0x20) == 0x20) {
+						streamPos += 1 + ((buffer[modulo(packetposMB + 4, buffer.length)] + 256) % 256);
+					}
 
-						if (streamPos == 188) {
-							streamPos = -1;
-						}
-
-					} else if (buffer[modulo(packetposMB + 3, buffer.length)] == -70) { // BA
-						packetLength = 14;
-						if (packetpos + packetLength > end) {
-							// pack header not fully written yet
-							break;
-						}
-						// Keep the system clock in step with the shifted PTS/DTS
-						shiftSCRByTimeSeek(packetposMB + 9, timeseek);
+					if (streamPos == 188) {
 						streamPos = -1;
-					} else {
-						packetLength = 6 + ((buffer[modulo(packetposMB + 4, buffer.length)] + 256) % 256) * 256 + ((buffer[modulo(packetposMB + 5, buffer.length)] + 256) % 256);
 					}
-					if (streamPos != -1) {
-						mb = packetposMB + streamPos + 18;
-						if (!shiftVideo(mb, true)) {
-							mb -= 5;
-							shiftAudio(mb, true);
-						}
+
+				} else if (buffer[modulo(packetposMB + 3, buffer.length)] == -70) { // BA
+					packetLength = 14;
+					if (packetpos + packetLength > end) {
+						// pack header not fully written yet
+						break;
 					}
-					packetpos += packetLength;
+					// Keep the system clock in step with the shifted PTS/DTS
+					shiftSCRByTimeSeek(packetposMB + 9, timeseek);
+					streamPos = -1;
+				} else {
+					packetLength = 6 + ((buffer[modulo(packetposMB + 4, buffer.length)] + 256) % 256) * 256 + ((buffer[modulo(packetposMB + 5, buffer.length)] + 256) % 256);
 				}
+				if (streamPos != -1) {
+					int mb = packetposMB + streamPos + 18;
+					if (!shiftVideo(mb, true)) {
+						mb -= 5;
+						shiftAudio(mb, true);
+					}
+				}
+				packetpos += packetLength;
 			}
-			writeCount = end;
-			signalReaders();
 		}
+		writeCount = end;
+		notifyAll();
 	}
 
 	/**
@@ -431,37 +452,24 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	}
 
 	@Override
-	public void write(int b) throws IOException {
-		boolean bb = b % 100000 == 0;
-		WaitBufferedInputStream input = getCurrentInputStream();
-		while (bb && buffer != null && ((input != null && (writeCount - input.getReadCount() > bufferOverflowWarning)) || (input == null && writeCount == bufferOverflowWarning))) {
-			UMSUtils.sleep(CHECK_INTERVAL);
-			//LOGGER.trace("BufferedOutputFile Full");
-			input = getCurrentInputStream();
+	public synchronized void write(int b) throws IOException {
+		if (writableBytes(1) == 0) {
+			return;
 		}
-		writeToBuffer(b);
-	}
+		int mb = (int) (writeCount % buffer.length);
+		buffer[mb] = (byte) b;
+		long end = writeCount + 1;
 
-	private synchronized void writeToBuffer(int b) {
-		if (buffer != null) {
-			int mb = (int) (writeCount % maxMemorySize) % buffer.length;
-			buffer[mb] = (byte) b;
-			long end = writeCount + 1;
-			if (end == INITIAL_BUFFER_SIZE) {
-				buffer = growBuffer(buffer, maxMemorySize);
-			}
-
-			if (timeseek > 0 && end > 19) {
-				shiftByTimeSeek(mb, mb <= 20);
-			}
-
-			// Ditlew - WDTV Live - update any SCR headers
-			if (timeseek > 0 && end > 10) {
-				shiftSCRByTimeSeek(mb, timeseek);
-			}
-			writeCount = end;
-			signalReaders();
+		if (timeseek > 0 && end > 19) {
+			shiftByTimeSeek(mb, mb <= 20);
 		}
+
+		// Ditlew - WDTV Live - update any SCR headers
+		if (timeseek > 0 && end > 10) {
+			shiftSCRByTimeSeek(mb, timeseek);
+		}
+		writeCount = end;
+		notifyAll();
 	}
 
 	// Ditlew - Modify SCR
@@ -692,94 +700,58 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 		buffer[m0] = (byte) (ptsLeftLow & 255);
 	}
 
+	private void waitForReadBuffer(boolean firstRead, long position) throws IOException {
+		if (position > INITIAL_BUFFER_SIZE && position < maxMemorySize) {
+			bufferOverflowWarning = maxMemorySize - MARGIN_MEDIUM;
+		}
+		int minimum = firstRead ? minMemorySize : secondReadMinSize;
+		long start = System.nanoTime();
+		while (buffer != null && !eof && writeCount - position <= minimum) {
+			// A reader holding up the writer must be able to drain even a partial chunk.
+			if (waitingWriters > 0 && writeCount > position) {
+				return;
+			}
+			long remaining = (waitingWriters > 0 ? LIVE_READ_TIMEOUT : PREBUFFER_TIMEOUT) - (System.nanoTime() - start);
+			if (remaining <= 0) {
+				if (waitingWriters > 0) {
+					throw new SocketTimeoutException("Timed out waiting for another transcode reader");
+				}
+				return;
+			}
+			try {
+				TimeUnit.NANOSECONDS.timedWait(this, remaining);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new InterruptedIOException("Interrupted while waiting for transcode data");
+			}
+		}
+	}
+
 	@Override
-	public int read(boolean firstRead, long readCount, byte[] buf, int off, int len) {
+	public synchronized int read(boolean firstRead, long readCount, byte[] buf, int off, int len) throws IOException {
 		Objects.checkFromIndexSize(off, len, buf.length);
 		if (len == 0) {
 			return 0;
 		}
-		if (readCount > INITIAL_BUFFER_SIZE && readCount < maxMemorySize) {
-			int newMargin = maxMemorySize - MARGIN_MEDIUM;
-			if (bufferOverflowWarning != newMargin) {
-				LOGGER.debug("Setting margin to 2Mb");
-			}
-
-			this.bufferOverflowWarning = newMargin;
-		}
-
-		if (eof && readCount >= writeCount) {
+		waitForReadBuffer(firstRead, readCount);
+		if (buffer == null || readCount >= writeCount) {
 			return -1;
 		}
-
-		int c = 0;
-		int minBufferS = firstRead ? minMemorySize : secondReadMinSize;
-		while (writeCount - readCount <= minBufferS && !eof && buffer != null && c < 15) {
-			if (c == 0) {
-				LOGGER.trace("Suspend Read: readCount=" + readCount + " / writeCount=" + writeCount);
-			}
-
-			c++;
-
-			UMSUtils.sleep(CHECK_INTERVAL);
-		}
-
-		if (c > 0) {
-			LOGGER.trace("Resume Read: readCount=" + readCount + " / writeCount=" + writeCount);
-		}
-
-		long available = writeCount - readCount;
-		byte[] data = buffer;
-		if (data == null || available <= 0) {
-			return -1;
-		}
-
-		int logical = (int) (readCount % maxMemorySize);
-		int physical = logical % data.length;
-		int contiguous = Math.min(maxMemorySize - logical, data.length - physical);
-		int count = (int) Math.min(available, Math.min(len, contiguous));
-		System.arraycopy(data, physical, buf, off, count);
+		checkRetainedPosition(readCount);
+		int offset = (int) (readCount % buffer.length);
+		int count = (int) Math.min(writeCount - readCount, Math.min(len, buffer.length - offset));
+		System.arraycopy(buffer, offset, buf, off, count);
 		return count;
 	}
 
 	@Override
-	public int read(boolean firstRead, long readCount) {
-		if (readCount > INITIAL_BUFFER_SIZE && readCount < maxMemorySize) {
-			int newMargin = maxMemorySize - MARGIN_MEDIUM;
-
-			if (bufferOverflowWarning != newMargin) {
-				LOGGER.debug("Setting margin to 2Mb");
-			}
-
-			this.bufferOverflowWarning = newMargin;
-		}
-
-		if (eof && readCount >= writeCount) {
+	public synchronized int read(boolean firstRead, long readCount) throws IOException {
+		waitForReadBuffer(firstRead, readCount);
+		if (buffer == null || readCount >= writeCount) {
 			return -1;
 		}
-
-		int c = 0;
-		int minBufferS = firstRead ? minMemorySize : secondReadMinSize;
-
-		while (writeCount - readCount <= minBufferS && !eof && buffer != null && c < 15) {
-			if (c == 0) {
-				LOGGER.trace("Suspend Read: readCount=" + readCount + " / writeCount=" + writeCount);
-			}
-
-			c++;
-
-			UMSUtils.sleep(CHECK_INTERVAL);
-		}
-
-		if (c > 0) {
-			LOGGER.trace("Resume Read: readCount=" + readCount + " / writeCount=" + writeCount);
-		}
-
-		long available = writeCount - readCount;
-		byte[] data = buffer;
-		if (data == null || available <= 0) {
-			return -1;
-		}
-		return data[(int) (readCount % maxMemorySize) % data.length] & 0xff;
+		checkRetainedPosition(readCount);
+		return buffer[(int) (readCount % buffer.length)] & 0xff;
 	}
 
 	@Override
@@ -824,7 +796,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	@Override
 	public synchronized void removeInputStream(WaitBufferedInputStream inputStream) {
 		inputStreams.remove(inputStream);
-		signalReaders();
+		notifyAll();
 	}
 
 	@Override
@@ -879,7 +851,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 		if (buffer != null) {
 			LOGGER.trace("Destroying buffer");
 			buffer = null;
-			signalReaders();
+			notifyAll();
 		}
 
 		if (renderer != null) {

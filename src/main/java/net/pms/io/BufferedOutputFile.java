@@ -25,11 +25,20 @@ import java.io.InputStream;
  * {@link BufferedOutputFileImpl}.
  */
 public interface BufferedOutputFile {
+	/** The requested bytes have already been overwritten by the encoder. */
+	class DiscardedPositionException extends IOException {
+		private static final long serialVersionUID = 1L;
+
+		public DiscardedPositionException(long position) {
+			super("Transcode buffer no longer contains byte " + position);
+		}
+	}
+
 	public abstract void close() throws IOException;
 
 	public abstract WaitBufferedInputStream getCurrentInputStream();
 
-	public abstract InputStream getInputStream(long newReadPosition);
+	public abstract InputStream getInputStream(long newReadPosition) throws IOException;
 
 	public abstract long getWriteCount();
 
@@ -50,9 +59,9 @@ public interface BufferedOutputFile {
 
 	public abstract void reset();
 
-	public abstract int read(boolean firstRead, long readCount);
+	public abstract int read(boolean firstRead, long readCount) throws IOException;
 
-	public abstract int read(boolean firstRead, long readCount, byte[] b, int off, int len);
+	public abstract int read(boolean firstRead, long readCount, byte[] b, int off, int len) throws IOException;
 
 	public abstract void removeInputStream(WaitBufferedInputStream waitBufferedInputStream);
 
