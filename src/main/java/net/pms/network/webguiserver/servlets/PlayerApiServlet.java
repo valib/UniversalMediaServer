@@ -769,8 +769,9 @@ public class PlayerApiServlet extends GuiHttpServlet {
 				metadata.addProperty("isEditable", renderer.havePermission(Permissions.WEB_PLAYER_EDIT) && TMDB.isReady());
 				media.add("metadata", metadata);
 			}
-			media.add("externalSubtitles", getExternalSubtitles(item));
-			if (hasExternalHlsSubtitles(item)) {
+			JsonArray externalSubtitles = getExternalSubtitles(item);
+			media.add("externalSubtitles", externalSubtitles);
+			if (!externalSubtitles.isEmpty() || (item.isTranscoded() && supportsPlayerSubtitles(item))) {
 				media.add("subtitleStyle", getSubtitleStyle(item));
 			}
 			media.addProperty("isVideoWithChapters", item.getMediaInfo() != null && item.getMediaInfo().hasChapters());
@@ -1273,9 +1274,12 @@ public class PlayerApiServlet extends GuiHttpServlet {
 		}
 	}
 
-	private static boolean hasExternalHlsSubtitles(StoreItem item) {
-		return item.isTranscoded() && item.getTranscodingSettings().getEngine() instanceof FFmpegHlsVideo &&
-			!HlsHelper.hasExplicitTrackSelection(item) && !item.getDefaultRenderer().getUmsConfiguration().isDisableSubtitles();
+	private static boolean supportsPlayerSubtitles(StoreItem item) {
+		if (item.getType() != Format.VIDEO || HlsHelper.hasExplicitTrackSelection(item) ||
+			item.getDefaultRenderer().getUmsConfiguration().isDisableSubtitles()) {
+			return false;
+		}
+		return item.isTranscoded() ? item.getTranscodingSettings().getEngine() instanceof FFmpegHlsVideo : !item.isResume();
 	}
 
 	static JsonObject getSubtitleStyle(StoreItem item) {
@@ -1296,7 +1300,7 @@ public class PlayerApiServlet extends GuiHttpServlet {
 	}
 
 	static MediaSubtitle findExternalSubtitle(StoreItem item, String id) {
-		if (!hasExternalHlsSubtitles(item) || item.getMediaInfo() == null) {
+		if (!supportsPlayerSubtitles(item) || item.getMediaInfo() == null) {
 			return null;
 		}
 		for (MediaSubtitle subtitle : item.getMediaInfo().getSubtitlesTracks()) {
@@ -1310,7 +1314,7 @@ public class PlayerApiServlet extends GuiHttpServlet {
 
 	static JsonArray getExternalSubtitles(StoreItem item) {
 		JsonArray tracks = new JsonArray();
-		if (!hasExternalHlsSubtitles(item) || item.getMediaInfo() == null) {
+		if (!supportsPlayerSubtitles(item) || item.getMediaInfo() == null) {
 			return tracks;
 		}
 		for (MediaSubtitle subtitle : item.getMediaInfo().getSubtitlesTracks()) {
@@ -1330,7 +1334,7 @@ public class PlayerApiServlet extends GuiHttpServlet {
 
 	private static void sendExternalSubtitle(HttpServletRequest req, HttpServletResponse resp,
 			StoreItem item, WebGuiRenderer renderer, String filename) throws IOException {
-		if (!hasExternalHlsSubtitles(item) || item.getMediaInfo() == null || !filename.matches("[0-9a-f]{64}\\.vtt")) {
+		if (!filename.matches("[0-9a-f]{64}\\.vtt")) {
 			respondNotFound(req, resp);
 			return;
 		}
