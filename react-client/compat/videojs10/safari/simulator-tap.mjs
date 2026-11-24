@@ -5,19 +5,28 @@ import { promisify } from 'node:util'
 
 const exec = promisify(execFile)
 
-export async function simulatorScreenshot(udid, file) {
-  await rm(file, { force: true })
-  try {
-    await exec('xcrun', ['simctl', 'io', udid, 'screenshot', file], { timeout: 45000 })
-  }
-  catch (error) {
-    if (!error.killed) throw error
-    // simctl can write the full PNG and then hang before exiting on a busy host.
+export async function captureScreenshot(file, capture, attempts = 1) {
+  let failure
+  for (let i = 0; i < attempts; i++) {
+    await rm(file, { force: true })
+    try {
+      await capture()
+      failure = null
+    }
+    catch (error) {
+      if (!error.killed) throw error
+      // A capture may finish writing the PNG before its process acknowledges completion.
+      failure = error
+    }
     const png = await readFile(file).catch(() => null)
-    if (png?.subarray(-12).toString('hex') === '0000000049454e44ae426082') return png
-    throw error
+    if (png?.subarray(0, 8).toString('hex') === '89504e470d0a1a0a'
+      && png.subarray(-12).toString('hex') === '0000000049454e44ae426082') return png
   }
-  return readFile(file)
+  throw failure || Error('Screen capture did not write a complete PNG')
+}
+
+export function simulatorScreenshot(udid, file) {
+  return captureScreenshot(file, () => exec('xcrun', ['simctl', 'io', udid, 'screenshot', file], { timeout: 45000 }))
 }
 
 export async function dismissSafariTip(udid) {
