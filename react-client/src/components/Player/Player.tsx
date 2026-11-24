@@ -17,7 +17,7 @@
 import { ActionIcon, Box, Breadcrumbs, Button, Group, Image, LoadingOverlay, Menu, Paper, ScrollArea, Text } from '@mantine/core'
 import { IconChevronDown, IconHome, IconRecordMail, IconRecordMailOff } from '@tabler/icons-react'
 import axios, { AxiosError, AxiosResponse } from 'axios'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useReducer, useState } from 'react'
 import { useParams } from 'react-router'
 
 import { I18nInterface } from '../../services/i18n-service'
@@ -39,6 +39,7 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
   const [data, setData] = useState({ goal: '', folders: [], breadcrumbs: [], isRealFolder: false, medias: [], useWebControl: false } as BaseBrowse)
   const [loading, setLoading] = useState(false)
   const { req, id } = useParams()
+  const [revision, refreshPage] = useReducer((value: number) => value + 1, 0)
 
   useEffect(() => {
     session.subscribeTo('Player')
@@ -78,41 +79,6 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
       .then(function () {
         setLoading(false)
       })
-  }
-
-  const refreshPage = () => {
-    if (player.uuid && player.reqType) {
-      setLoading(true)
-      axios.post(playerApiUrl + player.reqType, { uuid: player.uuid, id: player.reqId, lang: i18n.language }, { headers: { Player: player.uuid } })
-        .then(function (response: AxiosResponse) {
-          setData(response.data)
-          const data = response.data as BaseBrowse
-          const mediaTemp = data.goal === 'show' ? data.medias[0] : data.breadcrumbs[response.data.breadcrumbs.length - 1]
-          setMetadataBackground(
-            response.data.goal === 'show' ? (mediaTemp as BaseBrowse | VideoMedia).metadata : data.metadata,
-          )
-          window.scrollTo(0, 0)
-          const url = '/player/' + player.reqType + '/' + player.reqId
-          if (url !== history.state) {
-            window.history.pushState(url, '', url)
-          }
-        })
-        .catch(function (error: AxiosError) {
-          if (!error.response && error.request) {
-            i18n.showServerUnreachable()
-          }
-          else {
-            showError({
-              id: 'player-data-loading',
-              title: i18n.get('Error'),
-              message: 'Your browse data was not received from the server.',
-            })
-          }
-        })
-        .then(function () {
-          setLoading(false)
-        })
-    }
   }
 
   const hasBreadcrumbs = () => {
@@ -324,8 +290,44 @@ const Player = ({ i18n, session, player }: { i18n: I18nInterface, session: Sessi
   }, [req, id])
 
   useEffect(() => {
-    refreshPage()
-  }, [player.uuid, player.reqType, player.reqId, i18n.language])
+    if (player.uuid && player.reqType) {
+      const controller = new AbortController()
+      setLoading(true)
+      axios.post(playerApiUrl + player.reqType, { uuid: player.uuid, id: player.reqId, lang: i18n.language }, { headers: { Player: player.uuid }, signal: controller.signal })
+        .then(function (response: AxiosResponse) {
+          if (controller.signal.aborted) return
+          setData(response.data)
+          const data = response.data as BaseBrowse
+          const mediaTemp = data.goal === 'show' ? data.medias[0] : data.breadcrumbs[response.data.breadcrumbs.length - 1]
+          setMetadataBackground(
+            response.data.goal === 'show' ? (mediaTemp as BaseBrowse | VideoMedia).metadata : data.metadata,
+          )
+          window.scrollTo(0, 0)
+          const url = '/player/' + player.reqType + '/' + player.reqId
+          if (url !== history.state) {
+            window.history.pushState(url, '', url)
+          }
+        })
+        .catch(function (error: AxiosError) {
+          if (controller.signal.aborted) return
+          if (!error.response && error.request) {
+            i18n.showServerUnreachable()
+          }
+          else {
+            showError({
+              id: 'player-data-loading',
+              title: i18n.get('Error'),
+              message: 'Your browse data was not received from the server.',
+            })
+          }
+        })
+        .finally(function () {
+          if (controller.signal.aborted) return
+          setLoading(false)
+        })
+      return () => controller.abort()
+    }
+  }, [player.uuid, player.reqType, player.reqId, i18n.language, revision])
 
   useEffect(
     () => { session.setNavbarValue(session.playerNavbar ? <PlayerNavbar data={data} i18n={i18n} player={player} /> : undefined) },
