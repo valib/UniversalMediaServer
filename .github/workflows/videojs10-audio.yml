@@ -32,12 +32,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg libmediainfo-dev
           mvn -B -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
-      - name: Build the opt-in client and install Chromium
+      - name: Build the opt-in client and install browsers
         working-directory: react-client
         run: |
           node .yarn/releases/yarn-*.cjs install --immutable
           node .yarn/releases/yarn-*.cjs build:videojs10:audio
-          node node_modules/@playwright/test/cli.js install --with-deps chromium --only-shell
+          node node_modules/@playwright/test/cli.js install --with-deps --only-shell chromium firefox webkit
       - name: Play audio through both UMS entry points
         run: bash react-client/compat/videojs10/audio/run.sh
       - uses: actions/upload-artifact@v4

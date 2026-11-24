@@ -7,9 +7,9 @@ export default defineConfig({
   timeout: 60000,
   expect: { timeout: 10000 },
   outputDir: '../../../test-results/videojs10-audio',
-  use: { browserName: 'chromium', trace: 'retain-on-failure' },
-  projects: [
-    { name: 'web interface', use: { baseURL: 'http://127.0.0.1:9001' } },
-    { name: 'standalone player', use: { baseURL: 'http://127.0.0.1:9002' } },
-  ],
+  use: { trace: 'retain-on-failure' },
+  projects: (['chromium', 'firefox', 'webkit'] as const).flatMap(browserName => [
+    { name: browserName + ' web interface', use: { browserName, baseURL: 'http://127.0.0.1:9001' } },
+    { name: browserName + ' standalone player', use: { browserName, baseURL: 'http://127.0.0.1:9002' } },
+  ]),
 })
