@@ -16,7 +16,7 @@
  */
 import { useSessionStorage } from '@mantine/hooks'
 import axios, { AxiosError, AxiosResponse } from 'axios'
-import { ReactNode, useEffect, useState } from 'react'
+import { ReactNode, useEffect, useRef, useState } from 'react'
 import videojs from 'video.js'
 
 import PlayerContext from '../contexts/player-context'
@@ -24,9 +24,10 @@ import { I18nInterface } from '../services/i18n-service'
 import { SessionInterface } from '../services/session-service'
 import { playerApiUrl } from '../utils'
 import { showError, showWarning } from '../utils/notifications'
-import { PlayerRemoteAction } from '../services/player-service'
+import { type AudioController, PlayerRemoteAction } from '../services/player-service'
 
 const PlayerProvider = ({ children, i18n, session }: { children?: ReactNode, i18n: I18nInterface, session: SessionInterface }) => {
+  const audioController = useRef<AudioController | null>(null)
   const [reqId, setReqId] = useState('0')
   const [reqType, setReqType] = useState('browse')
   const [askingUuid, setAskingUuid] = useState<boolean>(false)
@@ -109,6 +110,12 @@ const PlayerProvider = ({ children, i18n, session }: { children?: ReactNode, i18
   }
 
   const onRemoteAction = (data: PlayerRemoteAction) => {
+    if (audioController.current && data.request !== 'setPlayId') {
+      audioController.current.command(data).catch(() => {
+        if (data.request === 'play') showWarning({ title: i18n.get('RemoteControl'), message: i18n.get('RemotePlayOnlyAllowed') })
+      })
+      return
+    }
     switch (data.request) {
       case 'setPlayId':
         if (data.arg0) {
@@ -172,6 +179,7 @@ const PlayerProvider = ({ children, i18n, session }: { children?: ReactNode, i18
 
   return (
     <PlayerContext.Provider value={{
+      audioController,
       uuid: uuid,
       reqId: reqId,
       reqType: reqType,

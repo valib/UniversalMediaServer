@@ -53,6 +53,7 @@ const WebSocketClient = ({ i18n, session, player }: { i18n: I18nInterface, sessi
       sendJsonMessage({ action: 'token', data: session.token })
       sendJsonMessage({ action: 'subscribe', data: session.subscribe })
       sendJsonMessage({ action: 'uuid', data: session.uuid })
+      player.audioController.current?.report()
     }
   }, [i18n.setServerReadyState, serverWebSocketReadyState])
 
@@ -79,9 +80,11 @@ const WebSocketClient = ({ i18n, session, player }: { i18n: I18nInterface, sessi
       case 'renderer_update':
         session.addRendererAction(lastJsonMessage as RendererAction)
         break
-      case 'player':
-        player.onRemoteAction(message.data as PlayerRemoteAction)
+      case 'player': {
+        const action = message.data as PlayerRemoteAction
+        player.onRemoteAction({ ...action, arg0: action.arg0 ?? (typeof message.arg0 === 'string' ? message.arg0 : undefined) })
         break
+      }
       case 'set_configuration_changed':
         if (message.data) {
           const configuration = message.data as Record<string, unknown>

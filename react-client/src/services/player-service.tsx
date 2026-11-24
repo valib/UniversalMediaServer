@@ -14,13 +14,19 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51
  * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-import { createElement } from 'react'
+import { createElement, type RefObject } from 'react'
 import { SendJsonMessage } from 'react-use-websocket/dist/lib/types'
 import { Icon, IconArrowBigLeft, IconArrowBigRight, IconArrowsShuffle, IconBadge3d, IconBadge4k, IconBadgeHd, IconBadgeSd, IconBrandYoutube, IconCalendar, IconDeviceTv, IconDisc, IconEye, IconFolder, IconHeart, IconInfoSquare, IconLoader2, IconMovie, IconMusic, IconPhoto, IconQuestionMark, IconSettings, IconVideo, IconWorldWww } from '@tabler/icons-react'
 
 import { I18nInterface } from './i18n-service'
 
+export interface AudioController {
+  command: (action: PlayerRemoteAction) => Promise<void>
+  report: () => void
+}
+
 export interface PlayerInterface {
+  audioController: RefObject<AudioController | null>
   uuid: string
   reqId: string
   reqType: string

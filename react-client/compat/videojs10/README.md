@@ -37,3 +37,14 @@ yarn playwright test --config compat/videojs10/playwright.config.ts --project=we
 The macOS 15 hls.js check has repeatedly blocked inside WebKit while initializing its audio renderer and video layer. A timeout attaches a WebContent stack sample. On macOS 26, separate native and hls.js jobs check playback and subtitle appearance. If SafariDriver omits the web page from a viewport screenshot, the test requests a screenshot of the player element. It can also locate that player on the macOS display. It compares only the subtitle area and stores the cropped frame. The Apple jobs run independently on pushes to the migration branch. Use their reports for the native Safari release decision. Safari 27.2 on macOS 26.7.2 passed both engine checks. On macOS 15.8.2 the default native engine passed. On the iPhone 17 Pro simulator with iOS 26.2, both engines rendered the requested green Czech subtitle in system fullscreen. The Linux tests provide additional regression coverage. The production client continues to use Video.js 8.
 
 On Linux WebKit, the 8.23.7 control exposed a single “Unknown” track and hid its audio menu for this master. The baseline records this specific outcome as an expected failure. If it exposes both tracks, the test exercises the normal switch. The 10.1.0 candidate must fetch and decode the Czech tone on all three browser engines.
+
+## Audio in the UMS web interface and standalone player
+
+From `react-client`, run `yarn build:videojs10:audio` to build the regular application with Video.js 10 for audio. The opt-in client is written to `node_modules/.cache/ums-videojs10-audio/web/react-client`. The normal build uses Video.js 8. The opt-in audio component uses the UMS thumbnail and media endpoints, the existing player session and the renderer's WebSocket controls.
+
+The **Video.js 10 audio** workflow starts an isolated UMS server, shares two MP3s with embedded artwork and opens both ports in Chromium. To repeat it locally, install FFmpeg, MediaInfo and Chromium through Playwright, build the opt-in client and run these commands from the repository root:
+
+```sh
+mvn -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
+bash react-client/compat/videojs10/audio/run.sh
+```
