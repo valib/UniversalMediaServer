@@ -22,7 +22,10 @@ export default function CompatibilityCheck() {
   const [id, setId] = useState('')
   const [media, setMedia] = useState<VideoMedia>()
   const [version, setVersion] = useState('10')
-  const [native, setNative] = useState(false)
+  const [native, setNative] = useState(() => {
+    const video = document.createElement('video')
+    return 'webkitSetPresentationMode' in video && Boolean(video.canPlayType('application/vnd.apple.mpegurl') || video.canPlayType('application/x-mpegurl'))
+  })
   const [error, setError] = useState('')
 
   useEffect(() => {
