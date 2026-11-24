@@ -46,6 +46,7 @@ import net.pms.formats.FormatFactory;
 import net.pms.image.BufferedImageFilterChain;
 import net.pms.image.ImagesUtil;
 import net.pms.io.BufferedOutputFile.DiscardedPositionException;
+import net.pms.io.BufferedOutputFile.ReleasedBufferException;
 import net.pms.io.OutputParams;
 import net.pms.io.ProcessWrapper;
 import net.pms.io.SizeLimitInputStream;
@@ -977,15 +978,16 @@ public abstract class StoreItem extends StoreResource {
 			}
 		}
 
+		boolean newlyStarted = externalProcess != previousProcess;
 		try {
-			return openTranscodeStream(externalProcess, low, externalProcess != previousProcess);
-		} catch (DiscardedPositionException e) {
-			if (externalProcess != previousProcess || !(this instanceof RealFile)) {
+			return openTranscodeStream(externalProcess, low, newlyStarted);
+		} catch (ReleasedBufferException | DiscardedPositionException e) {
+			if (newlyStarted || (e instanceof DiscardedPositionException && !(this instanceof RealFile))) {
 				throw e;
 			}
-			// A file can be encoded again from the beginning. Existing readers still
-			// own the original process and will release it when they disconnect.
-			LOGGER.debug("Restarting transcode to read discarded byte {} of {}", low, getName());
+			// Cleanup can release the buffer before the process reports that it stopped.
+			// For a discarded file range, existing readers still own the original process.
+			LOGGER.debug("Restarting transcode of {} at byte {}: {}", getName(), low, e.getMessage());
 			ProcessWrapper replacement = startTranscode(params);
 			if (replacement == null) {
 				return null;

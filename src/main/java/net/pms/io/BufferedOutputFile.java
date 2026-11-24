@@ -34,6 +34,15 @@ public interface BufferedOutputFile {
 		}
 	}
 
+	/** The encoder's output buffer has been released after playback stopped. */
+	class ReleasedBufferException extends IOException {
+		private static final long serialVersionUID = 1L;
+
+		public ReleasedBufferException() {
+			super("Transcode output buffer has been released");
+		}
+	}
+
 	public abstract void close() throws IOException;
 
 	public abstract WaitBufferedInputStream getCurrentInputStream();

@@ -17,6 +17,7 @@ on:
       - 'src/main/java/net/pms/io/WaitBufferedInputStream.java'
       - 'src/test/java/net/pms/io/BufferedOutputFileImplTest.java'
       - 'src/test/java/net/pms/encoders/FFmpegHlsSubtitlesTest.java'
+      - 'src/test/java/net/pms/encoders/TranscodeReconnectTest.java'
       - 'src/main/java/net/pms/network/webguiserver/servlets/PlayerApiServlet.java'
       - 'src/main/java/net/pms/parsers/MediaInfoParser.java'
       - 'src/main/java/net/pms/store/StoreItem.java'
@@ -58,9 +59,9 @@ jobs:
         run: sudo apt-get install -y --no-install-recommends gstreamer1.0-gl xvfb xauth
       - name: Build UMS
         run: mvn -B -P testing -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
-      - name: Check live buffer reads, timestamps and HLS encoder options
+      - name: Check transcode reconnects, buffer reads, timestamps and HLS encoder options
         if: matrix.browser == 'chromium'
-        run: mvn -B -P testing -Dtest=BufferedOutputFileImplTest,FFmpegHlsSubtitlesTest test
+        run: mvn -B -P testing -Dtest=BufferedOutputFileImplTest,FFmpegHlsSubtitlesTest,TranscodeReconnectTest test
       - name: Build the production client and install browsers
         working-directory: react-client
         run: |
@@ -82,6 +83,8 @@ jobs:
             # Keep the virtual sound card clock running between isolated browser sessions.
             export PULSE_SINK=ums_audio
             export GST_PLUGIN_FEATURE_RANK=pulsesink:MAX
+            # Use the stream-aware GStreamer pipeline for both MP3 and video playback.
+            export WEBKIT_GST_USE_PLAYBIN3=1
             export GST_DEBUG='webkitmediaplayer:4,webkitwebsrc:4,downloadbuffer:3,pulsesink:4'
             parec --device=ums_audio.monitor --raw > /dev/null &
             audio_monitor=$!

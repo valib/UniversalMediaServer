@@ -250,7 +250,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	@Override
 	public synchronized InputStream getInputStream(long newReadPosition) throws IOException {
 		if (buffer == null) {
-			return null;
+			throw new ReleasedBufferException();
 		}
 		if (configuration.getTrancodeBlocksMultipleConnections() && !inputStreams.isEmpty()) {
 			if (configuration.getTrancodeKeepFirstConnections()) {
