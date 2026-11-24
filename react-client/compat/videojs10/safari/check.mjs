@@ -1,4 +1,4 @@
-/* global performance, AbortSignal, Buffer, console, document, Event, fetch, process, URL */
+/* global performance, AbortSignal, Buffer, console, document, Event, fetch, process, URL, XPathResult */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -39,10 +39,8 @@ async function until(description, read, timeout = 25000) {
   throw Error('Timed out waiting for ' + description)
 }
 async function click(xpath) {
-  const [element] = await until(xpath, async () => {
-    const elements = await post('/elements', { using: 'xpath', value: xpath })
-    return elements.length && elements
-  })
+  const element = await until(xpath, () => evaluate(selector =>
+    document.evaluate(selector, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue, xpath))
   await post('/element/' + element['element-6066-11e4-a52e-4f735466cecf'] + '/click', {})
 }
 async function screenshot(name) {

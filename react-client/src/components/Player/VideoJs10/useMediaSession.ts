@@ -86,7 +86,7 @@ export default function useMediaSession<T extends HTMLMediaElement>(uuid: string
     }
     window.addEventListener('pagehide', leave)
     window.addEventListener('pageshow', restore)
-    if (element.readyState > 0) report()
+    if (element.readyState > 0 || element.preload === 'none') report()
     return () => {
       events.forEach(name => element.removeEventListener(name, update))
       window.removeEventListener('pagehide', leave)

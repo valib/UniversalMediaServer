@@ -13,14 +13,14 @@ const send = result => fetch('/__simulator-report/' + token, { method: 'POST', b
 async function waitFor(label, read) {
   await send({ status: 'in progress', stage: label, checks: result.checks }).catch(() => {})
   const end = Date.now() + 75000
-  while (Date.now() < end) {
+  while (true) {
     const error = document.querySelector('p[role=alert]')?.textContent
     if (error) throw Error(label + ': ' + error)
     const value = await read()
     if (value) return value
+    if (Date.now() >= end) throw Error('Timed out waiting for ' + label)
     await new Promise(resolve => setTimeout(resolve, 200))
   }
-  throw Error('Timed out waiting for ' + label)
 }
 async function tapControl(target) {
   target.scrollIntoView({ block: 'center' })

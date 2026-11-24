@@ -780,6 +780,7 @@ public class PlayerApiServlet extends GuiHttpServlet {
 			}
 		} else if (isAudio) {
 			media.addProperty("mediaType", "audio");
+			media.addProperty("isTranscoded", item.isTranscoded());
 			// Controls whether to use the browser's native audio player
 			// Audio types that are natively supported by all major browsers:
 			media.addProperty("isNativeAudio", mime.equals(HTTPResource.AUDIO_MP3_TYPEMIME));
