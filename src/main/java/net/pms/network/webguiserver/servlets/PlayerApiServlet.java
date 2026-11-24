@@ -1442,8 +1442,8 @@ public class PlayerApiServlet extends GuiHttpServlet {
 							if (LOGGER.isTraceEnabled()) {
 								logHttpServletResponse(req, resp, null, true);
 							}
-							OutputStream os = new BufferedOutputStream(resp.getOutputStream(), 512 * 1024);
-							copyStreamAsync(in, os, async, startStopListener);
+							resp.setBufferSize(8 * 1024);
+							copyStreamAsync(in, resp.getOutputStream(), async, startStopListener);
 						} else {
 							resp.setStatus(500);
 							resp.setContentLength(0);
