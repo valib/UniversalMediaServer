@@ -92,12 +92,18 @@ function VideoSession({ uuid, media, native, session, onEnded }: Props) {
     poster,
     playsInline: true,
     onLoadedMetadata: (event: SyntheticEvent<HTMLVideoElement>) => {
-      restorePosition(event.currentTarget)
       if (!hls) return
+      restorePosition(event.currentTarget)
       if (adapter.current?.engine) setEngine('hls.js (MSE)')
       else if (event.currentTarget.currentSrc === new URL(playlist, document.baseURI).href) setEngine('Browser HLS')
     },
-    onCanPlay: (event: SyntheticEvent<HTMLVideoElement>) => restorePosition(event.currentTarget),
+    onCanPlay: (event: SyntheticEvent<HTMLVideoElement>) => {
+      if (hls) restorePosition(event.currentTarget)
+    },
+    // Native playback can discard a seek made during metadata preload.
+    onPlaying: (event: SyntheticEvent<HTMLVideoElement>) => {
+      if (!hls) restorePosition(event.currentTarget)
+    },
     onSeeking: () => { pendingResume.current = undefined },
     onEnded,
   }
