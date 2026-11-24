@@ -4,6 +4,8 @@ on:
     branches: ['migration/videojs-10-hls-check']
     paths:
       - 'react-client/src/**'
+      - 'src/main/java/net/pms/encoders/FFmpegHlsVideo.java'
+      - 'src/main/java/net/pms/encoders/HlsHelper.java'
       - 'src/main/java/net/pms/network/webguiserver/servlets/PlayerApiServlet.java'
       - 'src/main/java/net/pms/parsers/MediaInfoParser.java'
       - 'react-client/compat/videojs10/audio/**'

@@ -158,7 +158,8 @@ public class FFmpegHlsVideo extends FFMpegVideo {
 				cmdList.add(String.valueOf(hlsConfiguration.video.resolutionWidth) + "x" + String.valueOf(hlsConfiguration.video.resolutionHeight));
 			}
 			cmdList.add("-c:v");
-			if (!hlsConfiguration.video.videoCodec.startsWith("avc1.")) {
+			String videoCodec = hlsConfiguration.video.getVideoCodec(media);
+			if (!videoCodec.startsWith("avc1.")) {
 				LOGGER.error("Something wrong, hls codec not handled: {}", hlsConfiguration.video.videoCodec);
 				return null;
 			}
@@ -176,6 +177,11 @@ public class FFmpegHlsVideo extends FFMpegVideo {
 				} else {
 					cmdList.add("ultrafast");
 				}
+				// x264 otherwise drops to Constrained Baseline with the ultrafast preset.
+				if (videoCodec.startsWith("avc1.64")) {
+					cmdList.add("-8x8dct");
+					cmdList.add("1");
+				}
 			}
 
 			/**
@@ -189,20 +195,20 @@ public class FFmpegHlsVideo extends FFMpegVideo {
 			 * https://developer.apple.com/documentation/http_live_streaming/http_live_streaming_hls_authoring_specification_for_apple_devices
 			 */
 			//set profile : baseline main high high10 high422 high444
-			if (hlsConfiguration.video.videoCodec.startsWith("avc1.64")) {
+			if (videoCodec.startsWith("avc1.64")) {
 				cmdList.add("-profile:v");
 				cmdList.add("high");
-			} else if (hlsConfiguration.video.videoCodec.startsWith("avc1.4D")) {
+			} else if (videoCodec.startsWith("avc1.4D")) {
 				//main profile
 				cmdList.add("-profile:v");
 				cmdList.add("main");
-			} else if (hlsConfiguration.video.videoCodec.startsWith("avc1.42")) {
+			} else if (videoCodec.startsWith("avc1.42")) {
 				//baseline profile
 				cmdList.add("-profile:v");
 				cmdList.add("baseline");
 			}
 
-			String hexLevel = hlsConfiguration.video.videoCodec.substring(hlsConfiguration.video.videoCodec.length() - 2);
+			String hexLevel = videoCodec.substring(videoCodec.length() - 2);
 			int level;
 			try {
 				level = Integer.parseInt(hexLevel, 16);
