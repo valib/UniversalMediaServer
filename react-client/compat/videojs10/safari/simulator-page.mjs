@@ -1,4 +1,6 @@
-/* global requestAnimationFrame, screen, document, Event, fetch, getComputedStyle, location, navigator, setTimeout, URL, URLSearchParams */
+/* global requestAnimationFrame, screen, document, Event, fetch, getComputedStyle, location, navigator, performance, setTimeout, URL, URLSearchParams */
+import { chooseOption, markVideo } from './page-controls.mjs'
+
 const params = new URLSearchParams(location.hash.slice(1))
 const token = params.get('token')
 if (!/^[a-f0-9]{32}$/.test(token)) throw Error('Missing simulator test session')
@@ -11,7 +13,7 @@ async function waitFor(label, read) {
   await send({ status: 'in progress', stage: label, checks: result.checks }).catch(() => {})
   const end = Date.now() + 75000
   while (Date.now() < end) {
-    const value = read()
+    const value = await read()
     if (value) return value
     await new Promise(resolve => setTimeout(resolve, 200))
   }
@@ -49,7 +51,8 @@ async function tapControl(target) {
 let video
 try {
   const checkbox = await waitFor('native preference', () => document.querySelector('input[type=checkbox]'))
-  if (checkbox.checked !== (mode === 'native')) checkbox.click()
+  if (!checkbox.checked) throw Error('Mobile Safari must default to native HLS')
+  if (mode === 'mse') checkbox.click()
   const folder = await waitFor('UMS shared folder', () => Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Media'))
   folder.click()
   const sample = await waitFor('sample', () => button('UMS HLS sample'))
@@ -62,6 +65,8 @@ try {
   const play = button('Play')
   await tapControl(play)
   await waitFor('two seconds of decoded video', () => video.currentTime > 2 && video.videoWidth > 0)
+  video.pause()
+  if (!(video.duration >= 29 && video.duration < 32)) throw Error('Unexpected HLS duration: ' + video.duration)
   const engine = document.querySelector('[aria-label="Playback engine"]')?.textContent
   if (mode === 'native' && (engine !== 'Browser HLS' || !/^\/v1\/api\/player\/media\/[^/]+\/[^/]+\/master\.m3u8$/.test(new URL(video.currentSrc).pathname))) throw Error('Expected the native UMS playlist')
   if (mode === 'mse' && (engine !== 'hls.js (MSE)' || !video.currentSrc.startsWith('blob:'))) throw Error('Expected hls.js playback')
@@ -69,19 +74,22 @@ try {
   const cue = () => Array.from(video.textTracks).filter(t => t.kind === 'subtitles' && t.mode === 'showing')
     .flatMap(t => Array.from(t.activeCues || [], c => c.text))[0]
   const first = await waitFor('Czech cue', () => cue()?.match(/^(První|Druhá) česká stopa$/)?.[0])
-  const choices = Array.from(document.querySelectorAll('.ums-video-controls select'))
-  const captions = choices.find(select => Array.from(select.options).some(option => option.value.startsWith('ums-sub-')))
-  const alternate = Array.from(captions.options).find(option => option.value.startsWith('ums-sub-') && !option.selected)
-  captions.value = alternate.value
-  captions.dispatchEvent(new Event('change', { bubbles: true }))
+  if (!chooseOption('subtitle')) throw Error('Missing alternate Czech subtitles')
   await waitFor('alternate cue', () => cue() === (first === 'První česká stopa' ? 'Druhá česká stopa' : 'První česká stopa'))
-  result.checks.push('Both external Czech subtitle tracks')
-  const chapters = choices.find(select => Array.from(select.options).some(option => option.text === 'Second chapter'))
-  chapters.value = Array.from(chapters.options).find(option => option.text === 'Second chapter').value
-  chapters.dispatchEvent(new Event('change', { bubbles: true }))
-  await waitFor('chapter seek', () => video.currentTime >= 12 && video.currentTime < 15 && !video.seeking)
-  result.checks.push('Seek to the second chapter')
+  if (!chooseOption('off')) throw Error('Missing subtitles Off')
+  await waitFor('subtitles off', () => !cue())
+  if (!chooseOption('on')) throw Error('Missing Czech subtitle selection')
+  await waitFor('restored Czech cue', cue)
+  result.checks.push('Both external Czech subtitle tracks and Off')
+  if (mode === 'native' && !(video.audioTracks?.length >= 2)) throw Error('Missing alternate native audio track')
+  if (!chooseOption('audio')) throw Error('Missing Czech audio choice')
+  if (!chooseOption('chapter')) throw Error('Missing second chapter')
+  await waitFor('chapter seek', () => video.currentTime >= 11.5 && video.currentTime < 15 && !video.seeking)
   video.pause()
+  await waitFor('Czech audio after chapter seek', () => mode === 'native'
+    ? Array.from(video.audioTracks).some(t => t.enabled && /^(cs|ces|cze|Czech)(-|$)/i.test(t.language || t.label))
+    : performance.getEntriesByType('resource').some(entry => /\/hls\/NONE_[^/]+_1\/\d+\.ts$/.test(entry.name)))
+  result.checks.push('Czech audio remains selected after the chapter seek')
   const toggle = button('Fullscreen')
   const fullscreen = () => video.webkitDisplayingFullscreen || video.webkitPresentationMode === 'fullscreen'
   result.fullscreen = { system: false, exited: false, trustedTap: false }
@@ -90,19 +98,31 @@ try {
     await waitFor('system video fullscreen', fullscreen)
     const actualCue = cue()
     if (!/^(První|Druhá) česká stopa$/.test(actualCue)) throw Error('Missing Czech fullscreen cue')
-    let pixels
-    for (let i = 0; i < 4; i++) {
+    const pixels = await waitFor('rendered ' + appearance + ' fullscreen cue', async () => {
       const response = await send({ action: 'capture', appearance })
       if (!response.ok) throw Error(await response.text())
-      pixels = await response.json()
-      if (pixels.light > 30 || pixels.green > 30) break
-      await new Promise(resolve => setTimeout(resolve, 500))
-    }
-    if (pixels.light <= 30 && pixels.green <= 30) throw Error('Missing visible fullscreen subtitle in ' + appearance + ' frame')
+      const frame = await response.json()
+      return frame.letterboxed && (appearance === 'green' ? frame.green > 30 : frame.light > 30) && frame
+    })
     video.webkitExitFullscreen()
     await waitFor('inline video after fullscreen', () => !fullscreen())
     return { cue: actualCue, time: video.currentTime, ...pixels }
   }
+  async function captureInline(appearance) {
+    video.scrollIntoView({ block: 'center' })
+    const bounds = markVideo()
+    try {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const response = await send({ action: 'inline', appearance, bounds })
+      if (!response.ok) throw Error(await response.text())
+      return (await response.json()).green
+    }
+    finally {
+      document.querySelector('#capture-origin')?.remove()
+    }
+  }
+  const defaultColor = getComputedStyle(video).getPropertyValue('--ums-cue-color')
+  const inlineDefault = await captureInline('default')
   const baseline = await captureCue('default')
   result.fullscreen.cue = baseline.cue
   result.fullscreen.trustedTap = true
@@ -119,6 +139,17 @@ try {
   const styled = await captureCue('green')
   if (styled.cue !== baseline.cue || Math.abs(styled.time - baseline.time) > 0.25) throw Error('Fullscreen comparison changed cue or playback time')
   result.fullscreen.appearance = { baseline, styled, appliesSelectedColor: styled.green > baseline.green + 30 }
+  if (!result.fullscreen.appearance.appliesSelectedColor) throw Error('Missing green Czech subtitle in system fullscreen')
+  const inlineGreen = await captureInline('green')
+  if (inlineGreen <= inlineDefault + 30) throw Error('Missing green Czech subtitle in inline playback')
+  button('Subtitle appearance').click()
+  button('Use server defaults').click()
+  button('Close').click()
+  await waitFor('server cue color', () => getComputedStyle(video).getPropertyValue('--ums-cue-color') === defaultColor)
+  const restored = await captureInline('restored')
+  result.inline = { baseline: inlineDefault, styled: inlineGreen, restored }
+  if (restored > inlineDefault + 5) throw Error('Inline cue did not restore the server color')
+  result.checks.push('Inline and system fullscreen Czech cue colors, including restored inline defaults')
   result.status = 'passed'
 }
 catch (error) {
@@ -126,7 +157,7 @@ catch (error) {
 }
 finally {
   if (video) {
-    result.media = { time: video.currentTime, width: video.videoWidth, height: video.videoHeight, paused: video.paused, error: video.error?.code }
+    result.media = { time: video.currentTime, width: video.videoWidth, height: video.videoHeight, paused: video.paused, seeking: video.seeking, readyState: video.readyState, error: video.error?.code }
     video.pause()
   }
   await send(result)

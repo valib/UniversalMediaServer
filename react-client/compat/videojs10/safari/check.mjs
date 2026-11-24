@@ -1,16 +1,17 @@
 /* global performance, AbortSignal, Buffer, console, document, Event, fetch, process, URL */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { greenPixels, macCueCapture, markVideo } from './cue-frame.mjs'
+import { greenPixels, macCueCapture } from './cue-frame.mjs'
+import { chooseOption, markVideo } from './page-controls.mjs'
 
 const platform = process.argv[2]
-assert.ok(['macos', 'ios'].includes(platform), 'Choose macos or ios')
+assert.equal(platform, 'macos', 'Run iOS checks in Mobile Safari with simulator.mjs')
 const mode = process.argv[3] || 'native'
 assert.ok(['native', 'mse'].includes(mode), 'Choose native or mse')
-const directory = join(process.env.SAFARI_RESULTS || 'test-results/safari-' + platform, mode)
+const directory = process.env.SAFARI_RESULTS || join('test-results/safari-' + platform, mode)
 await mkdir(directory, { recursive: true })
 const report = { platform, mode, checks: [], status: 'failed' }
 let session
@@ -27,7 +28,7 @@ async function command(method, route, body) {
 }
 const post = (route, body) => command('POST', '/session/' + session + route, body)
 const evaluate = (fn, ...args) => post('/execute/sync', { script: 'return (' + fn + ').apply(null, arguments)', args })
-async function until(description, read, timeout = platform === 'ios' ? 75000 : 25000) {
+async function until(description, read, timeout = 25000) {
   const end = Date.now() + timeout
   let result
   do {
@@ -42,11 +43,7 @@ async function click(xpath) {
     const elements = await post('/elements', { using: 'xpath', value: xpath })
     return elements.length && elements
   })
-  if (platform !== 'ios') {
-    await post('/element/' + element['element-6066-11e4-a52e-4f735466cecf'] + '/click', {})
-    return
-  }
-  await evaluate(el => el.click(), element)
+  await post('/element/' + element['element-6066-11e4-a52e-4f735466cecf'] + '/click', {})
 }
 async function screenshot(name) {
   const data = await command('GET', '/session/' + session + '/screenshot')
@@ -86,34 +83,10 @@ function mediaState(readNativeAudio) {
     focus: document.activeElement?.textContent?.trim().slice(0, 60),
   }
 }
-// Use the same change event that the check page handles for both native and React selects.
-function chooseOption(kind) {
-  for (const select of document.querySelectorAll('.ums-video-controls select')) {
-    const options = Array.from(select.options)
-    const target = options.find((option) => {
-      if (kind === 'subtitle') return option.value.startsWith('ums-sub-') && !option.selected
-      if (kind === 'off') return option.text === 'Off'
-      if (kind === 'on') return option.value.startsWith('ums-sub-')
-      if (kind === 'chapter') return option.text === 'Second chapter'
-      return /^(cs|ces|cze|Czech|čeština)$/i.test(option.text) && !option.value.startsWith('ums-sub-')
-    })
-    if (target) {
-      select.value = target.value
-      select.dispatchEvent(new Event('change', { bubbles: true }))
-      return true
-    }
-  }
-  return false
-}
 const state = () => evaluate(mediaState, mode === 'native')
 const button = name => '//button[normalize-space(.)="' + name + '"]'
 try {
-  const capabilities = { browserName: 'Safari', pageLoadStrategy: 'eager', platformName: platform === 'ios' ? 'iOS' : 'macOS' }
-  if (platform === 'ios') {
-    assert.ok(process.env.IOS_SIMULATOR_UDID, 'Missing booted iPhone simulator')
-    Object.assign(capabilities, { 'safari:useSimulator': true, 'safari:deviceUDID': process.env.IOS_SIMULATOR_UDID })
-  }
-  if (platform === 'ios') capabilities['webkit:alwaysAllowAutoplay'] = true
+  const capabilities = { browserName: 'Safari', pageLoadStrategy: 'eager', platformName: 'macOS' }
   const created = await command('POST', '/session', { capabilities: { alwaysMatch: capabilities } })
   session = created.sessionId
   await post('/timeouts', { implicit: 0, pageLoad: 90000, script: 15000 })
@@ -131,14 +104,22 @@ try {
   report.stage = 'browse sample'
   await click(button('Media'))
   await click('//button[starts-with(normalize-space(.), "UMS HLS sample")]')
+  report.stage = 'load playlist metadata'
+  await until('playlist metadata', () => evaluate(() => {
+    const video = document.querySelector('video')
+    if (!video) return false
+    // Match the ordinary simulator session on hosts without an audio output.
+    if (!video.muted) video.muted = true
+    return video.readyState >= video.HAVE_METADATA
+  }))
   report.stage = 'start playback'
-  // The test covers decoding, track selection and presentation, independently of autoplay policy.
   await click(button('Play'))
   await check(mode + ' UMS HLS decodes and playback advances', async () => {
+    // UMS transcodes the initial segments on demand on a cold CI host.
     const v = await until('two seconds of ' + mode + ' playback', async () => {
-      const v = await state()
+      const v = await evaluate(mediaState, false)
       return v?.time > 2 && v.width > 0 && v
-    })
+    }, 75000)
     if (mode === 'native') {
       assert.ok(v.native)
       assert.equal(v.engine, 'Browser HLS')
@@ -179,9 +160,7 @@ try {
       const id = player['element-6066-11e4-a52e-4f735466cecf']
       return Buffer.from(await command('GET', '/session/' + session + '/element/' + id + '/screenshot'), 'base64')
     }
-    const capture = platform === 'macos'
-      ? macCueCapture(await evaluate(markVideo), webdriverScreenshot, playerScreenshot)
-      : async () => ({ source: 'webdriver', png: await webdriverScreenshot() })
+    const capture = macCueCapture(await evaluate(markVideo), webdriverScreenshot, playerScreenshot)
     const initial = await capture()
     report.cueCapture = initial.source
     const baseline = greenPixels(initial.png)
@@ -213,19 +192,6 @@ try {
   })
   await screenshot('inline')
   await check('Fullscreen enters and exits with an active cue', async () => {
-    if (platform === 'ios') {
-      // SafariDriver shields its window from system input. The other Safari session
-      // on this simulator receives an actual HID tap on this player's control.
-      const ordinary = JSON.parse(await readFile(join(directory, '..', 'simulator-playback.json'), 'utf8'))
-      assert.equal(ordinary.mode, mode)
-      assert.equal(ordinary.status, 'passed', ordinary.error)
-      assert.ok(ordinary.fullscreen?.trustedTap && ordinary.fullscreen.system && ordinary.fullscreen.exited)
-      assert.match(ordinary.fullscreen.cue, /^(První|Druhá) česká stopa$/)
-      report.fullscreen = 'system'
-      report.systemCueAppearance = ordinary.fullscreen.appearance
-      assert.equal(report.systemCueAppearance?.appliesSelectedColor, true, 'The selected color must be visible on the system fullscreen cue')
-      return
-    }
     await click(button('Fullscreen'))
     report.fullscreen = await until('fullscreen', async () => {
       const v = await state()
@@ -242,7 +208,7 @@ try {
 }
 catch (error) {
   report.error = String(error)
-  if (platform === 'macos' && mode === 'mse' && error.name === 'TimeoutError') {
+  if (mode === 'mse' && error.name === 'TimeoutError') {
     // Sample the WebContent process before queuing further WebDriver commands.
     try {
       const rows = execFileSync('ps', ['-axo', 'pid=,pcpu=,comm='], { encoding: 'utf8' }).split('\n')
@@ -266,7 +232,7 @@ catch (error) {
     await screenshot('failure').catch(() => {})
   }
   console.error(error)
-  process.exitCode = session ? 1 : 75
+  process.exitCode = 1
 }
 finally {
   console.log(JSON.stringify(report))

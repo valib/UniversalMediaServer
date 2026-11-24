@@ -6,7 +6,7 @@ import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { tapMarker } from './simulator-tap.mjs'
-import { systemCuePixels } from './cue-frame.mjs'
+import { cropVideo, greenPixels, systemCuePixels } from './cue-frame.mjs'
 
 const origin = 'http://127.0.0.1:5287'
 const token = randomBytes(16).toString('hex')
@@ -62,6 +62,17 @@ const server = createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(systemCuePixels(await readFile(file))))
         return
       }
+      else if (result.action === 'inline') {
+        if (!['default', 'green', 'restored'].includes(result.appearance)) throw Error('Unknown inline cue appearance')
+        const { width, height, display } = result.bounds
+        if (![width, height, display].every(n => Number.isInteger(n) && n > 0 && n <= 4096)) throw Error('Invalid video bounds')
+        const file = join(directory, 'inline-' + result.appearance + '.png')
+        await run('xcrun', ['simctl', 'io', udid, 'screenshot', file], { timeout: 20000 })
+        const video = cropVideo(await readFile(file), { width, height }, display)
+        if (!video) throw Error('Cannot locate the marked video in the simulator screenshot')
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ green: greenPixels(video) }))
+        return
+      }
       else {
         res.writeHead(400).end()
         return
@@ -80,11 +91,20 @@ const server = createServer(async (req, res) => {
   }
   else finish(result)
 })
-await new Promise((resolve, reject) => server.once('error', reject).listen(5289, '127.0.0.1', resolve))
-const timeout = setTimeout(() => finish({ status: 'failed', error: 'Mobile Safari did not return a final result', lastProgress }), 300000)
+await new Promise((resolve, reject) => server.once('error', reject).listen(Number(process.env.UMS_SIMULATOR_REPORT_PORT || 5289), '127.0.0.1', resolve))
+const timeout = setTimeout(() => finish({ status: 'failed', error: 'Mobile Safari did not return a final result', lastProgress }), 480000)
 try {
-  const url = origin + '/safari/simulator.html#mode=' + mode + '&token=' + token
-  await promisify(execFile)('xcrun', ['simctl', 'openurl', process.env.IOS_SIMULATOR_UDID, url], { timeout: 25000 })
+  const url = origin + '/safari/simulator.html?engine=' + mode + '#mode=' + mode + '&token=' + token
+  const navigate = () => run('xcrun', ['simctl', 'openurl', udid, url], { timeout: 90000 })
+  try {
+    await navigate()
+  }
+  catch (error) {
+    if (!error.killed) throw error
+    // A cold simulator may open Safari before simctl acknowledges the request.
+    // Retry only when the page has not reported any progress.
+    if (!lastProgress) await navigate()
+  }
   const result = await received
   console.log('Simulator playback', JSON.stringify(result))
   await writeFile(join(process.env.SAFARI_RESULTS, 'simulator-playback.json'), JSON.stringify(result, null, 2) + '\n')
