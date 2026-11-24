@@ -13,6 +13,8 @@ for track in 01 02; do
     "$profile/Media/UMS audio $track.mp3"
 done
 sh react-client/compat/videojs10/create-fixture.sh "$profile/Media"
+ffmpeg -nostdin -v error -i "$profile/Media/UMS HLS sample.mkv" \
+  -map 0:v:0 -map 0:a:0 -map_chapters 0 -c copy -movflags +faststart "$profile/Media/UMS direct sample.mp4"
 node -e 'require("node:fs").writeFileSync(process.argv[1] + "/SHARED.conf", JSON.stringify([{type:"Folder",file:process.argv[1] + "/Media",active:true,monitored:true,metadata:false,groups:[]}]))' "$profile"
 cat > "$profile/UMS.conf" <<CONFIG
 hostname = 127.0.0.1
@@ -28,6 +30,7 @@ single_instance = false
 external_network = false
 upnp_enable = false
 cpu_cores = 2
+disable_transcode_for_extensions = mp4
 web_path = $PWD/react-client/node_modules/.cache/ums-videojs10-audio/web
 ffmpeg_path = $(command -v ffmpeg)
 ffmpeg_executable_type = custom

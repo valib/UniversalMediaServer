@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 import VideoPlayer8 from '../../src/components/Player/VideoPlayer'
 import type { BaseBrowse, VideoMedia } from '../../src/services/player-service'
-import { HlsPlayer } from '../../src/components/Player/VideoJs10/HlsPlayer'
+import UmsVideoPlayer from '../../src/components/Player/VideoJs10/UmsVideoPlayer'
 import { isHlsVideo, prefersNativeHls } from '../../src/components/Player/VideoJs10/hls'
 
 async function playerRequest<T>(route: string, uuid?: string, id?: string, signal?: AbortSignal): Promise<T> {
@@ -87,7 +87,7 @@ export default function CompatibilityCheck() {
           <h2>{media.name}</h2>
           {version === '8'
             ? <VideoPlayer8 uuid={uuid} media={media} askPlayId={setId} sendJsonMessage={() => {}} />
-            : <HlsPlayer key={String(native)} uuid={uuid} media={media} native={native} />}
+            : <UmsVideoPlayer key={String(native)} uuid={uuid} media={media} native={native} />}
         </section>
       )}
     </>

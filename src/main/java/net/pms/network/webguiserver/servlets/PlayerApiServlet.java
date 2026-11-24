@@ -52,6 +52,7 @@ import net.pms.image.ImageInfo;
 import net.pms.image.ImagesUtil;
 import net.pms.io.OutputParams;
 import net.pms.io.ProcessWrapper;
+import net.pms.io.SizeLimitInputStream;
 import net.pms.media.MediaInfo;
 import net.pms.media.subtitle.MediaSubtitle;
 import net.pms.media.video.metadata.MediaVideoMetadata;
@@ -1403,13 +1404,14 @@ public class PlayerApiServlet extends GuiHttpServlet {
 		}
 
 		try {
+			if (pathData.length == 5 && "chapters.vtt".equals(pathData[4]) && item.getFormat().isVideo()) {
+				respond(req, resp, HlsHelper.getChaptersWebVtt(item), 200, HTTPResource.WEBVTT_TYPEMIME);
+				return;
+			}
 			//hls part
 			if (item.getFormat().isVideo() && item.isTranscoded() && item.getTranscodingSettings().getEngine() instanceof FFmpegHlsVideo) {
 				resp.setHeader("Server", MediaServer.getServerName());
-				if (uri.endsWith("/chapters.vtt")) {
-					String response = HlsHelper.getChaptersWebVtt(item);
-					respond(req, resp, response, 200, HTTPResource.WEBVTT_TYPEMIME);
-				} else if (uri.endsWith("/chapters.json")) {
+				if (uri.endsWith("/chapters.json")) {
 					String response = HlsHelper.getChaptersHls(item);
 					respond(req, resp, response, 200, HTTPResource.JSON_TYPEMIME);
 				} else if (pathData.length > 5 && "hls".equals(pathData[4])) {
@@ -1449,29 +1451,44 @@ public class PlayerApiServlet extends GuiHttpServlet {
 					respond(req, resp, response, 200, HTTPResource.HLS_TYPEMIME);
 				}
 			} else {
-				AsyncContext async = req.startAsync();
-				ByteRange range = parseRange(req, item.length());
+				long len = item.length();
+				boolean transcodedOrResume = item.isTranscoded() || item.isResume();
+				boolean seekable = !transcodedOrResume && len >= 0 && len != StoreResource.TRANS_SIZE;
+				org.eclipse.jetty.http.ByteRange part = null;
+				if (seekable) {
+					resp.setHeader("Accept-Ranges", "bytes");
+					String header = req.getHeader("Range");
+					if (header != null && header.startsWith("bytes=")) {
+						var parts = org.eclipse.jetty.http.ByteRange.parse(List.of(header), len);
+						if (len == 0 || parts.isEmpty()) {
+							resp.setHeader("Content-Range", org.eclipse.jetty.http.ByteRange.toNonSatisfiableHeaderValue(len));
+							resp.setStatus(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+							return;
+						}
+						// Send the full representation for multipart requests.
+						if (parts.size() == 1) {
+							part = parts.get(0);
+						}
+					}
+				}
+				ByteRange range = transcodedOrResume ? parseRange(req, len) : new ByteRange(part == null ? 0L : part.first(), null);
 				LOGGER.debug("Sending {} with mime type {} to {}", item, mimeType, renderer);
 				InputStream in = item.getInputStream(range);
-				long len = item.length();
-				boolean isTranscoding = item.isTranscoded();
+				AsyncContext async = req.startAsync();
 				resp.setContentType(mimeType);
 				resp.setHeader("Server", MediaServer.getServerName());
 				resp.setHeader("Connection", "keep-alive");
 				if (in != null) {
-					if (isTranscoding) {
+					if (part != null) {
+						in = new SizeLimitInputStream(in, part.getLength());
+						resp.setHeader("Content-Range", part.toHeaderValue(len));
+						resp.setContentLengthLong(part.getLength());
+						resp.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
+					} else if (!seekable) {
 						resp.setHeader("Transfer-Encoding", "chunked");
 						resp.setStatus(200);
-					} else if (in.available() != len) {
-						range.setEnd(range.getStart() + in.available());
-						if (in.available() == 0) {
-							len = range.getEnd() + 1;
-						}
-						resp.setHeader("Content-Range", "bytes " + range.getStart() + "-" + range.getEnd() + "/" + len);
-						resp.setContentLength(in.available());
-						resp.setStatus(206);
 					} else {
-						resp.setContentLength(in.available());
+						resp.setContentLengthLong(len);
 						resp.setStatus(200);
 					}
 					if (LOGGER.isTraceEnabled()) {

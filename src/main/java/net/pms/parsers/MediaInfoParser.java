@@ -235,12 +235,12 @@ public class MediaInfoParser {
 			int menuCount = mediaInfoHelper.countGet(StreamKind.MENU);
 			if (menuCount > 0) {
 				Long chaptersPosBeginLong = StreamMenu.getChaptersPosBegin(mediaInfoHelper, 0);
-				Long chaptersPosEndLong = StreamMenu.getChaptersPosEnd(mediaInfoHelper, 0);
-				if (chaptersPosBeginLong != null && chaptersPosEndLong != null) {
+				if (chaptersPosBeginLong != null) {
 					int chaptersPosBegin = chaptersPosBeginLong.intValue();
-					int chaptersPosEnd = chaptersPosEndLong.intValue();
+					// MP4 menus can include extra fields before the chapter timestamps.
+					int fieldCount = mediaInfoHelper.countGet(StreamKind.MENU, 0);
 					List<MediaChapter> chapters = new ArrayList<>();
-					for (int i = chaptersPosBegin; i <= chaptersPosEnd; i++) {
+					for (int i = chaptersPosBegin; i < fieldCount; i++) {
 						String chapterName = mediaInfoHelper.get(StreamKind.MENU, 0, i, InfoKind.NAME);
 						String chapterTitle = mediaInfoHelper.get(StreamKind.MENU, 0, i, InfoKind.TEXT);
 						if (!chapterName.isEmpty()) {
@@ -252,7 +252,7 @@ public class MediaInfoParser {
 								LOGGER.debug("Skip chapter as time cannot be parsed: {}", chapterName);
 								continue;
 							}
-							chapter.setId(i - chaptersPosBegin);
+							chapter.setId(chapters.size());
 							chapter.setStart(lt.toNanoOfDay() / 1000_000_000D);
 							//set end for previous chapter
 							if (!chapters.isEmpty()) {

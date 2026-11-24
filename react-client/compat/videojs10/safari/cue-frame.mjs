@@ -8,7 +8,7 @@ import { markerCenter } from './simulator-tap.mjs'
 
 export function markVideo() {
   const video = document.querySelector('video')
-  const player = video.closest('.ums-hls-skin')
+  const player = video.closest('.ums-video-skin')
   player.style.position = 'relative'
   const bounds = video.getBoundingClientRect()
   const parent = player.getBoundingClientRect()

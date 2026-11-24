@@ -1,14 +1,16 @@
 import { Container, Hotkey, MuteButton, PlayButton, useAudioTrackOptions, useCaptionsOptions, useQualityOptions } from '@videojs/react'
 import type { HlsJsAdapter } from '@videojs/hlsjs-video'
-import { HlsJsVideo } from '@videojs/react/media/hlsjs-video'
-import { VideoPlayer, usePlayer } from '@videojs/react/video'
-import { useEffect, useRef, useState } from 'react'
+import { Video, VideoPlayer, usePlayer } from '@videojs/react/video'
+import { lazy, useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import CueAppearance from './CueAppearance'
 import NativeAudioSelect from './NativeAudioSelect'
 import PlayerFullscreenButton from './PlayerFullscreenButton'
 import type { VideoMedia } from '../../../services/player-service'
 import useMediaSession, { type MediaSession } from './useMediaSession'
-import './hls.css'
+import { isHlsVideo } from './hls'
+import './video.css'
+
+const HlsJsVideo = lazy(() => import('@videojs/react/media/hlsjs-video').then(module => ({ default: module.HlsJsVideo })))
 
 interface Props {
   uuid: string
@@ -32,14 +34,15 @@ function TrackSelect({ choice, change }: { choice: Pick<Choice, 'label' | 'value
   )
 }
 
-function HlsSession({ uuid, media, native, session, onEnded }: Props) {
+function VideoSession({ uuid, media, native, session, onEnded }: Props) {
   const video = useMediaSession<HTMLVideoElement>(uuid, media.id, session)
   const adapter = useRef<HlsJsAdapter>(null)
   const pendingResume = useRef(media.resumePosition)
   const [engine, setEngine] = useState('')
   const src = '/v1/api/player/media/' + uuid + '/' + media.id
+  const hls = isHlsVideo(media)
   const [nativeHls] = useState(() => {
-    if (!native) return false
+    if (!hls || !native) return false
     const element = document.createElement('video')
     return Boolean(element.canPlayType('application/vnd.apple.mpegurl') || element.canPlayType('application/x-mpegurl'))
   })
@@ -84,33 +87,47 @@ function HlsSession({ uuid, media, native, session, onEnded }: Props) {
     if (saved > 0 && saved < element.duration) element.currentTime = saved
   }
 
+  const mediaProps = {
+    ref: video,
+    poster,
+    playsInline: true,
+    onLoadedMetadata: (event: SyntheticEvent<HTMLVideoElement>) => {
+      restorePosition(event.currentTarget)
+      if (!hls) return
+      if (adapter.current?.engine) setEngine('hls.js (MSE)')
+      else if (event.currentTarget.currentSrc === new URL(playlist, document.baseURI).href) setEngine('Browser HLS')
+    },
+    onCanPlay: (event: SyntheticEvent<HTMLVideoElement>) => restorePosition(event.currentTarget),
+    onSeeking: () => { pendingResume.current = undefined },
+    onEnded,
+  }
+  const textTracks = (
+    <>
+      {media.externalSubtitles?.map(track => (
+        <track key={track.id} id={'ums-sub-' + track.id} src={src + '/subtitles/' + track.id + '.vtt'} kind="subtitles" label={track.label} srcLang={track.language} default={track.default} />
+      ))}
+      {media.isVideoWithChapters && <track kind="chapters" src={src + '/chapters.vtt'} default />}
+    </>
+  )
+
   return (
-    <Container className="ums-hls-skin" tabIndex={0}>
+    <Container className="ums-video-skin" tabIndex={0}>
       <Hotkey keys="Space" action="togglePaused" />
       <Hotkey keys="ArrowLeft" action="seekStep" value={-15} />
       <Hotkey keys="ArrowRight" action="seekStep" value={15} />
       <Hotkey keys="f" action="toggleFullscreen" />
-      <HlsJsVideo
-        ref={video}
-        mediaRef={adapter}
-        onLoadedMetadata={(event) => {
-          restorePosition(event.currentTarget)
-          if (adapter.current?.engine) setEngine('hls.js (MSE)')
-          else if (video.current?.currentSrc === new URL(playlist, document.baseURI).href) setEngine('Browser HLS')
-        }}
-        onCanPlay={event => restorePosition(event.currentTarget)}
-        onSeeking={() => { pendingResume.current = undefined }}
-        onEnded={onEnded}
-        source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
-        playsInline
-        poster={poster}
-      >
-        {media.externalSubtitles?.map(track => (
-          <track key={track.id} id={'ums-sub-' + track.id} src={src + '/subtitles/' + track.id + '.vtt'} kind="subtitles" label={track.label} srcLang={track.language} default={track.default} />
-        ))}
-        {media.isVideoWithChapters && <track kind="chapters" src={src + '/chapters.vtt'} default />}
-      </HlsJsVideo>
-      <div className="ums-hls-controls">
+      {hls
+        ? (
+            <HlsJsVideo
+              {...mediaProps}
+              mediaRef={adapter}
+              source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
+            >
+              {textTracks}
+            </HlsJsVideo>
+          )
+        : <Video {...mediaProps} src={src} preload="metadata">{textTracks}</Video>}
+      <div className="ums-video-controls">
         <PlayButton>{paused ? 'Play' : 'Pause'}</PlayButton>
         <MuteButton>{muted ? 'Unmute' : 'Mute'}</MuteButton>
         {session && (
@@ -129,7 +146,7 @@ function HlsSession({ uuid, media, native, session, onEnded }: Props) {
         {media.subtitleStyle && <CueAppearance defaults={media.subtitleStyle} video={video} />}
         {quality && <TrackSelect choice={quality} />}
         {audio && <TrackSelect choice={audio} />}
-        {engine === 'Browser HLS' && (!audio || audio.hidden) && <NativeAudioSelect video={video} />}
+        {(!hls || engine === 'Browser HLS') && (!audio || audio.hidden) && <NativeAudioSelect video={video} />}
         {captions && (
           <TrackSelect
             choice={captions}
@@ -165,6 +182,6 @@ function HlsSession({ uuid, media, native, session, onEnded }: Props) {
   )
 }
 
-export function HlsPlayer(props: Props) {
-  return <VideoPlayer><HlsSession {...props} /></VideoPlayer>
+export default function UmsVideoPlayer(props: Props) {
+  return <VideoPlayer><VideoSession {...props} /></VideoPlayer>
 }

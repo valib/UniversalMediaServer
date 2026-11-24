@@ -88,7 +88,7 @@ function mediaState(readNativeAudio) {
 }
 // Use the same change event that the check page handles for both native and React selects.
 function chooseOption(kind) {
-  for (const select of document.querySelectorAll('.ums-hls-controls select')) {
+  for (const select of document.querySelectorAll('.ums-video-controls select')) {
     const options = Array.from(select.options)
     const target = options.find((option) => {
       if (kind === 'subtitle') return option.value.startsWith('ums-sub-') && !option.selected
@@ -175,7 +175,7 @@ try {
   await check('Rendered inline cue uses the chosen color and restores server defaults', async () => {
     const webdriverScreenshot = async () => Buffer.from(await command('GET', '/session/' + session + '/screenshot'), 'base64')
     const playerScreenshot = async () => {
-      const player = await post('/element', { using: 'css selector', value: '.ums-hls-skin' })
+      const player = await post('/element', { using: 'css selector', value: '.ums-video-skin' })
       const id = player['element-6066-11e4-a52e-4f735466cecf']
       return Buffer.from(await command('GET', '/session/' + session + '/element/' + id + '/screenshot'), 'base64')
     }

@@ -4,6 +4,8 @@ on:
     branches: ['migration/videojs-10-hls-check']
     paths:
       - 'react-client/src/**'
+      - 'src/main/java/net/pms/network/webguiserver/servlets/PlayerApiServlet.java'
+      - 'src/main/java/net/pms/parsers/MediaInfoParser.java'
       - 'react-client/compat/videojs10/audio/**'
       - 'react-client/compat/videojs10/create-fixture.sh'
       - 'react-client/package.json'
@@ -44,7 +46,7 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=ums_audio
           pactl set-default-sink ums_audio
-      - name: Play audio and HLS video through both UMS entry points
+      - name: Play audio, HLS and direct MP4 through both UMS entry points
         run: bash react-client/compat/videojs10/audio/run.sh
       - uses: actions/upload-artifact@v4
         if: failure()
