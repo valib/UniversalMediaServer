@@ -1,11 +1,11 @@
 /* global console, process, setTimeout, clearTimeout, Buffer */
 import { execFile } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { tapMarker } from './simulator-tap.mjs'
+import { dismissSafariTip, simulatorScreenshot, tapMarker } from './simulator-tap.mjs'
 import { cropVideo, greenPixels, systemCuePixels } from './cue-frame.mjs'
 
 const origin = 'http://127.0.0.1:5287'
@@ -14,7 +14,6 @@ const run = promisify(execFile)
 const udid = process.env.IOS_SIMULATOR_UDID
 const directory = process.env.SAFARI_RESULTS
 const mode = process.argv[2] || 'native'
-let checkedSafariTip = false
 let lastProgress
 let finish
 const received = new Promise((resolve) => {
@@ -46,20 +45,14 @@ const server = createServer(async (req, res) => {
   if (result.action) {
     try {
       if (result.action === 'tap') {
-        if (!checkedSafariTip) {
-          const tree = await run('axe', ['describe-ui', '--udid', udid], { timeout: 50000 }).catch(() => null)
-          if (tree?.stdout.includes('View Bookmarks, Share Menu, and Open Tabs') && tree.stdout.includes('dismiss popup')) {
-            await run('axe', ['tap', '--label', 'Close', '--element-type', 'Button', '--udid', udid], { timeout: 45000 })
-          }
-          checkedSafariTip = true
-        }
+        if (result.missedTap) await dismissSafariTip(udid)
         await tapMarker(udid, directory, result.width)
       }
       else if (result.action === 'capture') {
         if (!['default', 'green'].includes(result.appearance)) throw Error('Unknown cue appearance')
         const file = join(directory, result.appearance === 'default' ? 'system-fullscreen.png' : 'system-fullscreen-green.png')
-        await run('xcrun', ['simctl', 'io', udid, 'screenshot', file], { timeout: 20000 })
-        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(systemCuePixels(await readFile(file))))
+        const png = await simulatorScreenshot(udid, file)
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(systemCuePixels(png)))
         return
       }
       else if (result.action === 'inline') {
@@ -67,8 +60,8 @@ const server = createServer(async (req, res) => {
         const { width, height, display } = result.bounds
         if (![width, height, display].every(n => Number.isInteger(n) && n > 0 && n <= 4096)) throw Error('Invalid video bounds')
         const file = join(directory, 'inline-' + result.appearance + '.png')
-        await run('xcrun', ['simctl', 'io', udid, 'screenshot', file], { timeout: 20000 })
-        const video = cropVideo(await readFile(file), { width, height }, display)
+        const png = await simulatorScreenshot(udid, file)
+        const video = cropVideo(png, { width, height }, display)
         if (!video) throw Error('Cannot locate the marked video in the simulator screenshot')
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ green: greenPixels(video) }))
         return

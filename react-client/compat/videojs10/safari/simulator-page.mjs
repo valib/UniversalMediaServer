@@ -33,12 +33,12 @@ async function tapControl(target) {
   }
   target.addEventListener('click', onClick, true)
   try {
-    for (let attempt = 0; attempt < 2 && !trusted; attempt++) {
+    for (let attempt = 0; attempt < 3 && !trusted; attempt++) {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      const tap = await send({ action: 'tap', width: screen.width })
+      const tap = await send({ action: 'tap', width: screen.width, missedTap: attempt > 0 })
       if (!tap.ok) throw Error(await tap.text())
       // A first-launch Safari popover can consume the first physical tap.
-      for (let i = 0; i < 10 && !trusted; i++) await new Promise(resolve => setTimeout(resolve, 100))
+      for (let i = 0; i < 30 && !trusted; i++) await new Promise(resolve => setTimeout(resolve, 100))
     }
     if (!trusted) throw Error('Safari did not deliver a trusted tap to ' + target.textContent.trim())
   }
@@ -157,7 +157,8 @@ catch (error) {
 }
 finally {
   if (video) {
-    result.media = { time: video.currentTime, width: video.videoWidth, height: video.videoHeight, paused: video.paused, seeking: video.seeking, readyState: video.readyState, error: video.error?.code }
+    const buffered = Array.from({ length: video.buffered.length }, (_, i) => [video.buffered.start(i), video.buffered.end(i)])
+    result.media = { time: video.currentTime, width: video.videoWidth, height: video.videoHeight, paused: video.paused, seeking: video.seeking, readyState: video.readyState, buffered, error: video.error?.code }
     video.pause()
   }
   await send(result)
