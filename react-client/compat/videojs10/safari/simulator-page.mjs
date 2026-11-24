@@ -35,14 +35,18 @@ async function tapControl(target) {
   }
   target.addEventListener('click', onClick, true)
   try {
+    let lastError
     for (let attempt = 0; attempt < 3 && !trusted; attempt++) {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
-      const tap = await send({ action: 'tap', width: screen.width, missedTap: attempt > 0 })
-      if (!tap.ok) throw Error(await tap.text())
+      const tap = await send({ action: 'tap', width: screen.width, checkSafariTip: target.textContent.trim() === 'Play' || attempt > 0 })
+      if (!tap.ok) {
+        lastError = await tap.text()
+        if (tap.status !== 409) throw Error(lastError)
+      }
       // A first-launch Safari popover can consume the first physical tap.
       for (let i = 0; i < 30 && !trusted; i++) await new Promise(resolve => setTimeout(resolve, 100))
     }
-    if (!trusted) throw Error('Safari did not deliver a trusted tap to ' + target.textContent.trim())
+    if (!trusted) throw Error(lastError || 'Safari did not deliver a trusted tap to ' + target.textContent.trim())
   }
   finally {
     target.removeEventListener('click', onClick, true)

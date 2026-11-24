@@ -45,7 +45,7 @@ const server = createServer(async (req, res) => {
   if (result.action) {
     try {
       if (result.action === 'tap') {
-        if (result.missedTap) await dismissSafariTip(udid)
+        if (result.checkSafariTip) await dismissSafariTip(udid)
         await tapMarker(udid, directory, result.width)
       }
       else if (result.action === 'capture') {
@@ -73,7 +73,9 @@ const server = createServer(async (req, res) => {
       res.writeHead(204).end()
     }
     catch (error) {
-      res.writeHead(500).end([error.message, error.signal, error.stderr].filter(Boolean).join(' '))
+      const message = [error.message, error.signal, error.stderr].filter(Boolean).join(' ')
+      const retryTap = result.action === 'tap' && (error.killed || message.includes('No translation object returned'))
+      res.writeHead(retryTap ? 409 : 500).end(message)
     }
     return
   }
