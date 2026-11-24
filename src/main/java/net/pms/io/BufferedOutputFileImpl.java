@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import java.net.SocketTimeoutException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Timer;
@@ -252,19 +253,13 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 		if (buffer == null) {
 			throw new ReleasedBufferException();
 		}
+		List<WaitBufferedInputStream> previousReaders = List.of();
 		if (configuration.getTrancodeBlocksMultipleConnections() && !inputStreams.isEmpty()) {
 			if (configuration.getTrancodeKeepFirstConnections()) {
 				LOGGER.debug("BufferedOutputFile is already attached to an InputStream: " + getCurrentInputStream());
 				return null;
 			}
-			// Install the new connection after retiring the previous readers.
-			for (WaitBufferedInputStream previous : new ArrayList<>(inputStreams)) {
-				try {
-					previous.close();
-				} catch (IOException e) {
-					LOGGER.debug("Error closing previous input stream", e);
-				}
-			}
+			previousReaders = List.copyOf(inputStreams);
 		}
 
 		checkRetainedPosition(Math.max(0, newReadPosition));
@@ -274,6 +269,14 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			input.setReadCount(newReadPosition);
 		}
 		inputStreams.add(input);
+		// Attach the replacement before closing old readers so their close cannot schedule encoder cleanup.
+		for (WaitBufferedInputStream previous : previousReaders) {
+			try {
+				previous.close();
+			} catch (IOException e) {
+				LOGGER.debug("Error closing previous input stream", e);
+			}
+		}
 		notifyAll();
 		readerGeneration++;
 		if (attachedThread != null) {

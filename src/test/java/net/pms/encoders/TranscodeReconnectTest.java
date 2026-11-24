@@ -18,8 +18,14 @@ package net.pms.encoders;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import net.pms.PMS;
 import net.pms.configuration.UmsConfiguration;
 import net.pms.io.BufferedOutputFileImpl;
@@ -29,62 +35,133 @@ import net.pms.io.ProcessWrapperImpl;
 import net.pms.media.MediaInfo;
 import net.pms.renderers.Renderer;
 import net.pms.store.StoreItem;
+import net.pms.store.item.RealFile;
 import net.pms.store.item.WebAudioStream;
 import net.pms.util.ByteRange;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class TranscodeReconnectTest {
-	@Test
-	void reconnectDuringFinalCleanupStartsOneNewEncoder() throws Exception {
+	private UmsConfiguration config;
+	private Renderer renderer;
+	private TestEncoder engine;
+
+	@BeforeEach
+	void setUp() throws Exception {
 		System.setProperty(PMS.PROPERTY_RUNNING_TESTS, "true");
-		var config = new UmsConfiguration(false);
+		config = new UmsConfiguration(false);
 		PMS.setConfiguration(config);
-		var renderer = new Renderer((String) null) {
+		renderer = new Renderer((String) null) {
 			@Override
 			public UmsConfiguration getUmsConfiguration() {
 				return config;
 			}
 		};
-		var item = new WebAudioStream(renderer, "Radio", "https://radio.invalid/stream", null);
-		item.setMediaInfo(new MediaInfo());
+		engine = new TestEncoder();
+	}
 
-		class TestEncoder extends FFmpegAudio {
-			private int launches;
-			private BufferedOutputFileImpl output;
+	private static class TestEncoder extends FFmpegAudio {
+		private final List<ProcessWrapper> processes = new ArrayList<>();
+		private BufferedOutputFileImpl output;
+		private boolean failNextOpen;
 
-			@Override
-			public ProcessWrapper launchTranscode(StoreItem resource, MediaInfo media, OutputParams params) throws IOException {
-				launches++;
-				params.setMaxBufferSize(1);
-				params.setMinBufferSize(0);
-				params.setWaitBeforeStart(0);
-				params.setHideBuffer(true);
-				var buffer = new BufferedOutputFileImpl(params);
-				buffer.write(new byte[]{(byte) launches, 20, 30});
-				buffer.close();
-				output = buffer;
-				return new ProcessWrapperImpl(new String[]{"test-encoder"}, params) {
-					@Override
-					public InputStream getInputStream(long seek) throws IOException {
-						return buffer.getInputStream(seek);
+		@Override
+		public ProcessWrapper launchTranscode(StoreItem resource, MediaInfo media, OutputParams params) throws IOException {
+			params.setMaxBufferSize(1);
+			params.setMinBufferSize(0);
+			params.setSecondReadMinSize(0);
+			params.setWaitBeforeStart(0);
+			params.setHideBuffer(true);
+			var buffer = new BufferedOutputFileImpl(params);
+			buffer.write(new byte[]{(byte) (processes.size() + 1), 20, 30});
+			output = buffer;
+			boolean failOpen = failNextOpen;
+			failNextOpen = false;
+			var process = new ProcessWrapperImpl(new String[]{"test-encoder"}, params) {
+				@Override
+				public InputStream getInputStream(long seek) throws IOException {
+					if (failOpen) {
+						throw new IOException("Replacement output unavailable");
 					}
-				};
-			}
+					return buffer.getInputStream(seek);
+				}
+
+				@Override
+				public void stopProcess() {
+					buffer.reset();
+					super.stopProcess();
+				}
+			};
+			processes.add(process);
+			return process;
 		}
-		var engine = new TestEncoder();
+	}
+
+	private void configure(StoreItem item) {
+		item.setMediaInfo(new MediaInfo());
 		item.setTranscodingSettings(new TranscodingSettings(engine, EncodingFormat.AUDIO.get("MP3")));
+	}
+
+	@Test
+	void reconnectDuringFinalCleanupStartsOneNewEncoder() throws Exception {
+		var item = new WebAudioStream(renderer, "Radio", "https://radio.invalid/stream", null);
+		configure(item);
 		try (InputStream first = item.getInputStream(new ByteRange())) {
+			engine.output.close();
 			assertArrayEquals(new byte[]{1, 20, 30}, first.readAllBytes());
 		}
 
 		// Cleanup releases the buffer under its lock, then stops the process outside it.
 		engine.output.reset();
 		try (InputStream retry = item.getInputStream(new ByteRange())) {
+			engine.output.close();
 			assertArrayEquals(new byte[]{2, 20, 30}, retry.readAllBytes());
 		}
 		try (InputStream range = item.getInputStream(new ByteRange(1L, null))) {
 			assertArrayEquals(new byte[]{20, 30}, range.readAllBytes());
 		}
-		assertEquals(2, engine.launches);
+		assertEquals(2, engine.processes.size());
+	}
+
+	@Test
+	void exclusiveFileReplayRetiresTheOriginalOnlyAfterReplacementOpens() throws Exception {
+		verifyFileReplay(true);
+	}
+
+	@Test
+	void sharedFileReplayKeepsTheOriginalReaders() throws Exception {
+		verifyFileReplay(false);
+	}
+
+	private void verifyFileReplay(boolean exclusive) throws Exception {
+		config.setTranscodeBlocksMultipleConnections(exclusive);
+		config.setTrancodeKeepFirstConnections(false);
+		var item = new RealFile(renderer, new File("audio.mp3"));
+		configure(item);
+		try (InputStream first = item.getInputStream(new ByteRange())) {
+			assertArrayEquals(new byte[]{1, 20, 30}, first.readNBytes(3));
+			byte[] tail = new byte[1024 * 1024];
+			tail[0] = 40;
+			tail[1] = 41;
+			engine.output.write(tail);
+			engine.output.close();
+
+			engine.failNextOpen = true;
+			assertThrows(IOException.class, () -> item.getInputStream(new ByteRange()));
+			assertFalse(engine.processes.get(0).isDestroyed());
+			assertTrue(engine.processes.get(1).isDestroyed());
+			assertEquals(40, first.read());
+
+			try (InputStream retained = item.getInputStream(new ByteRange(3L, null))) {
+				assertEquals(40, retained.read());
+				try (InputStream replay = item.getInputStream(new ByteRange())) {
+					engine.output.close();
+					assertArrayEquals(new byte[]{3, 20, 30}, replay.readAllBytes());
+				}
+				assertEquals(exclusive, engine.processes.get(0).isDestroyed());
+				assertEquals(exclusive ? -1 : 41, retained.read());
+			}
+			assertEquals(3, engine.processes.size());
+		}
 	}
 }

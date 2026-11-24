@@ -311,13 +311,18 @@ public class BufferedOutputFileImplTest {
 			OutputParams params = new OutputParams(config);
 			params.setMaxBufferSize(1);
 			BufferedOutputFileImpl buffer = new BufferedOutputFileImpl(params);
-			buffer.write(new byte[]{10, 20, 30});
-			buffer.close();
-			try (InputStream first = buffer.getInputStream(0)) {
-				assertNull(buffer.getInputStream(1));
-				assertEquals(10, first.read());
+			int capacity = 1024 * 1024;
+			buffer.write(new byte[capacity]);
+			try (InputStream first = buffer.getInputStream(capacity)) {
+				buffer.write(new byte[]{10, 20, 30});
+				buffer.close();
+				assertNull(buffer.getInputStream(capacity + 1));
+				assertNull(buffer.getInputStream(0));
+
 				config.setTrancodeKeepFirstConnections(false);
-				try (InputStream retry = buffer.getInputStream(2)) {
+				assertThrows(BufferedOutputFile.DiscardedPositionException.class, () -> buffer.getInputStream(0));
+				assertEquals(10, first.read());
+				try (InputStream retry = buffer.getInputStream(capacity + 2)) {
 					assertThrows(IOException.class, first::read);
 					assertEquals(30, retry.read());
 				}

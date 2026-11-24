@@ -385,6 +385,9 @@ public class ProcessWrapperImpl extends Thread implements ProcessWrapper {
 			}
 			if (stdoutConsumer != null && stdoutConsumer.getBuffer() != null) {
 				stdoutConsumer.getBuffer().reset();
+			} else if (bo != null) {
+				// A directly buffered pipe has no stdout consumer.
+				bo.reset();
 			}
 		}
 	}

@@ -986,14 +986,28 @@ public abstract class StoreItem extends StoreResource {
 				throw e;
 			}
 			// Cleanup can release the buffer before the process reports that it stopped.
-			// For a discarded file range, existing readers still own the original process.
 			LOGGER.debug("Restarting transcode of {} at byte {}: {}", getName(), low, e.getMessage());
 			ProcessWrapper replacement = startTranscode(params);
 			if (replacement == null) {
 				return null;
 			}
+			InputStream stream;
+			try {
+				stream = openTranscodeStream(replacement, low, true);
+			} catch (IOException | RuntimeException openFailure) {
+				replacement.stopProcess();
+				throw openFailure;
+			}
+			if (stream == null) {
+				return null;
+			}
 			externalProcess = replacement;
-			return openTranscodeStream(replacement, low, true);
+			UmsConfiguration config = renderer.getUmsConfiguration();
+			if (e instanceof DiscardedPositionException && config.getTrancodeBlocksMultipleConnections() &&
+				!config.getTrancodeKeepFirstConnections()) {
+				previousProcess.stopProcess();
+			}
+			return stream;
 		}
 	}
 
