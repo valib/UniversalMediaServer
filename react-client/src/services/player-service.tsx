@@ -20,13 +20,13 @@ import { Icon, IconArrowBigLeft, IconArrowBigRight, IconArrowsShuffle, IconBadge
 
 import { I18nInterface } from './i18n-service'
 
-export interface AudioController {
+export interface MediaController {
   command: (action: PlayerRemoteAction) => Promise<void>
   report: () => void
 }
 
 export interface PlayerInterface {
-  audioController: RefObject<AudioController | null>
+  mediaController: RefObject<MediaController | null>
   uuid: string
   reqId: string
   reqType: string

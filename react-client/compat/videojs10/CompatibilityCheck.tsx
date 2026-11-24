@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 
 import VideoPlayer8 from '../../src/components/Player/VideoPlayer'
 import type { BaseBrowse, VideoMedia } from '../../src/services/player-service'
-import { HlsPlayer } from './HlsPlayer'
+import { HlsPlayer } from '../../src/components/Player/VideoJs10/HlsPlayer'
+import { isHlsVideo, prefersNativeHls } from '../../src/components/Player/VideoJs10/hls'
 
 async function playerRequest<T>(route: string, uuid?: string, id?: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch('/v1/api/player/' + route, {
@@ -22,10 +23,7 @@ export default function CompatibilityCheck() {
   const [id, setId] = useState('')
   const [media, setMedia] = useState<VideoMedia>()
   const [version, setVersion] = useState('10')
-  const [native, setNative] = useState(() => {
-    const video = document.createElement('video')
-    return 'webkitSetPresentationMode' in video && Boolean(video.canPlayType('application/vnd.apple.mpegurl') || video.canPlayType('application/x-mpegurl'))
-  })
+  const [native, setNative] = useState(prefersNativeHls)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -42,7 +40,7 @@ export default function CompatibilityCheck() {
       else if (id) {
         const data = await playerRequest<BaseBrowse>('play', uuid, id, controller.signal)
         const selected = data.medias[0] as VideoMedia | undefined
-        if (!selected || selected.mediaType !== 'video' || !['application/vnd.apple.mpegurl', 'application/x-mpegurl'].includes(selected.mime.split(';')[0].trim().toLowerCase())) {
+        if (!selected || !isHlsVideo(selected)) {
           throw new Error('Choose a video served by the FFmpeg HLS engine')
         }
         setMedia(selected)

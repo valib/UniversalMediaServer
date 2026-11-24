@@ -1,10 +1,11 @@
-name: Video.js 10 audio
+name: Video.js 10 web player
 on:
   push:
     branches: ['migration/videojs-10-hls-check']
     paths:
       - 'react-client/src/**'
       - 'react-client/compat/videojs10/audio/**'
+      - 'react-client/compat/videojs10/create-fixture.sh'
       - 'react-client/package.json'
       - 'react-client/yarn.lock'
       - '.github/workflows/videojs10-audio.yml'
@@ -36,14 +37,14 @@ jobs:
         working-directory: react-client
         run: |
           node .yarn/releases/yarn-*.cjs install --immutable
-          node .yarn/releases/yarn-*.cjs build:videojs10:audio
+          node .yarn/releases/yarn-*.cjs build:videojs10:app
           node node_modules/@playwright/test/cli.js install --with-deps --only-shell chromium firefox webkit
       - name: Provide audio output for headless browsers
         run: |
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=ums_audio
           pactl set-default-sink ums_audio
-      - name: Play audio through both UMS entry points
+      - name: Play audio and HLS video through both UMS entry points
         run: bash react-client/compat/videojs10/audio/run.sh
       - uses: actions/upload-artifact@v4
         if: failure()

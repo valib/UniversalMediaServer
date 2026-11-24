@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import type { SubtitleStyle } from '../../src/services/player-service'
+import type { SubtitleStyle } from '../../../services/player-service'
 
 interface Appearance {
   color: string

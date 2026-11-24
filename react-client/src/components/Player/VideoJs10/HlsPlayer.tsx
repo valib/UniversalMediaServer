@@ -1,4 +1,4 @@
-import { Container, MuteButton, PlayButton, useAudioTrackOptions, useCaptionsOptions, useQualityOptions } from '@videojs/react'
+import { Container, Hotkey, MuteButton, PlayButton, useAudioTrackOptions, useCaptionsOptions, useQualityOptions } from '@videojs/react'
 import type { HlsJsAdapter } from '@videojs/hlsjs-video'
 import { HlsJsVideo } from '@videojs/react/media/hlsjs-video'
 import { VideoPlayer, usePlayer } from '@videojs/react/video'
@@ -6,12 +6,16 @@ import { useEffect, useRef, useState } from 'react'
 import CueAppearance from './CueAppearance'
 import NativeAudioSelect from './NativeAudioSelect'
 import PlayerFullscreenButton from './PlayerFullscreenButton'
-import type { VideoMedia } from '../../src/services/player-service'
+import type { VideoMedia } from '../../../services/player-service'
+import useMediaSession, { type MediaSession } from './useMediaSession'
+import './hls.css'
 
 interface Props {
   uuid: string
   media: VideoMedia
   native: boolean
+  session?: MediaSession
+  onEnded?: () => void
 }
 
 type Choice = NonNullable<ReturnType<typeof useQualityOptions>>
@@ -28,8 +32,8 @@ function TrackSelect({ choice, change }: { choice: Pick<Choice, 'label' | 'value
   )
 }
 
-function HlsSession({ uuid, media, native }: Props) {
-  const video = useRef<HTMLVideoElement>(null)
+function HlsSession({ uuid, media, native, session, onEnded }: Props) {
+  const video = useMediaSession<HTMLVideoElement>(uuid, media.id, session)
   const adapter = useRef<HlsJsAdapter>(null)
   const pendingResume = useRef(media.resumePosition)
   const [engine, setEngine] = useState('')
@@ -57,6 +61,8 @@ function HlsSession({ uuid, media, native }: Props) {
   const duration = usePlayer(s => s.duration)
   const paused = usePlayer(s => s.paused)
   const muted = usePlayer(s => s.muted)
+  const volume = usePlayer(s => s.volume)
+  const setVolume = usePlayer(s => s.setVolume)
   const error = usePlayer(s => s.error)
   const chapters = usePlayer(s => s.chaptersCues)
   const seek = usePlayer(s => s.seek)
@@ -79,7 +85,11 @@ function HlsSession({ uuid, media, native }: Props) {
   }
 
   return (
-    <Container className="ums-hls-skin">
+    <Container className="ums-hls-skin" tabIndex={0}>
+      <Hotkey keys="Space" action="togglePaused" />
+      <Hotkey keys="ArrowLeft" action="seekStep" value={-15} />
+      <Hotkey keys="ArrowRight" action="seekStep" value={15} />
+      <Hotkey keys="f" action="toggleFullscreen" />
       <HlsJsVideo
         ref={video}
         mediaRef={adapter}
@@ -90,6 +100,7 @@ function HlsSession({ uuid, media, native }: Props) {
         }}
         onCanPlay={event => restorePosition(event.currentTarget)}
         onSeeking={() => { pendingResume.current = undefined }}
+        onEnded={onEnded}
         source={{ src: playlist, type: 'application/vnd.apple.mpegurl', preferPlayback: nativeHls ? 'native' : 'mse' }}
         playsInline
         poster={poster}
@@ -102,6 +113,12 @@ function HlsSession({ uuid, media, native }: Props) {
       <div className="ums-hls-controls">
         <PlayButton>{paused ? 'Play' : 'Pause'}</PlayButton>
         <MuteButton>{muted ? 'Unmute' : 'Mute'}</MuteButton>
+        {session && (
+          <label>
+            Volume
+            <input type="range" min={0} max={1} step={0.01} value={volume} onChange={event => setVolume(Number(event.target.value))} />
+          </label>
+        )}
         {Number.isFinite(duration) && duration > 0 && (
           <label>
             Position (s)
@@ -131,8 +148,8 @@ function HlsSession({ uuid, media, native }: Props) {
             </select>
           </label>
         )}
-        {engine && <output aria-label="Playback engine">{engine}</output>}
-        {activeRendition && (
+        {!session && engine && <output aria-label="Playback engine">{engine}</output>}
+        {!session && activeRendition && (
           <output aria-label="Playing variant">
             {activeRendition.height}
             p ·

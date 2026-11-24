@@ -22,7 +22,8 @@
     "private:removeconfig:macos": "rm -rf ~/Library/'Application Support'/UMS-tests",
     "dev:videojs10": "vite --config compat/videojs10/vite.config.ts",
     "build:videojs10": "tsc -p compat/videojs10 && vite build --config compat/videojs10/vite.config.ts",
-    "build:videojs10:audio": "tsc && vite build --mode videojs10 --outDir node_modules/.cache/ums-videojs10-audio/web/react-client"
+    "build:videojs10:audio": "yarn build:videojs10:app",
+    "build:videojs10:app": "tsc && vite build --mode videojs10 --outDir node_modules/.cache/ums-videojs10-audio/web/react-client"
   },
   "packageManager": "yarn@4.18.1",
   "dependencies": {
