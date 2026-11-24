@@ -27,6 +27,7 @@ import net.pms.io.ProcessWrapperImpl;
 import net.pms.media.MediaInfo;
 import net.pms.network.HTTPResource;
 import net.pms.renderers.Renderer;
+import net.pms.renderers.devices.WebGuiRenderer;
 import net.pms.store.StoreItem;
 import net.pms.util.PlayerUtil;
 import org.apache.commons.lang3.StringUtils;
@@ -179,6 +180,11 @@ public class FFmpegAudio extends FFMpegVideo {
 			if (!customFFmpegAudioOptions.contains("-f ")) {
 				cmdList.add("-f");
 				cmdList.add("mp3");
+				if (renderer instanceof WebGuiRenderer && !customFFmpegAudioOptions.contains("-id3v2_version")) {
+					// The browser cannot byte-seek past an ID3 header in a live transcode.
+					cmdList.add("-id3v2_version");
+					cmdList.add("0");
+				}
 			}
 		} else if (encodingFormat.isTranscodeToWAV()) {
 			if (!customFFmpegAudioOptions.contains("-f ")) {

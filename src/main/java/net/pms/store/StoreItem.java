@@ -967,7 +967,7 @@ public abstract class StoreItem extends StoreResource {
 
 				params.setMinBufferSize(1);
 
-				new Thread(() -> externalProcess.stopProcess(), "External Process Stopper").start();
+				new Thread(externalProcess::stopProcess, "External Process Stopper").start();
 
 				ProcessWrapper newExternalProcess = getTranscodingSettings().getEngine().launchTranscode(this, mediaInfo, params);
 
@@ -986,33 +986,31 @@ public abstract class StoreItem extends StoreResource {
 			}
 		}
 
-		if (externalProcess == null) {
+		ProcessWrapper process = externalProcess;
+		if (process == null) {
 			return null;
 		}
 
-		InputStream is = null;
-		int timer = 0;
-		while (is == null && timer < 10) {
-			is = externalProcess.getInputStream(low);
-			timer++;
-			if (is == null) {
-				LOGGER.debug("External input stream instance is null... sounds not good, waiting 500ms");
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-				}
+		InputStream is = process.getInputStream(low);
+		for (int retry = 0; is == null && retry < 10; retry++) {
+			LOGGER.debug("Waiting 500 ms for the transcoder output stream");
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
 			}
+			is = process.getInputStream(low);
 		}
 
 		// fail fast: don't leave a process running indefinitely if it's
 		// not producing output after params.waitbeforestart milliseconds + 5 seconds
 		// this cleans up lingering MEncoder web video transcode processes that hang
 		// instead of exiting
-		if (is == null && !externalProcess.isDestroyed()) {
+		if (is == null && !process.isDestroyed()) {
 			Runnable r = () -> {
 				LOGGER.error("External input stream instance is null... stopping process");
-				externalProcess.stopProcess();
+				process.stopProcess();
 			};
 
 			new Thread(r, "Hanging External Process Stopper").start();

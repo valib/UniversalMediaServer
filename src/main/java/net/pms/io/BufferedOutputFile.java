@@ -33,6 +33,11 @@ public interface BufferedOutputFile {
 
 	public abstract long getWriteCount();
 
+	/** Returns the encoded length when the entire stream is still in the buffer. */
+	default long getCompleteLength() {
+		return -1;
+	}
+
 	public abstract void write(byte[] b, int off, int len) throws IOException;
 
 	public abstract void write(int b) throws IOException;

@@ -53,6 +53,7 @@ import net.pms.image.ImagesUtil;
 import net.pms.io.OutputParams;
 import net.pms.io.ProcessWrapper;
 import net.pms.io.SizeLimitInputStream;
+import net.pms.io.WaitBufferedInputStream;
 import net.pms.media.MediaInfo;
 import net.pms.media.subtitle.MediaSubtitle;
 import net.pms.media.video.metadata.MediaVideoMetadata;
@@ -1459,6 +1460,18 @@ public class PlayerApiServlet extends GuiHttpServlet {
 				long len = item.length();
 				boolean transcodedOrResume = item.isTranscoded() || item.isResume();
 				boolean seekable = !transcodedOrResume && len >= 0 && len != StoreResource.TRANS_SIZE;
+				boolean encodedAudio = item.isTranscoded() && !item.isResume() && item.getFormat().isAudio() && HTTPResource.AUDIO_MP3_TYPEMIME.equals(mimeType);
+				InputStream in = null;
+				if (encodedAudio) {
+					in = item.getInputStream(new ByteRange(0L, null));
+					if (in instanceof WaitBufferedInputStream buffered) {
+						len = buffered.getLengthAtStart();
+						seekable = len >= 0;
+					}
+					if (!seekable) {
+						resp.setHeader("Accept-Ranges", "none");
+					}
+				}
 				org.eclipse.jetty.http.ByteRange part = null;
 				if (seekable) {
 					resp.setHeader("Accept-Ranges", "bytes");
@@ -1467,6 +1480,9 @@ public class PlayerApiServlet extends GuiHttpServlet {
 						var parts = org.eclipse.jetty.http.ByteRange.parse(List.of(header), len);
 						if (len == 0 || parts.isEmpty()) {
 							resp.setHeader("Content-Range", org.eclipse.jetty.http.ByteRange.toNonSatisfiableHeaderValue(len));
+							if (in != null) {
+								in.close();
+							}
 							resp.setStatus(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
 							return;
 						}
@@ -1476,9 +1492,13 @@ public class PlayerApiServlet extends GuiHttpServlet {
 						}
 					}
 				}
-				ByteRange range = transcodedOrResume ? parseRange(req, len) : new ByteRange(part == null ? 0L : part.first(), null);
+				if (!encodedAudio) {
+					ByteRange range = transcodedOrResume ? parseRange(req, len) : new ByteRange(part == null ? 0L : part.first(), null);
+					in = item.getInputStream(range);
+				} else if (part != null && in instanceof WaitBufferedInputStream buffered) {
+					buffered.setReadCount(part.first());
+				}
 				LOGGER.debug("Sending {} with mime type {} to {}", item, mimeType, renderer);
-				InputStream in = item.getInputStream(range);
 				AsyncContext async = req.startAsync();
 				resp.setContentType(mimeType);
 				resp.setHeader("Server", MediaServer.getServerName());

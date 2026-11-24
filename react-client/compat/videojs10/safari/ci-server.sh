@@ -32,5 +32,12 @@ java -Xmx1g -Djava.awt.headless=true -Dums.profile.path="$profile/UMS.conf" \
   -cp "target/classes:$(cat target/safari-classpath)" net.pms.PMS headless >"$results/server.log" 2>&1 &
 server=$!
 trap 'kill "$server" 2>/dev/null || true; wait "$server" 2>/dev/null || true' EXIT
-curl --fail --silent --retry-all-errors --retry 60 --retry-delay 1 --max-time 3 http://127.0.0.1:9002/v1/api/player/ > /dev/null
+deadline=$((SECONDS + 180))
+until curl --fail --silent --max-time 3 http://127.0.0.1:9002/v1/api/player/ > /dev/null; do
+  if ! kill -0 "$server" 2>/dev/null || (( SECONDS >= deadline )); then
+    tail -60 "$results/server.log" >&2
+    exit 1
+  fi
+  sleep 1
+done
 bash react-client/compat/videojs10/safari/run.sh "$platform" "$mode"

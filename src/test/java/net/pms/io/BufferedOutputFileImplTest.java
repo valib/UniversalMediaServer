@@ -16,9 +16,14 @@
  */
 package net.pms.io;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.util.Arrays;
 import net.pms.PMS;
 import net.pms.configuration.UmsConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
@@ -80,6 +85,47 @@ public class BufferedOutputFileImplTest {
 
 		assertEquals(scr, readScr(output, 0));
 		assertEquals(videoPts, readPts(output, PACK_HEADER_LENGTH));
+	}
+
+	@Test
+	public void testLiveChannelReadsOnlyProducedBytes() throws IOException {
+		OutputParams params = new OutputParams(PMS.getConfiguration());
+		params.setMinBufferSize(0);
+		params.setMaxBufferSize(1);
+		params.setSecondReadMinSize(0);
+		BufferedOutputFileImpl buffer = new BufferedOutputFileImpl(params);
+		InputStream input = buffer.getInputStream(0);
+		byte[] source = new byte[12084];
+		Arrays.fill(source, 3, source.length, (byte) 0x47);
+		buffer.write(source, 3, source.length - 3);
+		assertEquals(source.length - 3, input.available());
+
+		ByteBuffer response = ByteBuffer.allocate(65536);
+		assertEquals(source.length - 3, Channels.newChannel(input).read(response));
+		assertArrayEquals(Arrays.copyOfRange(source, 3, source.length), Arrays.copyOf(response.array(), response.position()));
+		assertEquals(0, input.available());
+		buffer.write(0xA5);
+		buffer.close();
+		assertEquals(0xA5, input.read());
+		assertEquals(-1, input.read());
+		assertEquals(0, input.read(new byte[0]));
+	}
+
+	@Test
+	public void testReadAcrossCircularBufferEnd() throws IOException {
+		OutputParams params = new OutputParams(PMS.getConfiguration());
+		params.setMinBufferSize(0);
+		params.setMaxBufferSize(1);
+		BufferedOutputFileImpl buffer = new BufferedOutputFileImpl(params);
+		int capacity = 1024 * 1024;
+		buffer.write(new byte[capacity - 2]);
+		InputStream tail = buffer.getInputStream(capacity - 2);
+		byte[] expected = {1, 2, 3, 4, 5};
+		buffer.write(expected);
+		buffer.close();
+		assertEquals(-1, buffer.getCompleteLength());
+		assertArrayEquals(expected, tail.readAllBytes());
+		assertEquals(0, tail.available());
 	}
 
 	private static byte[] writeAndRead(byte[] input, double timeSeek) throws IOException {

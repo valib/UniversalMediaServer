@@ -1,7 +1,11 @@
 name: Safari HLS compatibility
 on:
   push:
-    branches: ['migration/videojs-10-hls-check']
+    branches:
+      - 'migration/videojs-10-hls-check'
+      - 'migration/videojs-10-hls-check-clean'
+      - 'migration/videojs-10-ci-review'
+      - 'migration/videojs-10-ci-candidate'
     paths:
       - 'react-client/**'
       - 'src/main/**'
@@ -13,7 +17,7 @@ permissions:
 
 jobs:
   safari:
-    name: Safari (${{ matrix.os }})
+    name: Safari (${{ matrix.platform }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     env:
       UMS_SAFARI_DESKTOP: ${{ matrix.os == 'macos-26-intel' && '1' || '0' }}
@@ -21,7 +25,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15-intel, macos-26-intel]
+        include:
+          - { platform: macos, os: macos-15-intel }
+          - { platform: macos, os: macos-26-intel }
+          - { platform: ios, os: macos-15-intel }
     steps:
       - uses: actions/checkout@v4
       - name: Install desktop mouse input for Safari on macOS 26
@@ -35,6 +42,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Start the iPhone simulator
+        if: matrix.platform == 'ios'
+        env:
+          IOS_SIMULATOR_MAJOR: '18'
+        run: |
+          udid=$(bash react-client/compat/videojs10/safari/boot-simulator.sh --start)
+          echo "IOS_SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
       - name: Prepare native media dependencies
         run: brew install ffmpeg libmediainfo
       - name: Build server and resolve the Java runtime classpath
@@ -47,20 +61,20 @@ jobs:
           node .yarn/releases/yarn-*.cjs build
           node .yarn/releases/yarn-*.cjs build:videojs10
       - name: Play the sample with native HLS on macOS
+        if: matrix.platform == 'macos'
         timeout-minutes: 15
         run: bash react-client/compat/videojs10/safari/ci-server.sh macos native
       - name: Play the sample with hls.js (MSE) on macOS
-        if: ${{ !cancelled() && steps.client.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.platform == 'macos' && steps.client.outcome == 'success' }}
         timeout-minutes: 15
         run: bash react-client/compat/videojs10/safari/ci-server.sh macos mse
-      - name: Prepare the iPhone and launch Mobile Safari
+      - name: Wait for the iPhone and install touch input
         id: simulator
-        if: ${{ !cancelled() && matrix.os == 'macos-15-intel' && steps.client.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.platform == 'ios' && steps.client.outcome == 'success' }}
         timeout-minutes: 20
         run: |
           brew install cameroncooke/axe/axe
-          udid=$(bash react-client/compat/videojs10/safari/boot-simulator.sh)
-          echo "IOS_SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          bash react-client/compat/videojs10/safari/boot-simulator.sh
       - name: Play the sample with native HLS on iPhone
         if: ${{ !cancelled() && steps.simulator.outcome == 'success' }}
         timeout-minutes: 15
@@ -72,5 +86,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: safari-${{ matrix.os }}-results
+          name: safari-${{ matrix.platform }}-${{ matrix.os }}-results
           path: react-client/test-results/safari-*/

@@ -10,6 +10,7 @@ mkdir -p "$SAFARI_RESULTS"
 if [[ "$platform" == ios ]]; then
   export IOS_SIMULATOR_UDID
   IOS_SIMULATOR_UDID=${IOS_SIMULATOR_UDID:-$(bash compat/videojs10/safari/boot-simulator.sh)}
+  xcrun simctl launch --terminate-running-process "$IOS_SIMULATOR_UDID" com.apple.mobilesafari
 fi
 start_driver() {
   /usr/bin/safaridriver -p 4444 >>"$SAFARI_RESULTS/driver.log" 2>&1 &

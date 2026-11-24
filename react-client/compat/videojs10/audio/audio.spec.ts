@@ -41,9 +41,11 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
     const previousListing = await route.fetch()
     await playResponse
     await route.fulfill({ response: previousListing })
-  })
+  }, { times: 1 })
   await page.goto('/player/play/' + tracks[0].id)
   const { medias } = await (await playResponse).json()
+  // Direct navigation can skip the browse request. Release its route before streaming in either case.
+  await page.unroute('**/v1/api/player/browse')
   const audio = page.locator('audio')
   const cover = page.locator('img').filter({ visible: true }).and(page.locator('[src$="/thumbnail/' + uuid + '/' + tracks[0].id + '"]'))
   await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
@@ -52,8 +54,9 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   await expect.poll(() => audio.evaluate((el) => {
     if (el.error) throw Error(el.error.message || 'Media error ' + el.error.code)
-    return el.currentTime
-  }), { timeout: 25000 }).toBeGreaterThan(1)
+    if (el.currentTime > 1) return 'playing'
+    return { time: el.currentTime, duration: el.duration, ready: el.readyState, paused: el.paused, ended: el.ended }
+  }), { timeout: 25000 }).toBe('playing')
   await expect(cover).toBeVisible()
   const originalAudio = await audio.elementHandle()
 
@@ -105,4 +108,17 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
   const firstNew = switchFrames.findIndex(frame => frame.id === tracks[1].id)
   expect(switchFrames.slice(0, firstNew).filter(frame => frame.id === tracks[0].id && frame.playback === 'STOPPED')).toHaveLength(1)
   expect(switchFrames.slice(firstNew).every(frame => frame.id === tracks[1].id)).toBe(true)
+
+  if (medias[0].isTranscoded && medias[0].mime === 'audio/mpeg') {
+    const stream = await request.get(mediaPath)
+    expect(stream.ok()).toBe(true)
+    // A non-seekable MP3 response must begin with an MPEG audio frame.
+    const bytes = await stream.body()
+    expect(bytes.readUInt16BE(0) & 0xffe0).toBe(0xffe0)
+    expect(stream.headers()['content-length']).toBe(String(bytes.length))
+    const tail = await request.get(mediaPath, { headers: { Range: 'bytes=45-' } })
+    expect(tail.status()).toBe(206)
+    expect(tail.headers()['content-range']).toBe('bytes 45-' + (bytes.length - 1) + '/' + bytes.length)
+    expect(await tail.body()).toEqual(bytes.subarray(45))
+  }
 })

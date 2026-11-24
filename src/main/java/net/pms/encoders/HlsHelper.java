@@ -281,11 +281,16 @@ public class HlsHelper {
 	*/
 	public static final double DEFAULT_TARGETDURATION = 6;
 
+	private static double getSegmentDuration(double remaining) {
+		// A sub-second tail can contain only AAC padding. Keep it with the last video frames
+		// while the EXTINF duration still rounds to the advertised target duration.
+		return remaining < DEFAULT_TARGETDURATION + 0.5 ? remaining : DEFAULT_TARGETDURATION;
+	}
+
 	public static String getHLSm3u8ForRendition(StoreItem resource, Renderer renderer, String baseUrl, String rendition) {
 		if (resource.getMediaInfo() != null) {
 			int hlsVersion = renderer.getHlsVersion();
-			Double duration = resource.getMediaInfo().getDuration();
-			double partLen = duration;
+			double remaining = resource.getMediaInfo().getDuration();
 			String id = resource.getResourceId();
 			String targetDurationStr = String.valueOf(Double.valueOf(Math.ceil(DEFAULT_TARGETDURATION)).intValue());
 			String defaultDurationStr = hlsVersion > 2 ? String.format(Locale.ENGLISH, "%.6f", DEFAULT_TARGETDURATION) : targetDurationStr;
@@ -300,18 +305,19 @@ public class HlsHelper {
 			sb.append("#EXT-X-PLAYLIST-TYPE:VOD\n");
 			sb.append("#EXT-X-INDEPENDENT-SEGMENTS\n");
 			int partCount = 0;
-			while (partLen > 0) {
+			while (remaining > 0) {
+				double partLen = getSegmentDuration(remaining);
 				sb.append("#EXTINF:");
-				if (partLen >= DEFAULT_TARGETDURATION) {
+				if (partLen == DEFAULT_TARGETDURATION) {
 					sb.append(defaultDurationStr);
 				} else if (hlsVersion > 2) {
 					sb.append(String.format(Locale.ENGLISH, "%.6f", partLen));
 				} else {
-					sb.append(String.valueOf(Double.valueOf(Math.ceil(partLen)).intValue()));
+					sb.append((int) Math.min(DEFAULT_TARGETDURATION, Math.ceil(partLen)));
 				}
 				sb.append(",\n");
 				sb.append(baseUrl).append(id).append("/hls/").append(rendition).append("/").append(partCount).append(".").append(filename).append("\n");
-				partLen -= DEFAULT_TARGETDURATION;
+				remaining -= partLen;
 				partCount++;
 			}
 			sb.append("#EXT-X-ENDLIST\n");
@@ -320,7 +326,7 @@ public class HlsHelper {
 		return null;
 	}
 
-	private static TimeRange getTimeRange(String url) {
+	private static TimeRange getTimeRange(String url, MediaInfo media) {
 		if (!url.contains("/")) {
 			return null;
 		}
@@ -335,8 +341,12 @@ public class HlsHelper {
 		} catch (NumberFormatException es) {
 			return null;
 		}
-		double askedStart =  Double.valueOf(position) * HlsHelper.DEFAULT_TARGETDURATION;
-		return new TimeRange(askedStart, askedStart + HlsHelper.DEFAULT_TARGETDURATION);
+		double start = position * DEFAULT_TARGETDURATION;
+		double length = DEFAULT_TARGETDURATION;
+		if (media != null && media.getDuration() != null && media.getDuration() > start) {
+			length = getSegmentDuration(media.getDuration() - start);
+		}
+		return new TimeRange(start, start + length);
 	}
 
 	public static InputStream getInputStream(String url, StoreItem resource) throws IOException {
@@ -347,7 +357,7 @@ public class HlsHelper {
 		rendition = rendition.substring(0, rendition.indexOf("/"));
 		//here we need to set rendition to renderer
 		HlsHelper.HlsConfiguration hlsConfiguration = getByKey(rendition);
-		Range timeRange = getTimeRange(url);
+		Range timeRange = getTimeRange(url, resource.getMediaInfo());
 		if (hlsConfiguration != null && timeRange != null) {
 			return resource.getInputStream(timeRange, hlsConfiguration);
 		}

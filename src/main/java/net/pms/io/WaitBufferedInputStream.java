@@ -21,7 +21,7 @@ import java.io.InputStream;
 
 public class WaitBufferedInputStream extends InputStream {
 	private final BufferedOutputFile outputStream;
-	private long readCount;
+	private volatile long readCount;
 	private boolean firstRead;
 
 	public void setReadCount(long readCount) {
@@ -37,6 +37,12 @@ public class WaitBufferedInputStream extends InputStream {
 		firstRead = true;
 	}
 
+	/** Waits for the normal startup buffer without consuming the first byte. */
+	public long getLengthAtStart() {
+		outputStream.read(true, readCount);
+		return outputStream.getCompleteLength();
+	}
+
 	@Override
 	public int read() throws IOException {
 		int r = outputStream.read(firstRead, getReadCount());
@@ -50,6 +56,9 @@ public class WaitBufferedInputStream extends InputStream {
 	@Override
 	public int read(byte[] b, int off, int len) throws IOException {
 		int returned = outputStream.read(firstRead, getReadCount(), b, off, len);
+		if (len == 0) {
+			return 0;
+		}
 		if (returned != -1) {
 			setReadCount(getReadCount() + returned);
 		}
@@ -64,7 +73,8 @@ public class WaitBufferedInputStream extends InputStream {
 
 	@Override
 	public int available() throws IOException {
-		return (int) outputStream.getWriteCount();
+		long remaining = outputStream.getWriteCount() - readCount;
+		return (int) Math.max(0, Math.min(Integer.MAX_VALUE, remaining));
 	}
 
 	@Override

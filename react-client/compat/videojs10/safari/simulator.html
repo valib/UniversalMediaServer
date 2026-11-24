@@ -4,6 +4,22 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>UMS simulator playback check</title>
+    <style>
+      [data-simulator-tap] { position: relative; }
+      [data-simulator-tap]::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 10px;
+        height: 10px;
+        transform: translate(-50%, -50%);
+        background: #f0f;
+        outline: 4px solid #0f0;
+        pointer-events: none;
+        z-index: 1;
+      }
+    </style>
   </head>
   <body>
     <main id="root"></main>

@@ -46,7 +46,7 @@ public class ProcessWrapperImpl extends Thread implements ProcessWrapper {
 	private String[] cmdArray;
 	private boolean nullable;
 	private ArrayList<ProcessWrapper> attachedProcesses;
-	private BufferedOutputFile bo = null;
+	private volatile BufferedOutputFile bo = null;
 	private boolean keepStdout;
 	private boolean keepStderr;
 	private volatile boolean success;

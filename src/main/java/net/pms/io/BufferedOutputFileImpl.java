@@ -22,8 +22,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import net.pms.PMS;
@@ -79,13 +79,12 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	private final FileOutputStream debugOutput = null;
 
 	private int bufferOverflowWarning;
-	private boolean eof;
-	private long writeCount;
-	private byte[] buffer;
+	private volatile boolean eof;
+	private volatile long writeCount;
+	private volatile byte[] buffer;
 	private ArrayList<WaitBufferedInputStream> inputStreams;
 	private ProcessWrapper attachedThread;
 	private Timer timer;
-	private boolean buffered = false;
 	private long packetpos = 0;
 
 	/**
@@ -292,12 +291,25 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	}
 
 	@Override
+	public long getCompleteLength() {
+		if (!eof) {
+			return -1;
+		}
+		byte[] data = buffer;
+		return data != null && writeCount <= Math.min(data.length, maxMemorySize) ? writeCount : -1;
+	}
+
+	@Override
 	public long getWriteCount() {
 		return writeCount;
 	}
 
 	@Override
 	public void write(byte[] b, int off, int len) throws IOException {
+		Objects.checkFromIndexSize(off, len, b.length);
+		if (len == 0) {
+			return;
+		}
 		if (debugOutput != null) {
 			debugOutput.write(b, off, len);
 			debugOutput.flush();
@@ -314,30 +326,22 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 
 		if (buffer != null) {
 			int mb = (int) (writeCount % maxMemorySize);
-
-			if (mb >= buffer.length - (len - off)) {
-				if (buffer.length == INITIAL_BUFFER_SIZE) {
-					// Initial buffer size was not big enough, try to increase it
-					buffer = growBuffer(buffer, maxMemorySize);
-				}
-
-				// FIXME: This smells like 2x System.arraycopy()!
-				int s = (len - off);
-				for (int i = 0; i < s; i++) {
-					buffer[modulo(mb + i, buffer.length)] = b[off + i];
-				}
-			} else {
-				System.arraycopy(b, off, buffer, mb, (len - off));
-				if ((len - off) > 0) {
-					buffered = true;
-				}
+			if (buffer.length == INITIAL_BUFFER_SIZE && len > buffer.length - mb) {
+				buffer = growBuffer(buffer, maxMemorySize);
+			}
+			int copied = 0;
+			while (copied < len) {
+				int logical = (int) ((writeCount + copied) % maxMemorySize);
+				int physical = logical % buffer.length;
+				int count = Math.min(len - copied, Math.min(maxMemorySize - logical, buffer.length - physical));
+				System.arraycopy(b, off + copied, buffer, physical, count);
+				copied += count;
 			}
 
-
-			writeCount += len - off;
+			long end = writeCount + len;
 			if (timeseek > 0 && timeend == 0) {
 				int packetLength = 6; // minimum to get packet size
-				while (packetpos + packetLength < writeCount && buffer != null) {
+				while (packetpos + packetLength < end && buffer != null) {
 					int packetposMB = (int) (packetpos % maxMemorySize);
 					int streamPos = 0;
 					if (buffer[modulo(packetposMB, buffer.length)] == 71) { // TS
@@ -355,7 +359,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 
 					} else if (buffer[modulo(packetposMB + 3, buffer.length)] == -70) { // BA
 						packetLength = 14;
-						if (packetpos + packetLength > writeCount) {
+						if (packetpos + packetLength > end) {
 							// pack header not fully written yet
 							break;
 						}
@@ -375,6 +379,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 					packetpos += packetLength;
 				}
 			}
+			writeCount = end;
 		}
 	}
 
@@ -403,22 +408,23 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			//LOGGER.trace("BufferedOutputFile Full");
 			input = getCurrentInputStream();
 		}
-		int mb = (int) (writeCount++ % maxMemorySize);
 		if (buffer != null) {
+			int mb = (int) (writeCount % maxMemorySize) % buffer.length;
 			buffer[mb] = (byte) b;
-			buffered = true;
-			if (writeCount == INITIAL_BUFFER_SIZE) {
+			long end = writeCount + 1;
+			if (end == INITIAL_BUFFER_SIZE) {
 				buffer = growBuffer(buffer, maxMemorySize);
 			}
 
-			if (timeseek > 0 && writeCount > 19) {
+			if (timeseek > 0 && end > 19) {
 				shiftByTimeSeek(mb, mb <= 20);
 			}
 
 			// Ditlew - WDTV Live - update any SCR headers
-			if (timeseek > 0 && writeCount > 10) {
+			if (timeseek > 0 && end > 10) {
 				shiftSCRByTimeSeek(mb, timeseek);
 			}
+			writeCount = end;
 		}
 	}
 
@@ -652,6 +658,10 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 
 	@Override
 	public int read(boolean firstRead, long readCount, byte[] buf, int off, int len) {
+		Objects.checkFromIndexSize(off, len, buf.length);
+		if (len == 0) {
+			return 0;
+		}
 		if (readCount > INITIAL_BUFFER_SIZE && readCount < maxMemorySize) {
 			int newMargin = maxMemorySize - MARGIN_MEDIUM;
 			if (bufferOverflowWarning != newMargin) {
@@ -685,50 +695,18 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			LOGGER.trace("Resume Read: readCount=" + readCount + " / writeCount=" + writeCount);
 		}
 
-		if (buffer == null || !buffered) {
+		long available = writeCount - readCount;
+		byte[] data = buffer;
+		if (data == null || available <= 0) {
 			return -1;
 		}
 
-		int mb = (int) (readCount % maxMemorySize);
-		int endOF = buffer.length;
-		int cut = 0;
-
-		if (eof && (writeCount - readCount) < len) {
-			cut = (int) (len - (writeCount - readCount));
-			if (cut < 0) {
-				cut = 0;
-			}
-		}
-
-		int length;
-		if (mb >= endOF - len) {
-			length = endOF - mb - cut;
-			try {
-				System.arraycopy(buffer, mb, buf, off, length);
-			} catch (ArrayIndexOutOfBoundsException e) {
-				LOGGER.trace("Something went wrong with the buffer, error: " + e);
-				LOGGER.trace("buffer: " + Arrays.toString(buffer));
-				LOGGER.trace("mb: " + mb);
-				LOGGER.trace("buf: " + Arrays.toString(buf));
-				LOGGER.trace("off: " + off);
-				LOGGER.trace("endOF - mb - cut: " + length);
-			}
-			return length;
-		} else {
-			length = len - cut;
-			System.arraycopy(buffer, mb, buf, off, length);
-			try {
-				System.arraycopy(buffer, mb, buf, off, length);
-			} catch (ArrayIndexOutOfBoundsException e) {
-				LOGGER.trace("Something went wrong with the buffer, error: " + e);
-				LOGGER.trace("buffer: " + Arrays.toString(buffer));
-				LOGGER.trace("mb: " + mb);
-				LOGGER.trace("buf: " + Arrays.toString(buf));
-				LOGGER.trace("off: " + off);
-				LOGGER.trace("len - cut: " + length);
-			}
-			return length;
-		}
+		int logical = (int) (readCount % maxMemorySize);
+		int physical = logical % data.length;
+		int contiguous = Math.min(maxMemorySize - logical, data.length - physical);
+		int count = (int) Math.min(available, Math.min(len, contiguous));
+		System.arraycopy(data, physical, buf, off, count);
+		return count;
 	}
 
 	@Override
@@ -768,18 +746,12 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			LOGGER.trace("Resume Read: readCount=" + readCount + " / writeCount=" + writeCount);
 		}
 
-		if (buffer == null || !buffered) {
+		long available = writeCount - readCount;
+		byte[] data = buffer;
+		if (data == null || available <= 0) {
 			return -1;
 		}
-
-		try {
-			return 0xff & buffer[(int) (readCount % maxMemorySize)];
-		} catch (ArrayIndexOutOfBoundsException e) {
-			LOGGER.info("Buffer read ArrayIndexOutOfBoundsException error:");
-			LOGGER.info("readCount: \"" + readCount + "\"");
-			LOGGER.info("maxMemorySize: \"" + maxMemorySize + "\"");
-			return -1;
-		}
+		return data[(int) (readCount % maxMemorySize) % data.length] & 0xff;
 	}
 
 	@Override
@@ -871,8 +843,6 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			LOGGER.trace("Destroying buffer");
 			buffer = null;
 		}
-
-		buffered = false;
 
 		if (renderer != null) {
 			renderer.setBuffer(0);

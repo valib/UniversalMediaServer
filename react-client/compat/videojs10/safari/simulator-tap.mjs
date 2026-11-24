@@ -69,6 +69,7 @@ export async function tapMarker(udid, directory, width) {
   const file = join(directory, 'tap-target.png')
   await simulatorScreenshot(udid, file)
   const point = await findButton(file, width)
-  if (!point) throw Error('The screenshot did not contain the marked button')
+  if (!point) return false
   await exec('axe', ['tap', '-x', String(point.x), '-y', String(point.y), '--udid', udid], { timeout: 60000 })
+  return true
 }

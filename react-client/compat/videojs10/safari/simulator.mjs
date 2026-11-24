@@ -65,7 +65,10 @@ const server = createServer(async (req, res) => {
         }
         else {
           if (result.checkSafariTip) await dismissSafariTip(udid)
-          await tapMarker(udid, directory, result.width)
+          if (!await tapMarker(udid, directory, result.width)) {
+            res.writeHead(409).end('The marked button is not visible in the simulator yet')
+            return
+          }
         }
       }
       else if (result.action === 'capture') {
@@ -125,7 +128,8 @@ try {
     await navigate()
   }
   catch (error) {
-    if (!error.killed) throw error
+    const timedOut = error.killed || (!desktop && /NSPOSIXErrorDomain, code=60/.test(error.stderr || ''))
+    if (!timedOut) throw error
     // A cold simulator may open Safari before simctl acknowledges the request.
     // Retry only when the page has not reported any progress.
     if (!lastProgress) await navigate()

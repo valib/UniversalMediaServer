@@ -23,13 +23,8 @@ async function waitFor(label, read) {
   }
 }
 async function tapControl(target) {
-  target.scrollIntoView({ block: 'center' })
-  const marker = document.createElement('span')
-  marker.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:10px;height:10px;background:#f0f;outline:4px solid #0f0;pointer-events:none;z-index:1'
-  marker.setAttribute('aria-hidden', 'true')
-  const position = target.style.position
-  target.style.position = 'relative'
-  target.append(marker)
+  // Keep the marker on the control when React replaces the Play/Pause label.
+  target.setAttribute('data-simulator-tap', '')
   let trusted = false
   const onClick = (event) => {
     trusted ||= event.isTrusted
@@ -38,9 +33,10 @@ async function tapControl(target) {
   try {
     let lastError
     for (let attempt = 0; attempt < 3 && !trusted; attempt++) {
+      target.scrollIntoView({ block: 'center' })
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
       const tap = await send({ action: 'tap', width: screen.width, checkSafariTip: target.textContent.trim() === 'Play' || attempt > 0 })
-      if (!tap.ok) {
+      if (!tap.ok && !trusted) {
         lastError = await tap.text()
         if (tap.status !== 409) throw Error(lastError)
       }
@@ -51,8 +47,7 @@ async function tapControl(target) {
   }
   finally {
     target.removeEventListener('click', onClick, true)
-    marker.remove()
-    target.style.position = position
+    target.removeAttribute('data-simulator-tap')
   }
 }
 let video

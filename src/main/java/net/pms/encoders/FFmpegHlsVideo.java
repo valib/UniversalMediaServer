@@ -264,6 +264,9 @@ public class FFmpegHlsVideo extends FFMpegVideo {
 		} else {
 			cmdList.add(FormatConfiguration.MPEGTS);
 			if (webSegment) {
+				// Each segment is muxed separately. Keep encoder preroll from shifting only segment zero.
+				cmdList.add("-avoid_negative_ts");
+				cmdList.add("disabled");
 				cmdList.add("-flush_packets");
 				cmdList.add("1");
 			}

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { expect, test, type APIRequestContext, type Page, type Request } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Locator, type Page, type Request } from '@playwright/test'
 import type { Renderer } from '../../../src/services/home-service'
 import type { BaseBrowse } from '../../../src/services/player-service'
 
@@ -17,7 +17,13 @@ async function findSample(page: Page, request: APIRequestContext, source: string
 
 const renderersUrl = 'http://127.0.0.1:9001/v1/api/renderers/'
 
-test('HLS advertises the AVC codec carried by each video rendition', async ({ page, request }) => {
+function videoPackets(segment: Buffer): { pts: number, duration: number }[] {
+  const output = execFileSync('ffprobe', ['-v', 'error', '-f', 'mpegts', '-select_streams', 'v:0',
+    '-show_entries', 'packet=pts,duration', '-of', 'json', 'pipe:0'], { input: segment })
+  return JSON.parse(output.toString()).packets
+}
+
+test('HLS renditions match their advertised AVC codec and video segments join continuously', async ({ page, request }) => {
   const { uuid, sample } = await findSample(page, request, 'HLS')
   const play = await request.post('/v1/api/player/play', { headers: { Player: uuid }, data: { uuid, id: sample.id, lang: 'en' } })
   expect(play.ok()).toBe(true)
@@ -25,17 +31,31 @@ test('HLS advertises the AVC codec carried by each video rendition', async ({ pa
   expect(master.ok()).toBe(true)
   const variants = [...(await master.text()).matchAll(/^#EXT-X-STREAM-INF:([^\r\n]+)\r?\n([^\r\n]+)/gm)]
   expect(variants.length).toBeGreaterThan(1)
-  for (const [, attributes, uri] of variants) {
+  for (const [index, [, attributes, uri]] of variants.entries()) {
     const codec = attributes.match(/CODECS="(avc1\.[0-9a-f]{6})(?:,|")/i)?.[1].toLowerCase()
     const playlist = await request.get(new URL(uri, master.url()).href)
     expect(playlist.ok()).toBe(true)
-    const segmentUri = (await playlist.text()).split(/\r?\n/).find(line => line && !line.startsWith('#'))
-    expect(segmentUri).toBeTruthy()
-    const segment = await request.get(new URL(segmentUri!, playlist.url()).href)
+    const segments = (await playlist.text()).split(/\r?\n/).filter(line => line && !line.startsWith('#'))
+    expect(segments.length).toBeGreaterThan(1)
+    const segment = await request.get(new URL(segments[0], playlist.url()).href)
     expect(segment.ok()).toBe(true)
+    const firstBytes = await segment.body()
+    if (index === 0) {
+      const second = await request.get(new URL(segments[1], playlist.url()).href)
+      expect(second.ok()).toBe(true)
+      const firstEnd = Math.max(...videoPackets(firstBytes).map(packet => packet.pts + packet.duration))
+      const secondStart = Math.min(...videoPackets(await second.body()).map(packet => packet.pts))
+      expect(firstEnd).toBe(secondStart)
+      // The sample ends with AAC padding. Its last video segment must still contain a frame.
+      const last = await request.get(new URL(segments[segments.length - 1], playlist.url()).href)
+      expect(last.ok()).toBe(true)
+      const frame = execFileSync('ffprobe', ['-v', 'error', '-f', 'mpegts', '-select_streams', 'v:0', '-show_entries',
+        'packet=flags', '-of', 'csv=p=0', 'pipe:0'], { input: await last.body() }).toString()
+      expect(frame).toContain('K')
+    }
     // Extract the H.264 sequence parameter set without decoding or re-encoding.
     const sps = execFileSync('ffmpeg', ['-v', 'error', '-i', 'pipe:0', '-map', '0:v:0', '-frames:v', '1',
-      '-c:v', 'copy', '-bsf:v', 'filter_units=pass_types=7', '-f', 'h264', 'pipe:1'], { input: await segment.body() })
+      '-c:v', 'copy', '-bsf:v', 'filter_units=pass_types=7', '-f', 'h264', 'pipe:1'], { input: firstBytes })
     const startCode = sps.indexOf(Buffer.from([0, 0, 1]))
     expect(startCode).toBeGreaterThanOrEqual(0)
     const header = startCode + 3
@@ -43,6 +63,16 @@ test('HLS advertises the AVC codec carried by each video rendition', async ({ pa
     expect(codec, uri).toBe('avc1.' + sps.subarray(header + 1, header + 4).toString('hex'))
   }
 })
+
+async function expectVideoPlayback(video: Locator) {
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => {
+    if (v.currentTime > 1 && v.videoWidth > 0) return 'playing'
+    return {
+      time: v.currentTime, width: v.videoWidth, paused: v.paused, ready: v.readyState, error: v.error?.message,
+      buffered: Array.from({ length: v.buffered.length }, (_, i) => [v.buffered.start(i), v.buffered.end(i)]),
+    }
+  }), { timeout: 25000 }).toBe('playing')
+}
 
 async function getRenderer(request: APIRequestContext, uuid: string) {
   const response = await request.get(renderersUrl)
@@ -78,14 +108,14 @@ for (const source of ['HLS', 'direct']) {
         const data = await response.json()
         data.medias[0].resumePosition = 14
         await route.fulfill({ response, json: data })
-      })
+      }, { times: 1 })
     }
     await page.goto('/player/play/' + sample.id)
 
     const skin = page.locator('.ums-video-skin')
     const video = skin.locator('video')
     await skin.getByRole('button', { name: 'Play', exact: true }).click()
-    await expect.poll(() => video.evaluate(v => v.currentTime > 1 && v.videoWidth > 0), { timeout: 25000 }).toBe(true)
+    await expectVideoPlayback(video)
     if (coldStart) expect((await firstSegment?.response())?.status()).toBe(200)
     if (source === 'direct') {
       // The sample starts at zero. Reaching 14 seconds here requires a resume seek.
@@ -147,13 +177,13 @@ test('the legacy player loads on demand and accepts UMS remote controls', async 
     const data = await response.json()
     data.medias[0].mime = 'video/vnd.apple.mpegurl'
     await route.fulfill({ response, json: data })
-  })
+  }, { times: 1 })
   await page.goto('/player/play/' + sample.id)
   const legacy = page.locator('.video-js')
   const video = legacy.locator('video')
   await expect(legacyStyles).toHaveCount(1)
   await legacy.getByRole('button', { name: 'Play Video', exact: true }).click()
-  await expect.poll(() => video.evaluate(v => v.videoWidth > 0 && v.currentTime > 1), { timeout: 25000 }).toBe(true)
+  await expectVideoPlayback(video)
   const id = await playingRendererId(request, uuid)
   await control(request, id, 'volume', 37)
   await expect.poll(() => video.evaluate(v => v.volume)).toBeCloseTo(0.37)

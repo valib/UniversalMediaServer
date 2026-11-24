@@ -1,13 +1,23 @@
 name: Video.js 10 web player
 on:
   push:
-    branches: ['migration/videojs-10-hls-check']
+    branches:
+      - 'migration/videojs-10-hls-check'
+      - 'migration/videojs-10-hls-check-clean'
+      - 'migration/videojs-10-ci-review'
+      - 'migration/videojs-10-ci-candidate'
     paths:
       - 'react-client/src/**'
+      - 'src/main/java/net/pms/encoders/FFmpegAudio.java'
       - 'src/main/java/net/pms/encoders/FFmpegHlsVideo.java'
       - 'src/main/java/net/pms/encoders/HlsHelper.java'
+      - 'src/main/java/net/pms/io/BufferedOutputFile*.java'
+      - 'src/main/java/net/pms/io/ProcessWrapperImpl.java'
+      - 'src/main/java/net/pms/io/WaitBufferedInputStream.java'
+      - 'src/test/java/net/pms/io/BufferedOutputFileImplTest.java'
       - 'src/main/java/net/pms/network/webguiserver/servlets/PlayerApiServlet.java'
       - 'src/main/java/net/pms/parsers/MediaInfoParser.java'
+      - 'src/main/java/net/pms/store/StoreItem.java'
       - 'react-client/compat/videojs10/audio/**'
       - 'react-client/compat/videojs10/create-fixture.sh'
       - 'react-client/package.json'
@@ -21,7 +31,7 @@ permissions:
 
 jobs:
   audio:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.browser == 'webkit' && 'ubuntu-26.04' || 'ubuntu-24.04' }}
     timeout-minutes: 50
     strategy:
       fail-fast: false
@@ -41,8 +51,14 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg libmediainfo-dev pulseaudio pulseaudio-utils
+      - name: Install WebKit media plugins
+        if: matrix.browser == 'webkit'
+        run: sudo apt-get install -y --no-install-recommends gstreamer1.0-gl
       - name: Build UMS
         run: mvn -B -P testing -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
+      - name: Check live buffer reads and MPEG timestamps
+        if: matrix.browser == 'chromium'
+        run: mvn -B -P testing -Dtest=BufferedOutputFileImplTest test
       - name: Build the production client and install browsers
         working-directory: react-client
         run: |
