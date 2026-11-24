@@ -30,7 +30,7 @@ jobs:
       - name: Build UMS and install media dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg libmediainfo-dev
+          sudo apt-get install -y ffmpeg libmediainfo-dev pulseaudio pulseaudio-utils
           mvn -B -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
       - name: Build the opt-in client and install browsers
         working-directory: react-client
@@ -38,6 +38,11 @@ jobs:
           node .yarn/releases/yarn-*.cjs install --immutable
           node .yarn/releases/yarn-*.cjs build:videojs10:audio
           node node_modules/@playwright/test/cli.js install --with-deps --only-shell chromium firefox webkit
+      - name: Provide audio output for headless browsers
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ums_audio
+          pactl set-default-sink ums_audio
       - name: Play audio through both UMS entry points
         run: bash react-client/compat/videojs10/audio/run.sh
       - uses: actions/upload-artifact@v4
