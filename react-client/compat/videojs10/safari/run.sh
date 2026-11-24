@@ -49,7 +49,16 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-curl --fail --silent --retry-all-errors --retry 20 --retry-delay 1 --max-time 3 "http://127.0.0.1:$preview_port/" > /dev/null
+preview_url="http://127.0.0.1:$preview_port/"
+deadline=$((SECONDS + 120))
+until curl --fail --silent --max-time 3 "$preview_url" > /dev/null; do
+  if ! kill -0 "$vite" 2>/dev/null || ((SECONDS >= deadline)); then
+    echo "Vite did not serve the Safari test page at $preview_url" >&2
+    cat "$SAFARI_RESULTS/vite.log" >&2
+    exit 1
+  fi
+  sleep 1
+done
 if [[ ${UMS_SIMULATOR_REPORT:-0} == 1 ]]; then
   node compat/videojs10/safari/simulator.mjs "$mode" "$platform" &
 else
