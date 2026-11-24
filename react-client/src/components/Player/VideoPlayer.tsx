@@ -18,7 +18,7 @@ import { useEffect } from 'react'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.min.css'
 
-import { BaseMedia, VideoMedia, VideoPlayerOption } from '../../services/player-service'
+import type { BaseMedia, MediaController, VideoMedia, VideoPlayerOption } from '../../services/player-service'
 import { playerApiUrl } from '../../utils'
 import HlsQualitySelector from './VideoJs/HlsQualitySelector'
 import { applySubtitleStyle } from './VideoJs/subtitle-style'
@@ -188,6 +188,30 @@ const VideoPlayer = (vpOptions: VideoPlayerOption) => {
     }
 
     const videoPlayer = videojs(videoElem, options, onready) as VideoJsPlayer
+    const { mediaController } = vpOptions
+    const controller: MediaController = {
+      command: async ({ request, arg0 }) => {
+        switch (request) {
+          case 'play':
+            await videoPlayer.play()
+            break
+          case 'pause':
+          case 'stop':
+            videoPlayer.pause()
+            break
+          case 'mute':
+            videoPlayer.muted(true)
+            break
+          case 'setvolume':
+            if (arg0) videoPlayer.volume(parseInt(arg0) / 100)
+            break
+        }
+      },
+      report: () => {
+        if (status.playback) vpOptions.sendJsonMessage({ action: 'player_status', data: status }, false)
+      },
+    }
+    if (mediaController) mediaController.current = controller
 
     let removeSubtitleStyle: (() => void) | undefined
 
@@ -196,6 +220,7 @@ const VideoPlayer = (vpOptions: VideoPlayerOption) => {
     }
 
     return () => {
+      if (mediaController?.current === controller) mediaController.current = null
       if (removeSubtitleStyle) {
         removeSubtitleStyle()
       }

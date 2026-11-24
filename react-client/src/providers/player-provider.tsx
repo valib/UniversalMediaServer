@@ -17,7 +17,6 @@
 import { useSessionStorage } from '@mantine/hooks'
 import axios, { AxiosError, AxiosResponse } from 'axios'
 import { ReactNode, useEffect, useRef, useState } from 'react'
-import videojs from 'video.js'
 
 import PlayerContext from '../contexts/player-context'
 import { I18nInterface } from '../services/i18n-service'
@@ -54,96 +53,19 @@ const PlayerProvider = ({ children, i18n, session }: { children?: ReactNode, i18
     askReqId(id, 'show')
   }
 
-  const setPlayerVolume = (volume: number) => {
-    try {
-      const player = videojs.getPlayer('player')
-      player?.volume(volume / 100)
-    }
-    catch (error) {
-      console.log('volume', error)
-    }
-  }
-
-  const mutePlayer = () => {
-    console.log('mute')
-    try {
-      const player = videojs.getPlayer('player')
-      player?.muted(true)
-    }
-    catch (error) {
-      console.log('mute', error)
-    }
-  }
-
-  const pausePlayer = () => {
-    try {
-      const player = videojs.getPlayer('player')
-      player?.pause()
-    }
-    catch (error) {
-      console.log('pausePlayer', error)
-    }
-  }
-
-  const stopPlayer = () => {
-    try {
-      const player = videojs.getPlayer('player')
-      player?.pause()
-    }
-    catch (error) {
-      console.log('stop', error)
-    }
-  }
-
-  async function playPlayer() {
-    // most browser does not autoplay or script play.
-    try {
-      const player = videojs.getPlayer('player')
-      await player?.play()
-    }
-    catch {
-      showWarning({
-        title: i18n.get('RemoteControl'),
-        message: i18n.get('RemotePlayOnlyAllowed'),
-      })
-    }
-  }
-
   const onRemoteAction = (data: PlayerRemoteAction) => {
-    if (mediaController.current && data.request !== 'setPlayId') {
-      mediaController.current.command(data).catch(() => {
-        if (data.request === 'play') showWarning({ title: i18n.get('RemoteControl'), message: i18n.get('RemotePlayOnlyAllowed') })
-      })
+    if (data.request === 'setPlayId') {
+      if (data.arg0) askPlayId(data.arg0)
       return
     }
-    switch (data.request) {
-      case 'setPlayId':
-        if (data.arg0) {
-          setReqType('')
-          setReqId(data.arg0)
-          setReqType('play')
-        }
-        break
-      case 'play':
-        playPlayer()
-        break
-      case 'setvolume':
-
-        if (data.arg0) {
-          const vol = parseInt(data.arg0)
-          setPlayerVolume(vol)
-        }
-        break
-      case 'pause':
-        pausePlayer()
-        break
-      case 'mute':
-        mutePlayer()
-        break
-      case 'stop':
-        stopPlayer()
-        break
-    }
+    mediaController.current?.command(data).catch((error) => {
+      if (data.request === 'play') {
+        showWarning({ title: i18n.get('RemoteControl'), message: i18n.get('RemotePlayOnlyAllowed') })
+      }
+      else {
+        console.log(data.request, error)
+      }
+    })
   }
 
   useEffect(() => {

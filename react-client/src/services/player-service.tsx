@@ -46,6 +46,7 @@ export interface PlayerRemoteAction {
 export interface VideoPlayerOption {
   media: VideoMedia | AudioMedia
   uuid: string
+  mediaController?: PlayerInterface['mediaController']
   askPlayId: (id: string) => void
   sendJsonMessage: SendJsonMessage
 }
