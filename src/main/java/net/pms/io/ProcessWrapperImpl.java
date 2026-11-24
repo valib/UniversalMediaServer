@@ -130,6 +130,7 @@ public class ProcessWrapperImpl extends Thread implements ProcessWrapper {
 	@Override
 	public void run() {
 		ProcessBuilder pb = new ProcessBuilder(cmdArray);
+		boolean consumerClosesBuffer = false;
 		try {
 			if (LOGGER.isDebugEnabled()) {
 				LOGGER.debug("Starting {}", ProcessUtil.dbgWashCmds(cmdArray));
@@ -228,6 +229,7 @@ public class ProcessWrapperImpl extends Thread implements ProcessWrapper {
 			if (stdoutConsumer != null) {
 				stdoutConsumer.setName(getName() + "-1");
 				stdoutConsumer.start();
+				consumerClosesBuffer = stdoutConsumer instanceof OutputBufferConsumer;
 			}
 
 			if (params.getStdIn() != null) {
@@ -262,7 +264,7 @@ public class ProcessWrapperImpl extends Thread implements ProcessWrapper {
 			stopProcess();
 		} finally {
 			try {
-				if (bo != null) {
+				if (bo != null && !consumerClosesBuffer) {
 					bo.close();
 				}
 			} catch (IOException ioe) {

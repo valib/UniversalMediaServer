@@ -33,6 +33,10 @@ public interface BufferedOutputFile {
 
 	public abstract long getWriteCount();
 
+	/** Waits for a stream with a live producer to have a readable byte or reach EOF. */
+	default void awaitData(WaitBufferedInputStream input) throws IOException {
+	}
+
 	/** Returns the encoded length when the entire stream is still in the buffer. */
 	default long getCompleteLength() {
 		return -1;

@@ -18,11 +18,13 @@ package net.pms.io;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 
 public class WaitBufferedInputStream extends InputStream {
 	private final BufferedOutputFile outputStream;
 	private volatile long readCount;
 	private boolean firstRead;
+	private volatile boolean closed;
 
 	public void setReadCount(long readCount) {
 		this.readCount = readCount;
@@ -39,12 +41,17 @@ public class WaitBufferedInputStream extends InputStream {
 
 	/** Waits for the normal startup buffer without consuming the first byte. */
 	public long getLengthAtStart() {
+		if (closed) {
+			return -1;
+		}
 		outputStream.read(true, readCount);
 		return outputStream.getCompleteLength();
 	}
 
 	@Override
 	public int read() throws IOException {
+		ensureOpen();
+		outputStream.awaitData(this);
 		int r = outputStream.read(firstRead, getReadCount());
 		if (r != -1) {
 			setReadCount(getReadCount() + 1);
@@ -55,10 +62,13 @@ public class WaitBufferedInputStream extends InputStream {
 
 	@Override
 	public int read(byte[] b, int off, int len) throws IOException {
-		int returned = outputStream.read(firstRead, getReadCount(), b, off, len);
+		ensureOpen();
+		Objects.checkFromIndexSize(off, len, b.length);
 		if (len == 0) {
 			return 0;
 		}
+		outputStream.awaitData(this);
+		int returned = outputStream.read(firstRead, getReadCount(), b, off, len);
 		if (returned != -1) {
 			setReadCount(getReadCount() + returned);
 		}
@@ -73,14 +83,26 @@ public class WaitBufferedInputStream extends InputStream {
 
 	@Override
 	public int available() throws IOException {
+		ensureOpen();
 		long remaining = outputStream.getWriteCount() - readCount;
 		return (int) Math.max(0, Math.min(Integer.MAX_VALUE, remaining));
 	}
 
 	@Override
 	public void close() throws IOException {
-		outputStream.removeInputStream(this);
-		outputStream.detachInputStream();
+		synchronized (outputStream) {
+			if (!closed) {
+				closed = true;
+				outputStream.removeInputStream(this);
+				outputStream.detachInputStream();
+			}
+		}
+	}
+
+	private void ensureOpen() throws IOException {
+		if (closed) {
+			throw new IOException("Stream closed");
+		}
 	}
 }
 

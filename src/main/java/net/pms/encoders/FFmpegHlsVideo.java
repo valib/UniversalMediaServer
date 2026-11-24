@@ -23,6 +23,7 @@ import net.pms.configuration.FormatConfiguration;
 import net.pms.configuration.UmsConfiguration;
 import net.pms.io.OutputParams;
 import net.pms.io.ProcessWrapper;
+import net.pms.io.ProcessWrapperImpl;
 import net.pms.media.MediaInfo;
 import net.pms.media.MediaLang;
 import net.pms.network.HTTPResource;
@@ -55,7 +56,17 @@ public class FFmpegHlsVideo extends FFMpegVideo {
 			OutputParams params
 	) throws IOException {
 		List<String> command = buildCommand(resource, media, params);
-		return command == null ? null : runHlsTranscodeProcess(params, command);
+		if (command == null) {
+			return null;
+		}
+		if (params.getMediaRenderer() instanceof WebGuiRenderer && params.getInputPipes()[0] == null) {
+			// A web request consumes one finite segment. FFmpeg can mux it directly to stdout.
+			command.add("pipe:1");
+			ProcessWrapperImpl process = new ProcessWrapperImpl(command.toArray(String[]::new), params);
+			process.runInNewThread();
+			return process;
+		}
+		return runHlsTranscodeProcess(params, command);
 	}
 
 	List<String> buildCommand(StoreItem resource, MediaInfo media, OutputParams params) throws IOException {
@@ -66,7 +77,7 @@ public class FFmpegHlsVideo extends FFMpegVideo {
 		boolean webSegment = params.getMediaRenderer() instanceof WebGuiRenderer;
 		// The web player requests short segments and may retry before a large buffer fills.
 		params.setMinBufferSize(webSegment ? Math.min(params.getMinFileSize(), WEB_SEGMENT_BUFFER_BYTES / 1048576.0) : params.getMinFileSize());
-		params.setSecondReadMinSize(webSegment ? WEB_SEGMENT_BUFFER_BYTES : 100000);
+		params.setSecondReadMinSize(webSegment ? 0 : 100000);
 		params.setWaitBeforeStart(0);
 		// Use device-specific conf
 		UmsConfiguration configuration = params.getMediaRenderer().getUmsConfiguration();
@@ -176,7 +187,11 @@ public class FFmpegHlsVideo extends FFMpegVideo {
 			if (selectedTranscodeAccelerationMethod.startsWith("libx264")) {
 				// Let x264 optimize the bitrate more for lower resolutions
 				cmdList.add("-preset");
-				if (hlsConfiguration.video.resolutionWidth < 842) {
+				int width = hlsConfiguration.video.resolutionWidth;
+				if (width == 0) {
+					width = media.getWidth();
+				}
+				if (width < 842) {
 					cmdList.add("superfast");
 				} else {
 					cmdList.add("ultrafast");

@@ -930,6 +930,7 @@ public abstract class StoreItem extends StoreResource {
 		}
 
 		// (Re)start transcoding process if necessary
+		ProcessWrapper previousProcess = externalProcess;
 		if (externalProcess == null || externalProcess.isDestroyed() || hlsConfiguration != null) {
 			// First playback attempt => start new transcoding process
 			LOGGER.debug("Starting transcode/remux of " + getName() + " with media info: " + mediaInfo);
@@ -1007,7 +1008,8 @@ public abstract class StoreItem extends StoreResource {
 		// not producing output after params.waitbeforestart milliseconds + 5 seconds
 		// this cleans up lingering MEncoder web video transcode processes that hang
 		// instead of exiting
-		if (is == null && !process.isDestroyed()) {
+		// A reused process may be serving the first reader and refusing a second one.
+		if (is == null && process != previousProcess && !process.isDestroyed()) {
 			Runnable r = () -> {
 				LOGGER.error("External input stream instance is null... stopping process");
 				process.stopProcess();

@@ -12,9 +12,11 @@ on:
       - 'src/main/java/net/pms/encoders/FFmpegHlsVideo.java'
       - 'src/main/java/net/pms/encoders/HlsHelper.java'
       - 'src/main/java/net/pms/io/BufferedOutputFile*.java'
+      - 'src/main/java/net/pms/io/OutputBufferConsumer.java'
       - 'src/main/java/net/pms/io/ProcessWrapperImpl.java'
       - 'src/main/java/net/pms/io/WaitBufferedInputStream.java'
       - 'src/test/java/net/pms/io/BufferedOutputFileImplTest.java'
+      - 'src/test/java/net/pms/encoders/FFmpegHlsSubtitlesTest.java'
       - 'src/main/java/net/pms/network/webguiserver/servlets/PlayerApiServlet.java'
       - 'src/main/java/net/pms/parsers/MediaInfoParser.java'
       - 'src/main/java/net/pms/store/StoreItem.java'
@@ -51,14 +53,14 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg libmediainfo-dev pulseaudio pulseaudio-utils
-      - name: Install WebKit media plugins
+      - name: Install desktop WebKit media and display dependencies
         if: matrix.browser == 'webkit'
-        run: sudo apt-get install -y --no-install-recommends gstreamer1.0-gl
+        run: sudo apt-get install -y --no-install-recommends gstreamer1.0-gl xvfb xauth
       - name: Build UMS
         run: mvn -B -P testing -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
-      - name: Check live buffer reads and MPEG timestamps
+      - name: Check live buffer reads, timestamps and HLS encoder options
         if: matrix.browser == 'chromium'
-        run: mvn -B -P testing -Dtest=BufferedOutputFileImplTest test
+        run: mvn -B -P testing -Dtest=BufferedOutputFileImplTest,FFmpegHlsSubtitlesTest test
       - name: Build the production client and install browsers
         working-directory: react-client
         run: |
@@ -75,7 +77,13 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           DEBUG: ${{ matrix.browser == 'webkit' && 'pw:browser' || '' }}
           GST_DEBUG: 'webkitmediaplayer:2,downloadbuffer:2,pulsesink:2'
-        run: bash react-client/compat/videojs10/audio/run.sh --project="$BROWSER web interface" --project="$BROWSER standalone player"
+        run: |
+          projects=(--project="$BROWSER web interface" --project="$BROWSER standalone player")
+          if [[ "$BROWSER" == webkit ]]; then
+            xvfb-run -a bash react-client/compat/videojs10/audio/run.sh --headed "${projects[@]}"
+          else
+            bash react-client/compat/videojs10/audio/run.sh "${projects[@]}"
+          fi
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

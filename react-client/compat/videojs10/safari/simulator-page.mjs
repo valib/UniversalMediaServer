@@ -10,15 +10,24 @@ const desktop = params.get('platform') === 'macos'
 const result = { platform: desktop ? 'macos' : 'ios', mode, status: 'failed', userAgent: navigator.userAgent, checks: [] }
 const button = text => Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim().startsWith(text))
 const send = result => fetch('/__simulator-report/' + token, { method: 'POST', body: JSON.stringify(result) })
-async function waitFor(label, read) {
+async function waitFor(label, read, bufferedEnd) {
   await send({ status: 'in progress', stage: label, checks: result.checks }).catch(() => {})
-  const end = Date.now() + 75000
+  const start = Date.now()
+  const limit = start + (bufferedEnd ? 150000 : 75000)
+  let deadline = start + 75000
+  let highWater = bufferedEnd?.() ?? 0
   while (true) {
     const error = document.querySelector('p[role=alert]')?.textContent
     if (error) throw Error(label + ': ' + error)
     const value = await read()
     if (value) return value
-    if (Date.now() >= end) throw Error('Timed out waiting for ' + label)
+    const now = Date.now()
+    const buffered = bufferedEnd?.() ?? 0
+    if (buffered > highWater) {
+      highWater = buffered
+      deadline = Math.min(limit, now + 75000)
+    }
+    if (now >= deadline) throw Error('Timed out waiting for ' + label)
     await new Promise(resolve => setTimeout(resolve, 200))
   }
 }
@@ -67,7 +76,11 @@ try {
   await waitFor('playlist metadata', () => video.readyState >= 1)
   const play = button('Play')
   await tapControl(play)
-  await waitFor('two seconds of decoded video', () => video.currentTime > 2 && video.videoWidth > 0)
+  // On a slow simulator AVPlayer may still be receiving its first transcoded segments.
+  // Allow more time only while playable media arrives, and still require the clock to advance.
+  const bufferedEnd = () => video.buffered.length ? video.buffered.end(video.buffered.length - 1) : 0
+  await waitFor('two seconds of decoded video', () => video.currentTime > 2 && video.videoWidth > 0,
+    !desktop && mode === 'native' ? bufferedEnd : undefined)
   video.pause()
   if (!(video.duration >= 29 && video.duration < 32)) throw Error('Unexpected HLS duration: ' + video.duration)
   const engine = document.querySelector('[aria-label="Playback engine"]')?.textContent

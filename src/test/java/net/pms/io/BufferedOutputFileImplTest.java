@@ -18,14 +18,27 @@ package net.pms.io;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import net.pms.PMS;
 import net.pms.configuration.UmsConfiguration;
+import net.pms.encoders.HlsHelper;
+import net.pms.util.IPushOutput;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -34,6 +47,8 @@ public class BufferedOutputFileImplTest {
 
 	private static final int PACK_HEADER_LENGTH = 14;
 	private static final int PES_HEADER_LENGTH = 14;
+	// One byte past the writer's high-water mark for a 1 MiB transcode buffer.
+	private static final int PAUSED_PREFIX = 1024 * 1024 - 600000 + 1;
 
 	@BeforeAll
 	public static void setUpClass() throws ConfigurationException, InterruptedException {
@@ -126,6 +141,125 @@ public class BufferedOutputFileImplTest {
 		assertEquals(-1, buffer.getCompleteLength());
 		assertArrayEquals(expected, tail.readAllBytes());
 		assertEquals(0, tail.available());
+	}
+
+	public static class FiniteEncoder {
+		public static void main(String[] args) throws IOException {
+			System.out.write(new byte[PAUSED_PREFIX]);
+			System.out.flush();
+			if (System.in.read() == 1) {
+				System.out.write(0x5B);
+				System.out.flush();
+			}
+		}
+	}
+
+	@Test
+	public void testSlowReaderReceivesTailAfterEncoderExits() throws Exception {
+		OutputParams params = new OutputParams(PMS.getConfiguration());
+		params.setMinBufferSize(0);
+		params.setMaxBufferSize(1);
+		params.setSecondReadMinSize(0);
+		CompletableFuture<OutputStream> encoderInput = new CompletableFuture<>();
+		params.setStdIn(new IPushOutput() {
+			@Override
+			public void push(OutputStream out) {
+				encoderInput.complete(out);
+			}
+
+			@Override
+			public boolean isUnderlyingSeekSupported() {
+				return false;
+			}
+		});
+
+		String classes = Path.of(FiniteEncoder.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
+		String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
+		ProcessWrapperImpl process = new ProcessWrapperImpl(new String[]{java, "-cp", classes, FiniteEncoder.class.getName()}, params);
+		process.runInNewThread();
+		try (OutputStream control = encoderInput.get(15, TimeUnit.SECONDS);
+				InputStream first = process.getInputStream(0)) {
+			long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
+			while (first.available() < PAUSED_PREFIX && System.nanoTime() < deadline) {
+				Thread.sleep(10);
+			}
+			assertEquals(PAUSED_PREFIX, first.available());
+			control.write(1);
+			control.flush();
+			process.join(15000);
+			assertFalse(process.isAlive());
+
+			try (WaitBufferedInputStream retry = (WaitBufferedInputStream) process.getInputStream(0)) {
+				assertEquals(-1, retry.getLengthAtStart());
+				first.close();
+				assertFalse(process.isReadyToStop());
+				byte[] expected = new byte[PAUSED_PREFIX + 1];
+				expected[PAUSED_PREFIX] = 0x5B;
+				assertArrayEquals(expected, retry.readAllBytes());
+				assertEquals(expected.length, retry.getLengthAtStart());
+			}
+			assertTrue(process.isReadyToStop());
+		} finally {
+			process.stopProcess();
+		}
+	}
+
+	@Test
+	public void testHlsReadWaitsForFirstByteAndWakesAtEof() throws Exception {
+		OutputParams params = new OutputParams(PMS.getConfiguration());
+		params.setHlsConfiguration(HlsHelper.getByKey("COPY_AAC-LC_0"));
+		params.setMaxBufferSize(1);
+		params.setMinBufferSize(0);
+		params.setSecondReadMinSize(0);
+		BufferedOutputFileImpl buffer = new BufferedOutputFileImpl(params);
+		var executor = Executors.newSingleThreadExecutor();
+		try (InputStream input = buffer.getInputStream(0)) {
+			assertEquals(0, input.read(new byte[0]));
+			var started = new CountDownLatch(1);
+			var first = executor.submit(() -> {
+				started.countDown();
+				return input.read();
+			});
+			assertTrue(started.await(5, TimeUnit.SECONDS));
+			// A temporary stall beyond the old 7.5 second prebuffer limit is not EOF.
+			assertThrows(TimeoutException.class, () -> first.get(8, TimeUnit.SECONDS));
+			buffer.write(0x47);
+			assertEquals(0x47, first.get(5, TimeUnit.SECONDS).intValue());
+			var last = executor.submit(() -> input.read(new byte[188]));
+			buffer.close();
+			assertEquals(-1, last.get(5, TimeUnit.SECONDS).intValue());
+		} finally {
+			buffer.close();
+			executor.shutdownNow();
+		}
+	}
+
+	@Test
+	public void testSingleConnectionPolicyHonorsTheSelectedReader() throws IOException {
+		UmsConfiguration config = PMS.getConfiguration();
+		boolean block = config.getTrancodeBlocksMultipleConnections();
+		boolean keepFirst = config.getTrancodeKeepFirstConnections();
+		try {
+			config.setTranscodeBlocksMultipleConnections(true);
+			config.setTrancodeKeepFirstConnections(true);
+			OutputParams params = new OutputParams(config);
+			params.setMaxBufferSize(1);
+			BufferedOutputFileImpl buffer = new BufferedOutputFileImpl(params);
+			buffer.write(new byte[]{10, 20, 30});
+			buffer.close();
+			try (InputStream first = buffer.getInputStream(0)) {
+				assertNull(buffer.getInputStream(1));
+				assertEquals(10, first.read());
+				config.setTrancodeKeepFirstConnections(false);
+				try (InputStream retry = buffer.getInputStream(2)) {
+					assertThrows(IOException.class, first::read);
+					assertEquals(30, retry.read());
+				}
+			}
+		} finally {
+			config.setTranscodeBlocksMultipleConnections(block);
+			config.setTrancodeKeepFirstConnections(keepFirst);
+		}
 	}
 
 	private static byte[] writeAndRead(byte[] input, double timeSeek) throws IOException {

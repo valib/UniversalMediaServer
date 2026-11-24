@@ -96,6 +96,21 @@ class FFmpegHlsSubtitlesTest {
 	}
 
 	@Test
+	void selectsSoftwarePresetForTheActualOutputWidth() throws Exception {
+		params.setHlsConfiguration(HlsHelper.getByKey("COPY_AAC-LC_0"));
+		List<String> nativeSize = command();
+		assertEquals("ultrafast", nativeSize.get(nativeSize.indexOf("-preset") + 1));
+
+		item.getMediaInfo().getDefaultVideoTrack().setWidth(640);
+		List<String> smallSource = command();
+		assertEquals("superfast", smallSource.get(smallSource.indexOf("-preset") + 1));
+
+		params.setHlsConfiguration(HlsHelper.getByKey("HD_AAC-LC_0"));
+		List<String> scaled = command();
+		assertEquals("ultrafast", scaled.get(scaled.indexOf("-preset") + 1));
+	}
+
+	@Test
 	void burnsSelectedExternalTrackWithConfiguredStyleAndPreservesSeekTimestamps() throws Exception {
 		var sub = subtitle(100);
 		sub.setExternalFileOnly(new File("selected.srt"));

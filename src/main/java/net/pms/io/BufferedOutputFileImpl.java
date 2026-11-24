@@ -19,13 +19,16 @@ package net.pms.io;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
+import java.net.SocketTimeoutException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 import net.pms.PMS;
 import net.pms.configuration.UmsConfiguration;
 import net.pms.gui.GuiManager;
@@ -76,13 +79,16 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	private final boolean hidebuffer;
 	private final boolean cleanup;
 	private final int secondReadMinSize;
+	private final boolean hlsSegment;
+	private int waitingReaders;
 	private final FileOutputStream debugOutput = null;
 
 	private int bufferOverflowWarning;
 	private volatile boolean eof;
 	private volatile long writeCount;
 	private volatile byte[] buffer;
-	private ArrayList<WaitBufferedInputStream> inputStreams;
+	private final ArrayList<WaitBufferedInputStream> inputStreams;
+	private long readerGeneration;
 	private ProcessWrapper attachedThread;
 	private Timer timer;
 	private long packetpos = 0;
@@ -198,6 +204,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 		}
 		this.bufferOverflowWarning = this.maxMemorySize - margin;
 		this.secondReadMinSize = params.getSecondReadMinSize();
+		this.hlsSegment = params.isHlsConfigured();
 		this.timeseek = params.getTimeSeek();
 		this.timeend = params.getTimeEnd();
 		this.hidebuffer = params.isHideBuffer();
@@ -224,70 +231,51 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	}
 
 	@Override
-	public void close() throws IOException {
+	public synchronized void close() throws IOException {
 		LOGGER.trace("EOF");
 		eof = true;
+		signalReaders();
 		if (cleanup) {
 			detachInputStream();
 		}
 	}
 
 	@Override
-	public WaitBufferedInputStream getCurrentInputStream() {
-		WaitBufferedInputStream wai = null;
-
-		if (!inputStreams.isEmpty()) {
-			try {
-				wai = forcefirst ? inputStreams.get(0) : inputStreams.get(inputStreams.size() - 1);
-			} catch (IndexOutOfBoundsException e) {
-				// this should never happen unless there's a concurrency issue,
-				// so log it if it does
-				LOGGER.error("Unexpected input stream removal", e);
-			}
-		}
-
-		return wai;
+	public synchronized WaitBufferedInputStream getCurrentInputStream() {
+		return inputStreams.isEmpty() ? null : inputStreams.get(forcefirst ? 0 : inputStreams.size() - 1);
 	}
 
 	@Override
-	public InputStream getInputStream(long newReadPosition) {
+	public synchronized InputStream getInputStream(long newReadPosition) {
+		if (buffer == null) {
+			return null;
+		}
+		if (configuration.getTrancodeBlocksMultipleConnections() && !inputStreams.isEmpty()) {
+			if (configuration.getTrancodeKeepFirstConnections()) {
+				LOGGER.debug("BufferedOutputFile is already attached to an InputStream: " + getCurrentInputStream());
+				return null;
+			}
+			// Install the new connection after retiring the previous readers.
+			for (WaitBufferedInputStream previous : new ArrayList<>(inputStreams)) {
+				try {
+					previous.close();
+				} catch (IOException e) {
+					LOGGER.debug("Error closing previous input stream", e);
+				}
+			}
+		}
+
+		WaitBufferedInputStream input = new WaitBufferedInputStream(this);
+		if (newReadPosition > 0) {
+			LOGGER.debug("Setting InputStream new position to: " + FORMATTER.format(newReadPosition));
+			input.setReadCount(newReadPosition);
+		}
+		inputStreams.add(input);
+		readerGeneration++;
 		if (attachedThread != null) {
 			attachedThread.setReadyToStop(false);
 		}
-
-		WaitBufferedInputStream atominputStream;
-
-		if (!configuration.getTrancodeBlocksMultipleConnections() || getCurrentInputStream() == null) {
-			atominputStream = new WaitBufferedInputStream(this);
-			inputStreams.add(atominputStream);
-		} else {
-			if (configuration.getTrancodeKeepFirstConnections()) {
-				LOGGER.debug("BufferedOutputFile is already attached to an InputStream: " + getCurrentInputStream());
-			} else {
-				// Ditlew - fixes the above (the above iterator breaks on items getting close, cause they will remove them self from the arraylist)
-				while (!inputStreams.isEmpty()) {
-					try {
-						inputStreams.get(0).close();
-					} catch (IOException e) {
-						LOGGER.error("Error: ", e);
-					}
-				}
-
-				inputStreams.clear();
-				atominputStream = new WaitBufferedInputStream(this);
-				inputStreams.add(atominputStream);
-				LOGGER.debug("Reassign inputstream: " + getCurrentInputStream());
-			}
-
-			return null;
-		}
-
-		if (newReadPosition > 0) {
-			LOGGER.debug("Setting InputStream new position to: " + FORMATTER.format(newReadPosition));
-			atominputStream.setReadCount(newReadPosition);
-		}
-
-		return atominputStream;
+		return input;
 	}
 
 	@Override
@@ -305,6 +293,43 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	}
 
 	@Override
+	public void awaitData(WaitBufferedInputStream input) throws IOException {
+		if (!hlsSegment || writeCount > input.getReadCount() || eof || buffer == null) {
+			return;
+		}
+		synchronized (this) {
+			long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+			waitingReaders++;
+			try {
+				while (buffer != null && !eof && writeCount <= input.getReadCount()) {
+					if (!inputStreams.contains(input)) {
+						throw new IOException("Stream closed");
+					}
+					long remaining = deadline - System.nanoTime();
+					if (remaining <= 0) {
+						throw new SocketTimeoutException("Timed out waiting for HLS segment data");
+					}
+					try {
+						TimeUnit.NANOSECONDS.timedWait(this, remaining);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						throw new InterruptedIOException("Interrupted while waiting for HLS segment data");
+					}
+				}
+			} finally {
+				waitingReaders--;
+			}
+		}
+	}
+
+	// Called under the buffer lock after publishing data, closing or cancelling a reader.
+	private void signalReaders() {
+		if (waitingReaders > 0) {
+			notifyAll();
+		}
+	}
+
+	@Override
 	public void write(byte[] b, int off, int len) throws IOException {
 		Objects.checkFromIndexSize(off, len, b.length);
 		if (len == 0) {
@@ -319,11 +344,16 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 
 		//LOGGER.trace("write(" + b.length + ", " + off + ", " + len + "), writeCount = " + writeCount + ", readCount = " + (input != null ? input.getReadCount() : "null"));
 
-		while ((input != null && (writeCount - input.getReadCount() > bufferOverflowWarning)) || (input == null && writeCount > bufferOverflowWarning)) {
+		while (buffer != null && writeCount - (input == null ? 0 : input.getReadCount()) > bufferOverflowWarning) {
 			UMSUtils.sleep(CHECK_INTERVAL);
 			input = getCurrentInputStream();
 		}
 
+		writeToBuffer(b, off, len);
+	}
+
+	// The writer must be able to wait for readers without holding the reset lock.
+	private synchronized void writeToBuffer(byte[] b, int off, int len) {
 		if (buffer != null) {
 			int mb = (int) (writeCount % maxMemorySize);
 			if (buffer.length == INITIAL_BUFFER_SIZE && len > buffer.length - mb) {
@@ -380,6 +410,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 				}
 			}
 			writeCount = end;
+			signalReaders();
 		}
 	}
 
@@ -403,11 +434,15 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	public void write(int b) throws IOException {
 		boolean bb = b % 100000 == 0;
 		WaitBufferedInputStream input = getCurrentInputStream();
-		while (bb && ((input != null && (writeCount - input.getReadCount() > bufferOverflowWarning)) || (input == null && writeCount == bufferOverflowWarning))) {
+		while (bb && buffer != null && ((input != null && (writeCount - input.getReadCount() > bufferOverflowWarning)) || (input == null && writeCount == bufferOverflowWarning))) {
 			UMSUtils.sleep(CHECK_INTERVAL);
 			//LOGGER.trace("BufferedOutputFile Full");
 			input = getCurrentInputStream();
 		}
+		writeToBuffer(b);
+	}
+
+	private synchronized void writeToBuffer(int b) {
 		if (buffer != null) {
 			int mb = (int) (writeCount % maxMemorySize) % buffer.length;
 			buffer[mb] = (byte) b;
@@ -425,6 +460,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 				shiftSCRByTimeSeek(mb, timeseek);
 			}
 			writeCount = end;
+			signalReaders();
 		}
 	}
 
@@ -677,7 +713,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 
 		int c = 0;
 		int minBufferS = firstRead ? minMemorySize : secondReadMinSize;
-		while (writeCount - readCount <= minBufferS && !eof && c < 15) {
+		while (writeCount - readCount <= minBufferS && !eof && buffer != null && c < 15) {
 			if (c == 0) {
 				LOGGER.trace("Suspend Read: readCount=" + readCount + " / writeCount=" + writeCount);
 			}
@@ -685,10 +721,6 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			c++;
 
 			UMSUtils.sleep(CHECK_INTERVAL);
-		}
-
-		if (attachedThread != null) {
-			attachedThread.setReadyToStop(false);
 		}
 
 		if (c > 0) {
@@ -728,7 +760,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 		int c = 0;
 		int minBufferS = firstRead ? minMemorySize : secondReadMinSize;
 
-		while (writeCount - readCount <= minBufferS && !eof && c < 15) {
+		while (writeCount - readCount <= minBufferS && !eof && buffer != null && c < 15) {
 			if (c == 0) {
 				LOGGER.trace("Suspend Read: readCount=" + readCount + " / writeCount=" + writeCount);
 			}
@@ -736,10 +768,6 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 			c++;
 
 			UMSUtils.sleep(CHECK_INTERVAL);
-		}
-
-		if (attachedThread != null) {
-			attachedThread.setReadyToStop(false);
 		}
 
 		if (c > 0) {
@@ -773,13 +801,14 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 				public void run() {
 					long rc = 0;
 
-					if (getCurrentInputStream() != null) {
-						rc = getCurrentInputStream().getReadCount();
+					WaitBufferedInputStream input = getCurrentInputStream();
+					if (input != null) {
+						rc = input.getReadCount();
 						GuiManager.setReadValue(rc);
 					}
 
 					long space = (writeCount - rc);
-					LOGGER.trace("buffered: " + FORMATTER.format(space) + " bytes / inputs: " + inputStreams.size());
+					LOGGER.trace("buffered: " + FORMATTER.format(space) + " bytes");
 
 					// There are 1048576 bytes in a megabyte
 					long bufferInMBs = space / 1048576;
@@ -793,36 +822,44 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 	}
 
 	@Override
-	public void removeInputStream(WaitBufferedInputStream inputStream) {
+	public synchronized void removeInputStream(WaitBufferedInputStream inputStream) {
 		inputStreams.remove(inputStream);
+		signalReaders();
 	}
 
 	@Override
-	public void detachInputStream() {
+	public synchronized void detachInputStream() {
+		if (!inputStreams.isEmpty() || buffer == null) {
+			return;
+		}
 		if (!hidebuffer) {
 			GuiManager.setReadValue(0);
 		}
-
-		if (attachedThread != null) {
-			attachedThread.setReadyToStop(true);
+		ProcessWrapper process = attachedThread;
+		if (process == null) {
+			return;
 		}
-
+		process.setReadyToStop(true);
+		long generation = readerGeneration;
 		Runnable checkEnd = () -> {
 			try {
 				Thread.sleep(CHECK_END_OF_PROCESS);
 			} catch (InterruptedException e) {
-				LOGGER.error(null, e);
+				Thread.currentThread().interrupt();
+				return;
 			}
-
-			if (attachedThread != null && attachedThread.isReadyToStop()) {
-				if (!attachedThread.isDestroyed()) {
-					attachedThread.stopProcess();
+			synchronized (BufferedOutputFileImpl.this) {
+				if (buffer == null || readerGeneration != generation || !process.isReadyToStop()) {
+					return;
 				}
-
 				reset();
 			}
+			// stopProcess can call back into reset while holding the process lock.
+			if (!process.isDestroyed()) {
+				process.stopProcess();
+			}
 		};
-		new Thread(checkEnd, attachedThread + "-Cleanup").start();
+		new Thread(checkEnd, process + "-Cleanup").start();
 	}
 
 	@Override
@@ -842,6 +879,7 @@ public class BufferedOutputFileImpl extends OutputStream implements BufferedOutp
 		if (buffer != null) {
 			LOGGER.trace("Destroying buffer");
 			buffer = null;
+			signalReaders();
 		}
 
 		if (renderer != null) {

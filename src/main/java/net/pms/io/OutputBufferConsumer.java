@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 
 public class OutputBufferConsumer extends OutputConsumer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(OutputBufferConsumer.class);
-	private final BufferedOutputFile outputBuffer;
+	private final BufferedOutputFileImpl outputBuffer;
 
 	/**
 	 * Size of a buffer in bytes. The buffer is used to copy data from an
@@ -46,26 +46,16 @@ public class OutputBufferConsumer extends OutputConsumer {
 
 	@Override
 	public void run() {
-		try {
-			//LOGGER.trace("Starting read from pipe");
+		// The process may have exited while its last write is waiting for a reader.
+		// Publish EOF only after all bytes read from the pipe have reached the buffer.
+		try (InputStream source = inputStream; BufferedOutputFileImpl destination = outputBuffer) {
 			byte[] buf = new byte[PIPE_BUFFER_SIZE];
 			int n;
-			while ((n = inputStream.read(buf)) > 0) {
-				//LOGGER.trace("Fetched " + n + " from pipe");
-				outputBuffer.write(buf, 0, n);
+			while ((n = source.read(buf)) > 0) {
+				destination.write(buf, 0, n);
 			}
-			//LOGGER.debug("Finished to read");
 		} catch (IOException ioe) {
 			LOGGER.debug("Error consuming stream of spawned process: " + ioe.getMessage());
-		} finally {
-			//LOGGER.trace("Closing read from pipe");
-			if (inputStream != null) {
-				try {
-					inputStream.close();
-				} catch (IOException e) {
-					LOGGER.debug("Caught exception", e);
-				}
-			}
 		}
 	}
 
