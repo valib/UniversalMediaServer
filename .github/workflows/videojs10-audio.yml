@@ -21,7 +21,7 @@ permissions:
 jobs:
   audio:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -32,11 +32,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Build UMS and install media dependencies
+      - name: Install media dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg libmediainfo-dev pulseaudio pulseaudio-utils
-          mvn -B -P testing -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
+          sudo apt-get install -y --no-install-recommends ffmpeg libmediainfo-dev pulseaudio pulseaudio-utils
+      - name: Build UMS
+        run: mvn -B -P testing -DskipTests compile dependency:build-classpath -Dmdep.outputFile=target/audio-classpath
       - name: Build the opt-in client and install browsers
         working-directory: react-client
         run: |
