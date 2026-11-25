@@ -1,16 +1,21 @@
-import { Container, Hotkey, MuteButton, PlayButton, useAudioTrackOptions, useCaptionsOptions, useQualityOptions } from '@videojs/react'
+import { Container, createPlayer, Hotkey, MuteButton, PlayButton, useAudioTrackOptions, useCaptionsOptions, useQualityOptions, videoFeatures } from '@videojs/react'
 import type { HlsJsAdapter } from '@videojs/hlsjs-video'
-import { Video, VideoPlayer, usePlayer } from '@videojs/react/video'
+import { Video } from '@videojs/react/video'
 import { lazy, useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import CueAppearance from './CueAppearance'
 import NativeAudioSelect from './NativeAudioSelect'
 import PlayerFullscreenButton from './PlayerFullscreenButton'
 import type { VideoMedia } from '../../../services/player-service'
+import { deferBufferUntilMetadata } from './buffer'
 import useMediaSession, { type MediaSession } from './useMediaSession'
 import { isHlsVideo } from './hls'
 import './video.css'
 
 const UmsHlsVideo = lazy(() => import('./UmsHlsVideo'))
+const { Player: VideoPlayer, usePlayer } = createPlayer({
+  displayName: 'VideoPlayer',
+  features: videoFeatures.map(deferBufferUntilMetadata),
+})
 
 interface Props {
   uuid: string

@@ -99,15 +99,45 @@ test('HLS renditions match their advertised AVC codec and video segments join co
   }
 })
 
-async function expectVideoPlayback(video: Locator) {
-  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => {
-    if (v.currentTime > 1 && v.videoWidth > 0) return 'playing'
+async function expectVideoPlayback(video: Locator, resumePosition?: number) {
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement, resume) => {
+    const played = Array.from({ length: v.played.length }, (_, i) => [v.played.start(i), v.played.end(i)])
+    // A played range starting at the saved position distinguishes a resume seek from uninterrupted playback.
+    const advanced = played.some(([start, end]) => end - start > 0.2 && (resume === undefined || Math.abs(start - resume) < 0.5))
+    if (v.currentTime > 1 && v.videoWidth > 0 && !v.paused && !v.ended && !v.error && advanced) return 'playing'
     return {
-      time: v.currentTime, width: v.videoWidth, paused: v.paused, ready: v.readyState, error: v.error?.message,
+      time: v.currentTime, width: v.videoWidth, paused: v.paused, ready: v.readyState, played, error: v.error?.message,
       buffered: Array.from({ length: v.buffered.length }, (_, i) => [v.buffered.start(i), v.buffered.end(i)]),
     }
-  }), { timeout: 25000 }).toBe('playing')
+  }, resumePosition), { timeout: 25000 }).toBe('playing')
 }
+
+test('Play stays under a pressed pointer while HLS metadata loads', async ({ page, request }) => {
+  const { uuid, sample } = await findSample(page, request, 'HLS')
+  const manifestPath = '/v1/api/player/media/' + uuid + '/' + sample.id
+  const { promise: pointerDown, resolve: releaseManifest } = Promise.withResolvers<void>()
+  await page.route(url => url.pathname === manifestPath || url.pathname === manifestPath + '/master.m3u8', async (route) => {
+    await pointerDown
+    await route.continue()
+  }, { times: 1 })
+
+  const skin = page.locator('.ums-video-skin')
+  const play = skin.getByRole('button', { name: 'Play', exact: true })
+  const video = skin.locator('video')
+  try {
+    await page.goto('/player/play/' + sample.id)
+    await play.scrollIntoViewIfNeeded()
+    const box = (await play.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+  }
+  finally {
+    releaseManifest()
+  }
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(1)
+  await page.mouse.up()
+  await expectVideoPlayback(video)
+})
 
 async function getRenderer(request: APIRequestContext, uuid: string) {
   const response = await request.get(renderersUrl)
@@ -150,23 +180,19 @@ for (const source of ['HLS', 'direct']) {
     const skin = page.locator('.ums-video-skin')
     const video = skin.locator('video')
     await skin.getByRole('button', { name: 'Play', exact: true }).click()
-    await expectVideoPlayback(video)
+    await expectVideoPlayback(video, source === 'direct' ? 14 : undefined)
     if (coldStart) expect((await firstSegment?.response())?.status()).toBe(200)
-    if (source === 'direct') {
-      // The sample starts at zero. Reaching 14 seconds here requires a resume seek.
-      await expect.poll(() => video.evaluate(v => v.currentTime), { timeout: 5000 }).toBeGreaterThan(14.2)
-    }
     await expect(page.locator('style.vjs-styles-defaults')).toHaveCount(0)
     const rendererId = await playingRendererId(request, uuid)
     await control(request, rendererId, 'pause')
     await expect(video).toHaveJSProperty('paused', true)
     await expect.poll(async () => (await getRenderer(request, uuid))?.state.playback).toBe(2)
     await skin.getByRole('combobox', { name: 'Chapter' }).selectOption({ label: 'Second chapter' })
-    await expect.poll(() => video.evaluate(v => v.currentTime)).toBeCloseTo(12, 0)
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeCloseTo(12, 0)
     await expect.poll(async () => (await getRenderer(request, uuid))?.state.position).toBe('00:00:12')
     if (source === 'direct') {
       const captions = skin.getByRole('combobox').filter({ has: page.getByRole('option', { name: 'Off', exact: true }) })
-      const activeCues = () => video.evaluate(v => Array.from(v.textTracks)
+      const activeCues = () => video.evaluate((v: HTMLVideoElement) => Array.from(v.textTracks)
         .filter(track => track.kind === 'subtitles' && track.mode === 'showing')
         .flatMap(track => Array.from(track.activeCues || [], cue => (cue as VTTCue).text)))
       await captions.selectOption({ label: 'Czech' })
@@ -177,11 +203,11 @@ for (const source of ['HLS', 'direct']) {
       await expect.poll(activeCues).toEqual([])
     }
     await control(request, rendererId, 'play')
-    await expect.poll(() => video.evaluate(v => v.currentTime)).toBeGreaterThan(13)
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(13)
     await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('href', '/v1/api/player/download/' + uuid + '/' + sample.id)
     if (source === 'direct') {
       const url = '/v1/api/player/media/' + uuid + '/' + sample.id
-      expect(await video.evaluate(v => new URL(v.currentSrc).pathname)).toBe(url)
+      expect(await video.evaluate((v: HTMLVideoElement) => new URL(v.currentSrc).pathname)).toBe(url)
       const full = await request.get(url)
       expect(full.status()).toBe(200)
       expect(full.headers()['content-type']).toMatch(/^video\/mp4/)
@@ -211,6 +237,8 @@ test('the legacy player loads on demand and accepts UMS remote controls', async 
     const response = await route.fetch()
     const data = await response.json()
     data.medias[0].mime = 'video/vnd.apple.mpegurl'
+    // The earlier HLS scenario saves its position in this same file.
+    data.medias[0].resumePosition = 0
     await route.fulfill({ response, json: data })
   }, { times: 1 })
   await page.goto('/player/play/' + sample.id)
@@ -221,7 +249,7 @@ test('the legacy player loads on demand and accepts UMS remote controls', async 
   await expectVideoPlayback(video)
   const id = await playingRendererId(request, uuid)
   await control(request, id, 'volume', 37)
-  await expect.poll(() => video.evaluate(v => v.volume)).toBeCloseTo(0.37)
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.volume)).toBeCloseTo(0.37)
   await control(request, id, 'pause')
   await expect(video).toHaveJSProperty('paused', true)
   await expect.poll(async () => (await getRenderer(request, uuid))?.state.playback).toBe(2)

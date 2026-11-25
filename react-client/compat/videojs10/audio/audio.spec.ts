@@ -34,8 +34,11 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
   const playResponse = page.waitForResponse(response => response.url().endsWith('/v1/api/player/play'))
   const mediaPath = '/v1/api/player/media/' + uuid + '/' + tracks[0].id
   let mediaResponses = 0
+  let seekable = false
   page.on('response', (response) => {
-    if (response.status() >= 200 && response.status() < 300 && new URL(response.url()).pathname === mediaPath) mediaResponses++
+    if (new URL(response.url()).pathname !== mediaPath || response.status() < 200 || response.status() >= 300) return
+    mediaResponses++
+    if (response.headers()['accept-ranges'] === 'bytes') seekable = true
   })
   await page.route('**/v1/api/player/browse', async (route) => {
     const previousListing = await route.fetch()
@@ -50,16 +53,18 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
   const cover = page.locator('img').filter({ visible: true }).and(page.locator('[src$="/thumbnail/' + uuid + '/' + tracks[0].id + '"]'))
   await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
   await expect(audio).toHaveAttribute('preload', medias[0].isTranscoded ? 'none' : 'metadata')
+  const originalAudio = await audio.elementHandle()
   if (medias[0].isTranscoded) expect(mediaResponses).toBe(0)
   await page.getByRole('button', { name: 'Play', exact: true }).click()
-  await expect.poll(() => audio.evaluate((el) => {
-    if (el.error) throw Error(el.error.message || 'Media error ' + el.error.code)
-    if (el.currentTime > 1) return 'playing'
-    return { time: el.currentTime, duration: el.duration, ready: el.readyState, paused: el.paused, ended: el.ended }
-  }), { timeout: 25000 }).toBe('playing')
-  await expect(cover).toBeVisible()
-  const originalAudio = await audio.elementHandle()
-
+  await expect(async () => {
+    const state = await audio.evaluate((el: HTMLAudioElement) => {
+      if (el.error) throw Error(el.error.message || 'Media error ' + el.error.code)
+      return { time: el.currentTime, duration: el.duration, ready: el.readyState, paused: el.paused, ended: el.ended }
+    })
+    expect(state).toMatchObject({ paused: false, ended: false })
+    expect(state.time).toBeGreaterThan(1)
+    if (seekable) expect(state.duration).toBeCloseTo(30, 0)
+  }).toPass({ timeout: 25000 })
   const renderers = 'http://127.0.0.1:9001/v1/api/renderers/'
   const getRenderer = async () => {
     const response = await request.get(renderers)
@@ -72,28 +77,32 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
     const response = await request.post(renderers + 'control', { data: { id, action, value } })
     expect(response.ok()).toBeTruthy()
   }
+  // Keep the same track and position while checking remote controls and reconnecting.
+  await control('pause')
+  await expect(audio).toHaveJSProperty('paused', true)
+  await expect.poll(async () => (await getRenderer())?.state.playback).toBe(2)
+  await expect(cover).toBeVisible()
   await control('volume', 37)
-  await expect.poll(() => audio.evaluate(el => el.volume)).toBeCloseTo(0.37)
+  await expect.poll(() => audio.evaluate((el: HTMLAudioElement) => el.volume)).toBeCloseTo(0.37)
   await expect.poll(async () => (await getRenderer())?.state.volume).toBe(37)
   await control('mute')
   await expect.poll(async () => (await getRenderer())?.state.mute).toBe(true)
-  await control('pause')
-  await expect.poll(async () => (await getRenderer())?.state.playback).toBe(2)
-  const position = await audio.evaluate(el => el.currentTime.toFixed(0))
+  const position = await audio.evaluate((el: HTMLAudioElement) => el.currentTime.toFixed(0))
   await expect.poll(async () => (await getRenderer())?.state.position).toBe('00:00:' + position.padStart(2, '0'))
   const previousConnection = connections[connections.length - 1]
   await previousConnection.disconnect()
   await expect.poll(() => {
     const current = connections[connections.length - 1]
-    return current !== previousConnection && current.reports.some(report => report.uuid === uuid && report.id === tracks[0].id
-      && report.playback === 'PAUSED' && report.position === position && report.volume === '37' && report.mute === '1')
-  }).toBe(true)
+    return current === previousConnection ? [] : current.reports
+  }).toContainEqual(expect.objectContaining({
+    uuid, id: tracks[0].id, playback: 'PAUSED', position, volume: '37', mute: '1',
+  }))
   expect(await originalAudio!.evaluate(el => el.isConnected)).toBe(true)
   await control('play')
   await expect.poll(async () => (await getRenderer())?.state.playback).toBe(1)
   await control('stop')
   await expect.poll(async () => (await getRenderer())?.state.playback).toBe(0)
-  await expect.poll(() => audio.evaluate(el => el.paused)).toBe(true)
+  await expect.poll(() => audio.evaluate((el: HTMLAudioElement) => el.paused)).toBe(true)
 
   await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('href', '/v1/api/player/download/' + uuid + '/' + tracks[0].id)
   await control('play')
@@ -112,13 +121,22 @@ test('audio cover, controls and playback status on the UMS server', async ({ pag
   if (medias[0].isTranscoded && medias[0].mime === 'audio/mpeg') {
     const stream = await request.get(mediaPath)
     expect(stream.ok()).toBe(true)
-    // A non-seekable MP3 response must begin with an MPEG audio frame.
     const bytes = await stream.body()
     expect(bytes.readUInt16BE(0) & 0xffe0).toBe(0xffe0)
-    expect(stream.headers()['content-length']).toBe(String(bytes.length))
+    const headers = stream.headers()
+    // FFmpeg may still be encoding when UMS sends the headers for the first request.
+    if (headers['accept-ranges'] === 'none') {
+      expect(headers['transfer-encoding']).toBe('chunked')
+      expect(headers['content-length']).toBeUndefined()
+    }
+    else {
+      expect(headers['accept-ranges']).toBe('bytes')
+      expect(headers['content-length']).toBe(String(bytes.length))
+    }
     const tail = await request.get(mediaPath, { headers: { Range: 'bytes=45-' } })
     expect(tail.status()).toBe(206)
     expect(tail.headers()['content-range']).toBe('bytes 45-' + (bytes.length - 1) + '/' + bytes.length)
+    expect(tail.headers()['content-length']).toBe(String(bytes.length - 45))
     expect(await tail.body()).toEqual(bytes.subarray(45))
   }
 })

@@ -1,13 +1,20 @@
-import { Audio, AudioPlayer, CompatAudioSkin } from '@videojs/react/audio'
+import { audioFeatures, createPlayer } from '@videojs/react'
+import { Audio, CompatAudioSkin } from '@videojs/react/audio'
 import '@videojs/react/audio/compat-skin.css'
 import { lazy, useState } from 'react'
 
 import type { AudioMedia, PlayerInterface, VideoMedia, VideoPlayerOption } from '../../../services/player-service'
 import { playerApiUrl } from '../../../utils'
+import { deferBufferUntilMetadata } from './buffer'
 import { prefersNativeHls } from './hls'
 import useMediaSession, { type MediaSession } from './useMediaSession'
 
 const UmsVideoPlayer = lazy(() => import('./UmsVideoPlayer'))
+
+const { Player: AudioPlayer } = createPlayer({
+  displayName: 'AudioPlayer',
+  features: audioFeatures.map(deferBufferUntilMetadata),
+})
 
 type Props = Pick<VideoPlayerOption, 'sendJsonMessage'> & {
   media: AudioMedia | VideoMedia
