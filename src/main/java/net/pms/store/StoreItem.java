@@ -16,6 +16,8 @@
  */
 package net.pms.store;
 
+import java.io.BufferedInputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -50,6 +52,7 @@ import net.pms.io.BufferedOutputFile.ReleasedBufferException;
 import net.pms.io.OutputParams;
 import net.pms.io.ProcessWrapper;
 import net.pms.io.SizeLimitInputStream;
+import net.pms.io.WaitBufferedInputStream;
 import net.pms.media.MediaInfo;
 import net.pms.media.MediaLang;
 import net.pms.media.MediaType;
@@ -75,6 +78,7 @@ import net.pms.util.MpegUtil;
 import net.pms.util.Range;
 import net.pms.util.SubtitleUtils;
 import net.pms.util.TimeRange;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -982,7 +986,8 @@ public abstract class StoreItem extends StoreResource {
 		try {
 			return openTranscodeStream(externalProcess, low, newlyStarted);
 		} catch (ReleasedBufferException | DiscardedPositionException e) {
-			if (newlyStarted || (e instanceof DiscardedPositionException && !(this instanceof RealFile))) {
+			boolean replayDiscardedRange = e instanceof DiscardedPositionException;
+			if (newlyStarted || (replayDiscardedRange && !(this instanceof RealFile))) {
 				throw e;
 			}
 			// Cleanup can release the buffer before the process reports that it stopped.
@@ -991,24 +996,49 @@ public abstract class StoreItem extends StoreResource {
 			if (replacement == null) {
 				return null;
 			}
-			InputStream stream;
+			InputStream stream = null;
 			try {
 				stream = openTranscodeStream(replacement, low, true);
+				if (stream == null) {
+					return null;
+				}
+				if (replayDiscardedRange) {
+					stream = verifyReplayData(stream, low);
+				}
 			} catch (IOException | RuntimeException openFailure) {
-				replacement.stopProcess();
+				try {
+					replacement.stopProcess();
+				} finally {
+					IOUtils.closeQuietly(stream, openFailure::addSuppressed);
+				}
 				throw openFailure;
-			}
-			if (stream == null) {
-				return null;
 			}
 			externalProcess = replacement;
 			UmsConfiguration config = renderer.getUmsConfiguration();
-			if (e instanceof DiscardedPositionException && config.getTrancodeBlocksMultipleConnections() &&
+			if (replayDiscardedRange && config.getTrancodeBlocksMultipleConnections() &&
 				!config.getTrancodeKeepFirstConnections()) {
 				previousProcess.stopProcess();
 			}
 			return stream;
 		}
+	}
+
+	private static InputStream verifyReplayData(InputStream stream, long position) throws IOException {
+		int firstByte;
+		if (stream instanceof WaitBufferedInputStream buffered) {
+			firstByte = buffered.peek();
+		} else {
+			if (!stream.markSupported()) {
+				stream = new BufferedInputStream(stream);
+			}
+			stream.mark(1);
+			firstByte = stream.read();
+			stream.reset();
+		}
+		if (firstByte < 0) {
+			throw new EOFException("Replacement transcode has no data at byte " + position);
+		}
+		return stream;
 	}
 
 	private ProcessWrapper startTranscode(OutputParams params) throws IOException {

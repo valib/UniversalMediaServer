@@ -19,8 +19,10 @@ package net.pms.encoders;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -64,6 +66,7 @@ class TranscodeReconnectTest {
 		private final List<ProcessWrapper> processes = new ArrayList<>();
 		private BufferedOutputFileImpl output;
 		private boolean failNextOpen;
+		private boolean emptyNextOutput;
 
 		@Override
 		public ProcessWrapper launchTranscode(StoreItem resource, MediaInfo media, OutputParams params) throws IOException {
@@ -73,7 +76,12 @@ class TranscodeReconnectTest {
 			params.setWaitBeforeStart(0);
 			params.setHideBuffer(true);
 			var buffer = new BufferedOutputFileImpl(params);
-			buffer.write(new byte[]{(byte) (processes.size() + 1), 20, 30});
+			if (emptyNextOutput) {
+				buffer.close();
+				emptyNextOutput = false;
+			} else {
+				buffer.write(new byte[]{(byte) (processes.size() + 1), 20, 30});
+			}
 			output = buffer;
 			boolean failOpen = failNextOpen;
 			failNextOpen = false;
@@ -152,16 +160,23 @@ class TranscodeReconnectTest {
 			assertTrue(engine.processes.get(1).isDestroyed());
 			assertEquals(40, first.read());
 
+			engine.emptyNextOutput = true;
+			assertThrows(EOFException.class, () -> item.getInputStream(new ByteRange()));
+			assertFalse(engine.processes.get(0).isDestroyed());
+			assertTrue(engine.processes.get(2).isDestroyed());
+			assertNull(engine.output.getCurrentInputStream());
+			assertEquals(41, first.read());
+
 			try (InputStream retained = item.getInputStream(new ByteRange(3L, null))) {
 				assertEquals(40, retained.read());
 				try (InputStream replay = item.getInputStream(new ByteRange())) {
 					engine.output.close();
-					assertArrayEquals(new byte[]{3, 20, 30}, replay.readAllBytes());
+					assertArrayEquals(new byte[]{4, 20, 30}, replay.readAllBytes());
 				}
 				assertEquals(exclusive, engine.processes.get(0).isDestroyed());
 				assertEquals(exclusive ? -1 : 41, retained.read());
 			}
-			assertEquals(3, engine.processes.size());
+			assertEquals(4, engine.processes.size());
 		}
 	}
 }

@@ -51,11 +51,16 @@ public class WaitBufferedInputStream extends InputStream {
 		return outputStream.getCompleteLength();
 	}
 
-	@Override
-	public int read() throws IOException {
+	/** Reads the next byte without advancing this reader in the transcode buffer. */
+	public int peek() throws IOException {
 		ensureOpen();
 		outputStream.awaitData(this);
-		int r = outputStream.read(firstRead, getReadCount());
+		return outputStream.read(firstRead, getReadCount());
+	}
+
+	@Override
+	public int read() throws IOException {
+		int r = peek();
 		if (r != -1) {
 			setReadCount(getReadCount() + 1);
 		}
