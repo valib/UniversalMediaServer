@@ -15,6 +15,16 @@ async function findSample(page: Page, request: APIRequestContext, source: string
   return { uuid, sample }
 }
 
+// UMS persists the shared sample's position between tests.
+async function configureVideoSample(page: Page, playback: { resumePosition: number, mime?: string }) {
+  await page.route('**/v1/api/player/play', async (route) => {
+    const response = await route.fetch()
+    const data = await response.json()
+    Object.assign(data.medias[0], playback)
+    await route.fulfill({ response, json: data })
+  }, { times: 1 })
+}
+
 test('a second request can replay a transcoded file after the audio buffer wraps', async ({ page, request }) => {
   const { uuid, sample } = await findSample(page, request, 'long audio')
   const play = await request.post('/v1/api/player/play', { headers: { Player: uuid }, data: { uuid, id: sample.id, lang: 'en' } })
@@ -114,6 +124,7 @@ async function expectVideoPlayback(video: Locator, resumePosition?: number) {
 
 test('Play stays under a pressed pointer while HLS metadata loads', async ({ page, request }) => {
   const { uuid, sample } = await findSample(page, request, 'HLS')
+  await configureVideoSample(page, { resumePosition: 0 })
   const manifestPath = '/v1/api/player/media/' + uuid + '/' + sample.id
   const { promise: pointerDown, resolve: releaseManifest } = Promise.withResolvers<void>()
   await page.route(url => url.pathname === manifestPath || url.pathname === manifestPath + '/master.m3u8', async (route) => {
@@ -167,14 +178,7 @@ for (const source of ['HLS', 'direct']) {
         await route.continue()
       }, { times: 1 })
     }
-    if (source === 'direct') {
-      await page.route('**/v1/api/player/play', async (route) => {
-        const response = await route.fetch()
-        const data = await response.json()
-        data.medias[0].resumePosition = 14
-        await route.fulfill({ response, json: data })
-      }, { times: 1 })
-    }
+    await configureVideoSample(page, { resumePosition: source === 'direct' ? 14 : 0 })
     await page.goto('/player/play/' + sample.id)
 
     const skin = page.locator('.ums-video-skin')
@@ -230,17 +234,19 @@ for (const source of ['HLS', 'direct']) {
 
 test('the legacy player loads on demand and accepts UMS remote controls', async ({ page, request }) => {
   const { uuid, sample } = await findSample(page, request, 'HLS')
+  const commands: string[] = []
+  page.on('websocket', (socket) => {
+    if (new URL(socket.url()).pathname !== '/v1/api/ws') return
+    socket.on('framereceived', ({ payload }) => {
+      if (typeof payload !== 'string' || !payload.startsWith('{')) return
+      const message = JSON.parse(payload)
+      if (message.action === 'player') commands.push(message.data.request)
+    })
+  })
   const legacyStyles = page.locator('style.vjs-styles-defaults')
   await expect(legacyStyles).toHaveCount(0)
   // VHS accepts this HLS MIME alias even on browsers that do not advertise native playback for it.
-  await page.route('**/v1/api/player/play', async (route) => {
-    const response = await route.fetch()
-    const data = await response.json()
-    data.medias[0].mime = 'video/vnd.apple.mpegurl'
-    // The earlier HLS scenario saves its position in this same file.
-    data.medias[0].resumePosition = 0
-    await route.fulfill({ response, json: data })
-  }, { times: 1 })
+  await configureVideoSample(page, { resumePosition: 0, mime: 'video/vnd.apple.mpegurl' })
   await page.goto('/player/play/' + sample.id)
   const legacy = page.locator('.video-js')
   const video = legacy.locator('video')
@@ -253,6 +259,11 @@ test('the legacy player loads on demand and accepts UMS remote controls', async 
   await control(request, id, 'pause')
   await expect(video).toHaveJSProperty('paused', true)
   await expect.poll(async () => (await getRenderer(request, uuid))?.state.playback).toBe(2)
+  const beforePlay = commands.length
   await control(request, id, 'play')
-  await expect(video).toHaveJSProperty('paused', false)
+  await expect.poll(() => commands.slice(beforePlay), { message: 'Remote Play arrives on the player WebSocket' }).toContain('play')
+  await expect(video, 'The legacy player resumes after receiving Play').toHaveJSProperty('paused', false)
+  const resumedAt = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { message: 'Video advances after remote Play' }).toBeGreaterThan(resumedAt + 0.2)
+  await expect.poll(async () => (await getRenderer(request, uuid))?.state.playback).toBe(1)
 })
