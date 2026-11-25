@@ -27,6 +27,7 @@ on:
       - 'react-client/package.json'
       - 'react-client/vite.config.ts'
       - 'react-client/yarn.lock'
+      - '.github/videojs10-maven-settings.xml'
       - '.github/workflows/videojs10-audio.yml'
   workflow_dispatch:
 
@@ -63,10 +64,10 @@ jobs:
         if: matrix.browser == 'webkit'
         run: sudo apt-get install -y --no-install-recommends gstreamer1.0-gl xvfb xauth
       - name: Build UMS
-        run: mvn -B -P testing -DskipTests compile org.apache.maven.plugins:maven-dependency-plugin:3.11.0:build-classpath -Dmdep.outputFile=target/audio-classpath
+        run: mvn -B -s .github/videojs10-maven-settings.xml -P testing -DskipTests compile org.apache.maven.plugins:maven-dependency-plugin:3.11.0:build-classpath -Dmdep.outputFile=target/audio-classpath
       - name: Check transcode reconnects, buffer reads, timestamps and HLS encoder options
         if: matrix.browser == 'chromium'
-        run: mvn -B -P testing -Dtest=BufferedOutputFileImplTest,FFmpegHlsSubtitlesTest,TranscodeReconnectTest test
+        run: mvn -B -s .github/videojs10-maven-settings.xml -P testing -Dtest=BufferedOutputFileImplTest,FFmpegHlsSubtitlesTest,TranscodeReconnectTest test
       - name: Build the production client and install browsers
         working-directory: react-client
         run: |
