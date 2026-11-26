@@ -18,19 +18,24 @@ permissions:
 
 jobs:
   safari:
-    name: Safari (${{ matrix.platform }}, ${{ matrix.os }}, ${{ matrix.engine }})
+    name: Safari MSE on ARM macOS 15 (${{ matrix.input }})
     runs-on: ${{ matrix.os }}
+    env:
+      UMS_SAFARI_DESKTOP: ${{ matrix.input == 'desktop' && '1' || '0' }}
+      UMS_SAFARI_AUDIBLE: ${{ matrix.input == 'audible' && '1' || '0' }}
     timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { platform: macos, os: macos-15, engine: native }
-          - { platform: macos, os: macos-15-intel, engine: mse }
-          - { platform: macos, os: macos-26, engine: both }
-          - { platform: ios, os: macos-15, engine: both }
+          - { platform: macos, os: macos-15, engine: mse, input: webdriver }
+          - { platform: macos, os: macos-15, engine: mse, input: desktop }
+          - { platform: macos, os: macos-15, engine: mse, input: audible }
     steps:
       - uses: actions/checkout@v4
+      - name: Install mouse input for ordinary Safari
+        if: matrix.input == 'desktop'
+        run: brew install cliclick
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -83,5 +88,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: safari-${{ matrix.platform }}-${{ matrix.os }}-results
+          name: safari-mse-${{ matrix.input }}-results
           path: react-client/test-results/safari-*/
