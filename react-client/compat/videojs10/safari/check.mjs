@@ -98,7 +98,19 @@ try {
     return input && { native: input.checked }
   }))
   assert.ok(preference.native, 'Safari should start on the native HLS path')
-  if (mode === 'mse') await click('//label[contains(., "Prefer native HLS")]/input')
+  if (mode === 'mse') {
+    assert.ok(await evaluate(() => {
+      if (typeof globalThis.ManagedMediaSource !== 'function') return false
+      const createObjectURL = URL.createObjectURL.bind(URL)
+      URL.createObjectURL = (object) => {
+        const url = createObjectURL(object)
+        if (object instanceof globalThis.ManagedMediaSource) document.documentElement.dataset.managedMediaUrl = url
+        return url
+      }
+      return true
+    }), 'Safari must provide ManagedMediaSource')
+    await click('//label[contains(., "Prefer native HLS")]/input')
+  }
   report.stage = 'browse sample'
   await click(button('Media'))
   await click('//button[starts-with(normalize-space(.), "UMS HLS sample")]')
@@ -110,6 +122,15 @@ try {
     if (video.muted !== muted) video.muted = muted
     return video.readyState >= video.HAVE_METADATA
   }, process.env.UMS_SAFARI_AUDIBLE !== '1'))
+  if (mode === 'mse') {
+    report.stage = 'verify the selected media source'
+    await until(report.stage, () => evaluate(() => {
+      const url = document.documentElement.dataset.managedMediaUrl
+      return url?.startsWith('blob:') && url === document.querySelector('video')?.currentSrc
+    }))
+    report.mediaSource = 'ManagedMediaSource'
+    console.log('Verified hls.js is using ManagedMediaSource')
+  }
   report.stage = 'start playback'
   await click(button('Play'))
   await check(mode + ' UMS HLS decodes and playback advances', async () => {

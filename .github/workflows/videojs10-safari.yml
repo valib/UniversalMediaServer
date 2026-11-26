@@ -2,10 +2,6 @@ name: Safari HLS compatibility
 on:
   push:
     branches:
-      - 'migration/videojs-10-hls-check'
-      - 'migration/videojs-10-hls-check-clean'
-      - 'migration/videojs-10-ci-review'
-      - 'migration/videojs-10-ci-candidate'
       - 'migration/videojs-10-arm-check-c4ea768'
     paths:
       - 'react-client/**'
@@ -18,8 +14,12 @@ permissions:
 
 jobs:
   safari:
-    name: Safari MSE on one macOS 15 ARM runner
-    runs-on: macos-15
+    name: Safari managed media source (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
     timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +31,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Record the browser and runner versions
+        run: |
+          test "$(uname -m)" = arm64
+          sw_vers
+          safaridriver --version
       - name: Prepare native media dependencies
         run: brew install ffmpeg libmediainfo
       - name: Build server and resolve the Java runtime classpath
@@ -42,54 +47,11 @@ jobs:
           node .yarn/releases/yarn-*.cjs install --immutable
           node .yarn/releases/yarn-*.cjs build
           node .yarn/releases/yarn-*.cjs build:videojs10
-      - name: Play the sample with the alternate Core Audio output
-        if: ${{ !cancelled() && steps.client.outcome == 'success' }}
+      - name: Play the sample through hls.js and ManagedMediaSource
         timeout-minutes: 15
-        run: |
-          brew install switchaudio-osx
-          previous_output=$(SwitchAudioSource -t output -c)
-          SwitchAudioSource -t output -s 'Null Audio Device'
-          test "$(SwitchAudioSource -t output -c)" = 'Null Audio Device'
-          trap 'SwitchAudioSource -t output -s "$previous_output"' EXIT
-          result=0
-          bash react-client/compat/videojs10/safari/ci-server.sh macos mse || result=$?
-          mv react-client/test-results/safari-macos react-client/test-results/safari-audio-output
-          exit "$result"
-      - name: Play the sample with audio enabled
-        if: ${{ !cancelled() && steps.client.outcome == 'success' }}
-        timeout-minutes: 15
-        run: |
-          if pgrep -x Safari >/dev/null; then
-            killall -TERM Safari
-            for i in {1..15}; do
-              if ! pgrep -x Safari >/dev/null; then break; fi
-              sleep 1
-            done
-            if pgrep -x Safari >/dev/null; then exit 1; fi
-          fi
-          result=0
-          UMS_SAFARI_AUDIBLE=1 bash react-client/compat/videojs10/safari/ci-server.sh macos mse || result=$?
-          mv react-client/test-results/safari-macos react-client/test-results/safari-audible
-          exit "$result"
-      - name: Play the sample in an ordinary Safari window
-        if: ${{ !cancelled() && steps.client.outcome == 'success' }}
-        timeout-minutes: 15
-        run: |
-          if pgrep -x Safari >/dev/null; then
-            killall -TERM Safari
-            for i in {1..15}; do
-              if ! pgrep -x Safari >/dev/null; then break; fi
-              sleep 1
-            done
-            if pgrep -x Safari >/dev/null; then exit 1; fi
-          fi
-          brew install cliclick
-          result=0
-          UMS_SAFARI_DESKTOP=1 bash react-client/compat/videojs10/safari/ci-server.sh macos mse || result=$?
-          mv react-client/test-results/safari-macos react-client/test-results/safari-desktop
-          exit "$result"
+        run: bash react-client/compat/videojs10/safari/ci-server.sh macos mse
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: safari-mse-comparison
+          name: safari-managed-${{ matrix.os }}
           path: react-client/test-results/safari-*/
