@@ -193,7 +193,7 @@ try {
     await click(button('Fullscreen'))
     report.fullscreen = await until('fullscreen', async () => {
       const v = await state()
-      return v.fullscreen !== 'inline' && v.cues.length && v.fullscreen
+      return v.fullscreen !== 'inline' && v.cues.some(cue => /^(První|Druhá) česká stopa$/.test(cue)) && v.fullscreen
     })
     await screenshot('fullscreen')
     if (report.fullscreen === 'document') await click(button('Fullscreen'))
