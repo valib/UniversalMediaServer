@@ -6,6 +6,7 @@ on:
       - 'migration/videojs-10-hls-check-clean'
       - 'migration/videojs-10-ci-review'
       - 'migration/videojs-10-ci-candidate'
+      - 'migration/videojs-10-arm-check-c4ea768'
     paths:
       - 'react-client/**'
       - 'src/main/**'
@@ -20,19 +21,24 @@ jobs:
     name: Safari (${{ matrix.platform }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     env:
-      UMS_SAFARI_DESKTOP: ${{ matrix.os == 'macos-26-intel' && '1' || '0' }}
+      UMS_SAFARI_DESKTOP: ${{ matrix.os == 'macos-26' && '1' || '0' }}
     timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { platform: macos, os: macos-15-intel }
-          - { platform: macos, os: macos-26-intel }
-          - { platform: ios, os: macos-15-intel }
+          - { platform: macos, os: macos-15 }
+          - { platform: macos, os: macos-26 }
+          - { platform: ios, os: macos-15 }
     steps:
       - uses: actions/checkout@v4
+      - name: Inspect the ARM runner and its media devices
+        run: |
+          uname -m
+          test "$(uname -m)" = arm64
+          system_profiler SPAudioDataType SPDisplaysDataType
       - name: Install desktop mouse input for Safari on macOS 26
-        if: matrix.os == 'macos-26-intel'
+        if: matrix.os == 'macos-26'
         run: brew install cliclick
       - uses: actions/setup-java@v4
         with:
