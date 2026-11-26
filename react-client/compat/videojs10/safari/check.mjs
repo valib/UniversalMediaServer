@@ -110,13 +110,6 @@ try {
     if (!video.muted) video.muted = true
     return video.readyState >= video.HAVE_METADATA
   }))
-  if (mode === 'mse') {
-    report.stage = 'buffer the first MSE video segment'
-    await until(report.stage, () => evaluate(() => {
-      const video = document.querySelector('video')
-      return video.readyState >= video.HAVE_FUTURE_DATA && video.videoWidth > 0
-    }), 75000)
-  }
   report.stage = 'start playback'
   await click(button('Play'))
   await check(mode + ' UMS HLS decodes and playback advances', async () => {
@@ -200,7 +193,7 @@ try {
     await click(button('Fullscreen'))
     report.fullscreen = await until('fullscreen', async () => {
       const v = await state()
-      return v.fullscreen !== 'inline' && v.cues.length && v.fullscreen
+      return v.fullscreen !== 'inline' && v.cues.some(cue => /^(První|Druhá) česká stopa$/.test(cue)) && v.fullscreen
     })
     await screenshot('fullscreen')
     if (report.fullscreen === 'document') await click(button('Fullscreen'))

@@ -18,21 +18,19 @@ permissions:
 
 jobs:
   safari:
-    name: Safari (${{ matrix.platform }}, ${{ matrix.os }})
+    name: Safari (${{ matrix.platform }}, ${{ matrix.os }}, ${{ matrix.engine }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { platform: macos, os: macos-15 }
+          - { platform: macos, os: macos-15, engine: native }
+          - { platform: macos, os: macos-15-intel, engine: mse }
+          - { platform: macos, os: macos-26, engine: both }
+          - { platform: ios, os: macos-15, engine: both }
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect the ARM runner and its media devices
-        run: |
-          uname -m
-          test "$(uname -m)" = arm64
-          system_profiler SPAudioDataType SPDisplaysDataType
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -60,11 +58,11 @@ jobs:
           node .yarn/releases/yarn-*.cjs build
           node .yarn/releases/yarn-*.cjs build:videojs10
       - name: Play the sample with native HLS on macOS
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && matrix.engine != 'mse'
         timeout-minutes: 15
         run: bash react-client/compat/videojs10/safari/ci-server.sh macos native
       - name: Play the sample with hls.js (MSE) on macOS
-        if: ${{ !cancelled() && matrix.platform == 'macos' && steps.client.outcome == 'success' }}
+        if: ${{ !cancelled() && matrix.platform == 'macos' && matrix.engine != 'native' && steps.client.outcome == 'success' }}
         timeout-minutes: 15
         run: bash react-client/compat/videojs10/safari/ci-server.sh macos mse
       - name: Wait for the iPhone and install touch input
