@@ -51,6 +51,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 import net.pms.dlna.DidlHelper;
+import net.pms.network.mediaserver.SamsungAviProbe;
 import net.pms.network.mediaserver.handlers.BaseSearchRequestHandler;
 import net.pms.network.mediaserver.handlers.DbSearchRequestHandler;
 import net.pms.network.mediaserver.handlers.LuceneSearchRequestHandler;
@@ -851,6 +852,9 @@ public class UmsContentDirectoryService {
 		LOGGER.trace("DIDL result created");
 		if (renderer.getUmsConfiguration().isUpnpDebugMediaServer()) {
 			logDidlLiteResult(result);
+		}
+		if (browseFlag == BrowseFlag.METADATA && count == 1 && resultResources.get(fromIndex) instanceof StoreItem item) {
+			SamsungAviProbe.browsedMetadata(renderer, item);
 		}
 		LOGGER.trace("Returning browse result");
 		return new BrowseResult(result, count, totalMatches, containerUpdateID);
