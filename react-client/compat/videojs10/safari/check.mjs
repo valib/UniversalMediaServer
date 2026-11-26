@@ -103,7 +103,7 @@ try {
   await click(button('Media'))
   await click('//button[starts-with(normalize-space(.), "UMS HLS sample")]')
   report.stage = 'load playlist metadata'
-  await until('playlist metadata', () => evaluate(muted => {
+  await until('playlist metadata', () => evaluate((muted) => {
     const video = document.querySelector('video')
     if (!video) return false
     // Match the ordinary simulator session on hosts without an audio output.

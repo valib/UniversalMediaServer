@@ -31,8 +31,15 @@ jobs:
           - { platform: macos, os: macos-15, engine: mse, input: webdriver }
           - { platform: macos, os: macos-15, engine: mse, input: desktop }
           - { platform: macos, os: macos-15, engine: mse, input: audible }
+          - { platform: macos, os: macos-15, engine: mse, input: virtual-output }
     steps:
       - uses: actions/checkout@v4
+      - name: Select the runner's alternate Core Audio output
+        if: matrix.input == 'virtual-output'
+        run: |
+          brew install switchaudio-osx
+          SwitchAudioSource -t output -s 'Null Audio Device'
+          test "$(SwitchAudioSource -t output -c)" = 'Null Audio Device'
       - name: Install mouse input for ordinary Safari
         if: matrix.input == 'desktop'
         run: brew install cliclick
