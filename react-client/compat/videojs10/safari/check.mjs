@@ -110,6 +110,13 @@ try {
     if (!video.muted) video.muted = true
     return video.readyState >= video.HAVE_METADATA
   }))
+  if (mode === 'mse') {
+    report.stage = 'buffer the first MSE video segment'
+    await until(report.stage, () => evaluate(() => {
+      const video = document.querySelector('video')
+      return video.readyState >= video.HAVE_FUTURE_DATA && video.videoWidth > 0
+    }), 75000)
+  }
   report.stage = 'start playback'
   await click(button('Play'))
   await check(mode + ' UMS HLS decodes and playback advances', async () => {
