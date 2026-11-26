@@ -3,17 +3,23 @@ package net.pms.store.item;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.DriverManager;
 import java.util.HashMap;
 import java.util.HashSet;
 import net.pms.PMS;
 import net.pms.configuration.UmsConfiguration;
 import net.pms.database.MediaTableStoreIds;
+import net.pms.media.MediaInfo;
 import net.pms.media.subtitle.MediaSubtitle;
 import net.pms.store.container.ChapterFileTranscodeVirtualFolder;
 import net.pms.store.container.FileTranscodeVirtualFolder;
+import net.pms.util.SubtitleUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class RealFileExternalSubtitleIdentityTest {
 	private static net.pms.renderers.Renderer renderer;
@@ -87,5 +93,18 @@ class RealFileExternalSubtitleIdentityTest {
 	void ordinaryFileIdentityDoesNotDependOnSelectedSubtitles() {
 		assertEquals(
 				item("avatar.cze.vtt", 0).getSystemName(), item("avatar.swe.srt", 0).getSystemName());
+	}
+
+	@Test
+	void preferFilenameLanguageDuringDiscovery(@TempDir Path folder) throws IOException {
+		Path film = Files.createFile(folder.resolve("film.mkv"));
+		Files.writeString(folder.resolve("film.de.srt"), "1\n00:00:01,000 --> 00:00:05,000\n" +
+			"Tu as laissé les clés sur la table de la cuisine. Regarde à côté de la fenêtre.");
+		MediaInfo media = new MediaInfo();
+		assertTrue(SubtitleUtils.searchAndAttachExternalSubtitles(film.toFile(), media, true));
+		assertEquals(1, media.getSubtitlesTracks().size());
+		MediaSubtitle subtitle = media.getSubtitlesTracks().get(0);
+		assertTrue(subtitle.matchCode("de"));
+		assertTrue(subtitle.isExternalFileUtf8());
 	}
 }

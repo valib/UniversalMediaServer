@@ -235,12 +235,11 @@ public class MediaSubtitle extends MediaLang implements Cloneable {
 						subsCharacterSet = subsCharacterSet.substring(0, subsCharacterSet.lastIndexOf("-"));
 					}
 
-					// Set the detected language if is isn't already set
-					if (lang == null || MediaLang.UND.equals(lang)) {
-						String tmpLanguage = match.getLanguage();
-						if (StringUtils.isNotBlank(tmpLanguage)) {
-							lang = tmpLanguage;
-						}
+					// Prefer a language supplied by the filename or other metadata.
+					if (StringUtils.isBlank(lang) || MediaLang.UND.equals(lang)) {
+						SubtitleType fileType = type == SubtitleType.UNKNOWN ?
+							SubtitleType.valueOfFileExtension(FileUtil.getExtension(externalFile)) : type;
+						lang = SubtitleLanguage.detect(externalFile, fileType, subsCharacterSet);
 					}
 
 					LOGGER.debug("Set detected charset \"{}\" and language \"{}\" for {}", subsCharacterSet, lang, externalFile);
@@ -250,7 +249,7 @@ public class MediaSubtitle extends MediaLang implements Cloneable {
 				}
 
 			} catch (IOException ex) {
-				LOGGER.warn("Exception during external file charset detection: {}", ex.getMessage());
+				LOGGER.warn("Exception during external subtitle detection: {}", ex.getMessage());
 				LOGGER.trace("", ex);
 			}
 		} else {

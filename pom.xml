@@ -111,6 +111,19 @@
 
 		<maven.compiler.release>${project.jre-version}</maven.compiler.release>
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<!-- Align the Kotlin runtime used by Lingua and Moshi. -->
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-bom</artifactId>
+				<version>1.6.21</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -472,6 +485,11 @@
 					<artifactId>slf4j-api</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.github.pemistahl</groupId>
+			<artifactId>lingua</artifactId>
+			<version>1.2.2</version>
 		</dependency>
 		<dependency>
 			<groupId>com.ibm.icu</groupId>
@@ -4362,6 +4380,22 @@
 									<target>
 										<copy file="${project.basedir}/target/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
 											  tofile="${project.basedir}/target/${project.artifactId}.jar" overwrite="true" />
+									</target>
+								</configuration>
+							</execution>
+							<execution>
+								<id>verify-packaged-subtitle-language</id>
+								<phase>verify</phase>
+								<goals><goal>run</goal></goals>
+								<configuration>
+									<skip>${skipTests}</skip>
+									<target>
+										<exec executable="${java.home}/bin/java" failonerror="true">
+											<arg value="-cp" />
+											<arg file="${project.build.directory}/ums.jar" />
+											<arg file="${project.basedir}/src/test/packaged/SubtitleLanguageSmoke.java" />
+											<arg file="${project.basedir}/src/test/resources/net/pms/media/subtitle" />
+										</exec>
 									</target>
 								</configuration>
 							</execution>

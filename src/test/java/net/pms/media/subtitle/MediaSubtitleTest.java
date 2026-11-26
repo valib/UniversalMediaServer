@@ -18,13 +18,18 @@ package net.pms.media.subtitle;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import net.pms.TestHelper;
 import static net.pms.formats.v2.SubtitleType.*;
+import net.pms.media.MediaLang;
 import static net.pms.util.Constants.*;
 import org.apache.commons.io.FileUtils;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class MediaSubtitleTest {
 	private final Class<?> CLASS = MediaSubtitleTest.class;
@@ -222,6 +227,38 @@ public class MediaSubtitleTest {
 		sub2.setType(ASS);
 		sub2.setExternalFile(file_cp1251);
 		assertEquals(sub2.getSubCharacterSet(), CHARSET_WINDOWS_1251);
+	}
+
+	@Test
+	public void detectUntaggedUtf8Subtitles(@TempDir Path folder) throws IOException {
+		String cue = "1\n00:00:01,000 --> 00:00:05,000\n<i>%s</i>\n";
+		assertDetected(folder, "swedish.srt", cue.formatted(
+			"Vet du när nästa tåg går? Om vi skyndar oss hinner vi köpa biljetter."), "sv");
+		assertDetected(folder, "mongolian.srt", cue.formatted(
+			"Дараагийн галт тэрэг хэдэн цагт хөдлөх вэ? Бид яарвал тасалбараа авч амжина."), "mn");
+		assertDetected(folder, "short.srt", cue.formatted("OK."), MediaLang.UND);
+	}
+
+	@Test
+	public void useDialogueFromTextSubtitleFormats(@TempDir Path folder) throws IOException {
+		String dialogue = "Tiedätkö, milloin seuraava juna lähtee? Jos pidämme kiirettä, ehdimme vielä ostaa liput.";
+		String metadata = "This English text describes the subtitles and does not appear on screen. ".repeat(10);
+		assertDetected(folder, "film.vtt", "WEBVTT\n\nNOTE " + metadata +
+			"\n\ncue-id\n00:01.000 --> 00:04.000 align:start\n<v Speaker>" + dialogue, "fi");
+		assertDetected(folder, "film.ass", "[Script Info]\nTitle: " + metadata +
+			"\n[Events]\nDialogue: 0,0:00:01.00,0:00:04.00,Default,,0,0,0,,{\\i1}" + dialogue, "fi");
+		assertDetected(folder, "film.sub", "{25}{100}{y:i}" + dialogue, "fi");
+		assertDetected(folder, "film.smi", "<SAMI><HEAD><TITLE>" + metadata +
+			"</TITLE></HEAD><BODY><SYNC Start=1000><P Class=CC>" + dialogue + "</BODY></SAMI>", "fi");
+		assertDetected(folder, "film.txt", dialogue, "fi");
+		assertDetected(folder, "empty.vtt", "WEBVTT\n\nNOTE " + metadata, MediaLang.UND);
+	}
+
+	private static void assertDetected(Path folder, String filename, String content, String expected) throws IOException {
+		MediaSubtitle subtitle = new MediaSubtitle();
+		subtitle.setLang(MediaLang.UND);
+		subtitle.setExternalFile(Files.writeString(folder.resolve(filename), content).toFile());
+		assertEquals(expected, subtitle.getLang(), filename);
 	}
 
 	@Test
