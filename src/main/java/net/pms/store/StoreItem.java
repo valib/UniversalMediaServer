@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.function.DoubleConsumer;
 import net.pms.Messages;
 import net.pms.PMS;
 import net.pms.configuration.FormatConfiguration;
@@ -795,7 +796,12 @@ public abstract class StoreItem extends StoreResource {
 	 * @return The inputstream
 	 * @throws IOException
 	 */
-	public synchronized InputStream getInputStream(Range range, HlsHelper.HlsConfiguration hlsConfiguration) throws IOException {
+	public InputStream getInputStream(Range range, HlsHelper.HlsConfiguration hlsConfiguration) throws IOException {
+		return getInputStream(range, hlsConfiguration, this::setLastStartPosition);
+	}
+
+	/** Allows a speculative read to keep its estimated position local to the request. */
+	public synchronized InputStream getInputStream(Range range, HlsHelper.HlsConfiguration hlsConfiguration, DoubleConsumer position) throws IOException {
 		LOGGER.trace("Asked stream chunk: " + range + " of " + getName() + " and engine " + getTranscodingSettings());
 
 		// Ditlew - We convert byteoffset to timeoffset here. This needs the stream to be CBR!
@@ -822,16 +828,14 @@ public abstract class StoreItem extends StoreResource {
 			}
 		}
 
+		double startPosition = timeRange.getStartOrZero();
 		if (low > 0 && mediaInfo.getBitRate() > 0) {
-			setLastStartPosition((low * 8) / (double) mediaInfo.getBitRate());
-			LOGGER.trace("Estimating seek position from byte range:");
-			LOGGER.trace("   media.getBitrate: " + mediaInfo.getBitRate());
-			LOGGER.trace("   low: " + low);
-			LOGGER.trace("   lastStartPosition: " + getLastStartPosition());
+			startPosition = (low * 8) / (double) mediaInfo.getBitRate();
+			LOGGER.trace("Estimating seek position from byte range: bitrate {}, offset {}, position {}", mediaInfo.getBitRate(), low, startPosition);
 		} else {
-			setLastStartPosition(timeRange.getStartOrZero());
-			LOGGER.trace("Setting lastStartPosition from time-seeking: " + getLastStartPosition());
+			LOGGER.trace("Requested time seek position: {}", startPosition);
 		}
+		position.accept(startPosition);
 
 		// Determine source of the stream
 		if (!isTranscoded() && !isResume()) {

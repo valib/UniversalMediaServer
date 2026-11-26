@@ -51,6 +51,7 @@ import net.pms.network.HTTPResource;
 import net.pms.network.StartStopListener;
 import net.pms.network.mediaserver.MediaServer;
 import net.pms.network.mediaserver.MediaServerRequest;
+import net.pms.network.mediaserver.SamsungAviProbe;
 import net.pms.network.mediaserver.jupnp.support.contentdirectory.result.DlnaHelper;
 import net.pms.renderers.ConnectedRenderers;
 import net.pms.renderers.Renderer;
@@ -428,6 +429,7 @@ public class MediaServerServlet extends MediaServerHttpServlet {
 				}
 			} else if (item.isCodeValid(item)) {
 				// This is a request for a regular file.
+				SamsungAviProbe.Read probe = SamsungAviProbe.inspect(req, renderer, item, range.getStart());
 
 				// If range has not been initialized yet and the LibraryResource has its
 				// own start and end defined, initialize range with those values before
@@ -460,7 +462,8 @@ public class MediaServerServlet extends MediaServerHttpServlet {
 						range.setStart(0L);
 						range.setEnd(0L);
 					}
-					inputStream = item.getInputStream(Range.create(range.getStart(), range.getEnd(), timeseekrange.getStart(), timeseekrange.getEnd()));
+					Range requestedRange = Range.create(range.getStart(), range.getEnd(), timeseekrange.getStart(), timeseekrange.getEnd());
+					inputStream = probe == null ? item.getInputStream(requestedRange) : item.getInputStream(requestedRange, null, probe.position());
 
 					if (item.isResume()) {
 						// Update range to possibly adjusted resume time
@@ -532,7 +535,7 @@ public class MediaServerServlet extends MediaServerHttpServlet {
 					}
 				} else {
 					if (!isVideoThumbnailRequest && GET.equals(req.getMethod().toUpperCase())) {
-						startStopListener = new StartStopListener(req.getRemoteAddr(), item);
+						startStopListener = probe == null ? new StartStopListener(req.getRemoteAddr(), item) : probe.listener();
 					}
 
 					// Try to determine the content type of the file
