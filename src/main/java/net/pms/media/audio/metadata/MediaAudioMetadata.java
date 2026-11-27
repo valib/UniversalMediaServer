@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 /**
  * This class keeps track of the metadata of audio media.
  */
-public class MediaAudioMetadata {
+public class MediaAudioMetadata implements Cloneable {
 	private String album;
 	private String artist;
 	private String composer;
@@ -41,6 +41,11 @@ public class MediaAudioMetadata {
 	private int audiotrackId;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(MediaAudioMetadata.class.getName());
+
+	@Override
+	public MediaAudioMetadata clone() throws CloneNotSupportedException {
+		return (MediaAudioMetadata) super.clone();
+	}
 
 	/**
 	 * Returns the album ID for this track. The album ID is determined by first checking for the presence of a MusicBrainz release ID
