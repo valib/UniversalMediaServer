@@ -83,6 +83,8 @@ public class MediaInfo implements Cloneable {
 
 	private MediaVideoMetadata videoMetadata;
 	private MediaAudioMetadata audioMetadata;
+	// The URL cache holds a weak reference. A station copy keeps its probe alive.
+	private transient MediaInfo webStreamProbe;
 
 	private int imageCount = 0;
 	private volatile ImageInfo imageInfo = null;
@@ -965,6 +967,17 @@ public class MediaInfo implements Cloneable {
 		}
 
 		return result.toString();
+	}
+
+	/**
+	 * Returns a station copy with editable audio metadata and retains the shared probe
+	 * for as long as a station uses its result.
+	 */
+	public MediaInfo copyForWebStream(MediaAudioMetadata tags) throws CloneNotSupportedException {
+		MediaInfo copy = clone();
+		copy.audioMetadata = tags.clone();
+		copy.webStreamProbe = webStreamProbe != null ? webStreamProbe : this;
+		return copy;
 	}
 
 	@Override

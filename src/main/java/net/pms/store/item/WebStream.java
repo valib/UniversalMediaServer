@@ -274,8 +274,7 @@ public class WebStream extends StoreItem {
 
 	private void applyResolvedMediaInfo(MediaInfo resolved) {
 		if (resolved != null) {
-			keepStaticAudioMetadata(getMediaInfo(), resolved);
-			setMediaInfo(resolved);
+			setMediaInfo(withStaticAudioMetadata(getMediaInfo(), resolved));
 		}
 	}
 
@@ -331,16 +330,21 @@ public class WebStream extends StoreItem {
 	/**
 	 * A container that knows its stream fills album, artist and genre itself, i.e. an AudioAddict channel.
 	 */
-	private static void keepStaticAudioMetadata(MediaInfo previous, MediaInfo resolved) {
-		if (previous == null || resolved == null || previous == resolved || !previous.hasAudioMetadata()) {
-			return;
+	private static MediaInfo withStaticAudioMetadata(MediaInfo previous, MediaInfo resolved) {
+		if (previous == null || previous == resolved || !previous.hasAudioMetadata()) {
+			return resolved;
 		}
 		MediaAudioMetadata staticMetadata = previous.getAudioMetadata();
-		if (!resolved.hasAudioMetadata()) {
-			resolved.setAudioMetadata(staticMetadata);
-			return;
+		MediaInfo itemInfo;
+		try {
+			if (!resolved.hasAudioMetadata()) {
+				return resolved.copyForWebStream(staticMetadata);
+			}
+			itemInfo = resolved.copyForWebStream(resolved.getAudioMetadata());
+		} catch (CloneNotSupportedException e) {
+			throw new IllegalStateException("Could not copy web stream metadata", e);
 		}
-		MediaAudioMetadata metadata = resolved.getAudioMetadata();
+		MediaAudioMetadata metadata = itemInfo.getAudioMetadata();
 		if (StringUtils.isBlank(metadata.getAlbum())) {
 			metadata.setAlbum(staticMetadata.getAlbum());
 		}
@@ -350,6 +354,7 @@ public class WebStream extends StoreItem {
 		if (StringUtils.isBlank(metadata.getGenre())) {
 			metadata.setGenre(staticMetadata.getGenre());
 		}
+		return itemInfo;
 	}
 
 	protected String getDirective(String directive) {
